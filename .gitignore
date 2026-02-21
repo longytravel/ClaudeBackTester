@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv
+uv.lock
+
+# Numba cache
+__numba_cache__/
+
+# Project data (large files, not versioned)
+data_cache/
+output/
+state/
+logs/
+
+# Environment and secrets
+.env
+.env.*
+credentials.json
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dashboard
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.env
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/

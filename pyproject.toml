@@ -1,0 +1,64 @@
+[project]
+name = "backtester"
+version = "0.1.0"
+description = "Automated Forex Trading System — discover, validate, deploy, and monitor trading strategies"
+requires-python = ">=3.12"
+dependencies = [
+    # Core computation
+    "numpy>=1.26",
+    "numba>=0.60",
+    "tbb>=2021.0",
+
+    # Data storage and manipulation
+    "pandas>=2.2",
+    "pyarrow>=15.0",
+
+    # Optimization
+    "optuna>=3.6",
+
+    # Broker API
+    "oandapyV20>=0.7",
+    "requests>=2.31",
+
+    # CLI
+    "click>=8.1",
+
+    # Notifications
+    "python-telegram-bot>=21.0",
+
+    # Configuration
+    "tomli>=2.0; python_version < '3.11'",
+
+    # Logging
+    "structlog>=24.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+]
+dashboard = [
+    # Dashboard backend
+    "fastapi>=0.111",
+    "uvicorn>=0.29",
+]
+
+[project.scripts]
+bt = "backtester.cli.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
