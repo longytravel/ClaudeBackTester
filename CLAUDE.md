@@ -77,9 +77,24 @@ tests/            # Unit and integration tests
 ## Key Files
 - `PRD.md` — Full product requirements document
 - `PROGRESS.md` — Requirement-level progress tracking
+- `CURRENT_TASK.md` — What to do next (exact steps, blockers, last completed)
 - `pyproject.toml` — Python project config and dependencies
+
+## Session Continuity Protocol
+On every new session or after /clear:
+1. Read `CURRENT_TASK.md` — pick up exactly where we left off
+2. Read `PROGRESS.md` — see overall phase status
+3. Check `git log --oneline -10` — see recent work
+4. Resume building — no re-explaining unless asked
+
+Before context gets long or session ends:
+1. Commit all working code to git with descriptive message
+2. Update `PROGRESS.md` with newly completed requirement IDs
+3. Update `CURRENT_TASK.md` with exact next steps and any blockers
+4. Run `uv run pytest tests/ -v` to confirm everything passes
 
 ## Development Workflow
 - Work in small, testable increments (one FR sub-section at a time)
 - Run tests after each increment
-- Update PROGRESS.md after completing requirements
+- Commit after each logical chunk of work
+- Always leave the codebase in a passing-tests state
