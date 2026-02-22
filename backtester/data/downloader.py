@@ -10,6 +10,7 @@ with spread = ask - bid).
 """
 
 import os
+import shutil
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -182,7 +183,14 @@ def consolidate_chunks(data_dir: str, pair: str) -> Path:
 
     dfs = []
     for c in chunks:
-        dfs.append(pd.read_parquet(c))
+        try:
+            dfs.append(pd.read_parquet(c))
+        except Exception as e:
+            log.warning("corrupt_chunk_skipped", path=str(c), error=str(e))
+            continue
+
+    if not dfs:
+        raise ValueError(f"All chunk files corrupt in {chunk_d}")
 
     df = pd.concat(dfs)
     df = df.sort_index()
@@ -234,12 +242,17 @@ def download_pair(
     current_year = datetime.now(timezone.utc).year
     years_needed = list(range(start_year, current_year + 1))
 
-    if not force:
+    if force:
+        # Clean old chunks to avoid mixing with stale/corrupt files
+        chunk_d = _chunk_dir(data_dir, pair)
+        if chunk_d.exists():
+            shutil.rmtree(chunk_d)
+            log.info("cleaned_old_chunks", pair=pair, path=str(chunk_d))
+        years_to_download = years_needed
+    else:
         existing = set(get_downloaded_years(data_dir, pair))
         # Always re-download current year (for incremental updates)
         years_to_download = [y for y in years_needed if y not in existing or y == current_year]
-    else:
-        years_to_download = years_needed
 
     fname = _pair_to_filename(pair)
     log.info(
