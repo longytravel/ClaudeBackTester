@@ -19,7 +19,7 @@
 - [x] Set up .gitignore
 - [x] Set up basic test framework (pytest — 4 smoke tests passing)
 - [x] Verify Numba + TBB parallel works (11.5x speedup, ~9M evals/sec on synthetic data)
-- [ ] Verify IC Markets MT5 demo account connectivity
+- [x] Verify IC Markets MT5 demo account connectivity (broker/mt5.py, UTC conversion verified)
 
 ---
 
@@ -59,7 +59,7 @@
 
 ### Data Freshness
 - [x] REQ-D23: Stale data check before pipeline (is_stale / ensure_fresh)
-- [ ] REQ-D24: Recent candle fetch for live trading context
+- [x] REQ-D24: Recent candle fetch for live trading context (MT5 broker module)
 
 ### CLI Tooling
 - [x] REQ-D25: CLI commands (download, update, status, build-timeframes, validate)

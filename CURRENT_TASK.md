@@ -1,38 +1,40 @@
 # Current Task
 
-## Status: Phase 1 Data Pipeline — COMPLETE (pending full re-download with spread)
+## Status: Phase 1 COMPLETE — Starting Phase 2 (Strategy Framework)
 
 ## What's Built
-- **Downloader** (`backtester/data/downloader.py`): Downloads bid + ask M1 data from Dukascopy, computes per-candle spread, stores as yearly Parquet chunks, consolidates
-- **Timeframe conversion** (`backtester/data/timeframes.py`): M1 → M5, M15, M30, H1, H4, D, W with correct OHLCV aggregation + median spread
-- **Validation** (`backtester/data/validation.py`): Gap detection (weekend/holiday-aware), anomaly checks, yearly coverage, quality scoring
-- **CLI commands**: `bt data download`, `bt data update`, `bt data status`, `bt data build-timeframes`, `bt data validate`
-- **20 tests passing** (smoke + data pipeline + spread computation)
+- **Data Pipeline** (Phase 1): Dukascopy downloader (bid+ask spread), timeframe conversion, validation, splitting, CLI
+- **MT5 Broker Module** (`backtester/broker/mt5.py`): IC Markets connectivity, UTC timezone conversion, candle fetching
+- **Data Verification**: Dukascopy vs IC Markets prices match within 0.1-0.3 pip (99%+ within 1 pip)
+- **25 tests passing** (smoke + data pipeline + spread + splitting)
 
 ## Data Columns
-All M1 data now includes: `open, high, low, close, volume, spread`
-- Prices are bid-side
-- Spread = average of (ask_open - bid_open) and (ask_close - bid_close) per candle
-- Higher timeframes use median spread for the period
+All M1 data: `open, high, low, close, volume, spread`
+- Prices are bid-side, spread = avg(ask-bid) per candle
+- Higher timeframes use median spread
 
 ## Data Download Status
-- Previous downloads (bid-only) exist for some pairs on G: drive
-- All pairs need re-downloading with `--force` to get bid+ask spread data
-- 25 pairs total, ~2005-2026 each
+- Background download running for 25 pairs with `--force` (bid+ask spread)
+- Completed: USD/JPY, USD/CAD
+- Failed (need retry): EUR/USD, GBP/USD, AUD/USD, NZD/USD
+- Run `uv run python scripts/download_retry.py` after batch completes
 
 ## Next Steps (in order)
-1. **Re-download all pairs with spread data** (`bt data download --force`)
-   - Start with majors: EUR/USD, GBP/USD, USD/JPY, AUD/USD
-   - This takes time (~10-15 min per pair) — run overnight or in batches
-2. **Build MT5 broker abstraction** (`backtester/broker/`)
-   - Connect to IC Markets demo account
-   - Fetch live candles, place orders, manage positions
-3. **Continue with Phase 2** (Strategy Framework) per PRD
+1. **Start Phase 2: Strategy Framework** (FR-2)
+   - Strategy base class with parameter space definition
+   - Signal generation interface
+   - Indicator library (numpy-based: RSI, ATR, SMA, EMA, BB, etc.)
+   - SL/TP calculation modes
+   - Trade management (trailing stop, breakeven, partial close)
+2. **Phase 3: Backtest Engine** (FR-3)
+   - Numba JIT core loop
+   - Parallel eval across cores
+   - Metrics computation
 
 ## Last Completed
-- Phase 0: Scaffold, Numba+TBB parallel verified (11.5x speedup)
-- Phase 1: Full data pipeline with bid+ask spread support
-- Environment: uv + Python 3.12 + all deps working
+- Phase 0: Scaffold, Numba+TBB parallel verified
+- Phase 1: Full data pipeline + MT5 broker integration
+- MT5 timezone handling: EET → UTC at ingestion boundary
 
 ## Blockers
-- MetaTrader5 Python package only works on Windows (VPS needs consideration)
+- None — ready for Phase 2
