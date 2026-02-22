@@ -27,6 +27,8 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - **Target instruments**: EURUSD, GBPUSD, USDJPY, XAUUSD (expanding to 20+ pairs)
 - **Deployment**: Dev/test locally on Windows 11 → deploy to VPS for 24/7 live trading
 - **MT5 config**: Set "Max Bars in Chart" to 10,000,000+ (Tools > Options > Charts)
+- **MT5 server timezone**: UTC+2 (all MT5 timestamps must subtract 2h to get UTC)
+- **Data source parity**: Dukascopy vs IC Markets M1 prices differ by ~0.1-0.3 pip median, 99%+ within 1 pip, correlation 0.9999+. Backtest-live verification threshold of 0.5 pip (REQ-V07) is achievable.
 
 ## Architecture Principles
 - All backtest-critical code uses numpy arrays and Numba @njit(parallel=True) — no pandas/Python objects in hot paths
