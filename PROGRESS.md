@@ -10,7 +10,7 @@
 
 ## Phase 0: Project Setup
 - [x] PRD finalized
-- [x] Tech stack decisions (Python, OANDA, React+Tailwind, Telegram, uv)
+- [x] Tech stack decisions (Python, IC Markets MT5, React+Tailwind, Telegram, uv)
 - [x] CLAUDE.md created
 - [x] PROGRESS.md created
 - [x] Initialize git repo (+ GitHub remote: longytravel/ClaudeBackTester)
@@ -19,38 +19,38 @@
 - [x] Set up .gitignore
 - [x] Set up basic test framework (pytest — 4 smoke tests passing)
 - [x] Verify Numba + TBB parallel works (11.5x speedup, ~9M evals/sec on synthetic data)
-- [ ] Verify OANDA practice account API connectivity
+- [ ] Verify IC Markets MT5 demo account connectivity
 
 ---
 
 ## Phase 1: Historical Data Management (FR-1)
 
 ### Data Acquisition
-- [ ] REQ-D01: Download OHLCV data from OANDA API
-- [ ] REQ-D02: Support 8+ years M1 history
-- [ ] REQ-D03: Handle API rate limits (chunked requests)
-- [ ] REQ-D04: Retry logic with exponential backoff (5 retries)
-- [ ] REQ-D05: Download progress display
-- [ ] REQ-D06: Incremental updates (only new data)
+- [x] REQ-D01: Download OHLCV data from Dukascopy (bid + ask, compute spread)
+- [x] REQ-D02: Support 15+ years M1 history (2005-2026)
+- [x] REQ-D03: Handle API rate limits (1s delay between bid/ask, 7 retries)
+- [x] REQ-D04: Retry logic (max_retries=7 via dukascopy_python)
+- [x] REQ-D05: Download progress display (structured logging per year/pair)
+- [x] REQ-D06: Incremental updates (re-download current year only)
 
 ### Caching & Storage
-- [ ] REQ-D07: Parquet columnar storage
-- [ ] REQ-D08: Canonical file naming ({PAIR}_{TIMEFRAME}.parquet)
-- [ ] REQ-D09: Crash-recovery checkpointing (every 100K candles)
-- [ ] REQ-D10: Yearly chunk splitting for large downloads
+- [x] REQ-D07: Parquet columnar storage (snappy compression)
+- [x] REQ-D08: Canonical file naming ({PAIR}_{TIMEFRAME}.parquet)
+- [x] REQ-D09: Crash-recovery (yearly chunks, resume skips completed years)
+- [x] REQ-D10: Yearly chunk splitting for large downloads
 
 ### Timeframe Conversion
-- [ ] REQ-D11: M1 as single source of truth
-- [ ] REQ-D12: Correct OHLCV aggregation
-- [ ] REQ-D13: True intra-period highs/lows from M1
-- [ ] REQ-D14: Fallback to direct download if no M1
+- [x] REQ-D11: M1 as single source of truth
+- [x] REQ-D12: Correct OHLCV aggregation (first/max/min/last/sum + median spread)
+- [x] REQ-D13: True intra-period highs/lows from M1
+- [x] REQ-D14: N/A — Dukascopy always has M1
 
 ### Data Validation
-- [ ] REQ-D15: Gap detection (3x expected interval)
-- [ ] REQ-D16: Zero/NaN detection
-- [ ] REQ-D17: Anomaly detection (10x range, zero-range, OHLC violations)
-- [ ] REQ-D18: Quality score (0-100)
-- [ ] REQ-D19: Reject low-quality datasets (score < 50)
+- [x] REQ-D15: Gap detection (3x expected interval, weekend/holiday aware)
+- [x] REQ-D16: Zero/NaN detection
+- [x] REQ-D17: Anomaly detection (timeframe-aware thresholds, OHLC violations)
+- [x] REQ-D18: Quality score (0-100, with yearly coverage)
+- [x] REQ-D19: Reject low-quality datasets (configurable min_score)
 
 ### Data Splitting
 - [ ] REQ-D20: 80/20 back/forward split
@@ -58,12 +58,12 @@
 - [ ] REQ-D22: Both portions available downstream
 
 ### Data Freshness
-- [ ] REQ-D23: Stale data check before pipeline (2h threshold)
+- [x] REQ-D23: Stale data check before pipeline (is_stale / ensure_fresh)
 - [ ] REQ-D24: Recent candle fetch for live trading context
 
 ### CLI Tooling
-- [ ] REQ-D25: CLI commands (download, update, status, rebuild)
-- [ ] REQ-D26: Background downloads with log/PID file
+- [x] REQ-D25: CLI commands (download, update, status, build-timeframes, validate)
+- [~] REQ-D26: Background downloads (script running, no PID file yet)
 
 ---
 
