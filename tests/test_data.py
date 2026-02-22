@@ -265,3 +265,74 @@ def test_save_chunk_with_spread(tmp_path):
     assert "spread" in loaded.columns
     assert len(loaded) == 100
     assert loaded["spread"].notna().all()
+
+
+# --- Data splitting tests ---
+
+def test_split_backforward_default():
+    """80/20 split by row count."""
+    from backtester.data.splitting import split_backforward
+
+    df = _make_m1_data(1000)
+    back, forward = split_backforward(df)
+
+    assert len(back) == 800
+    assert len(forward) == 200
+    # Back ends before forward starts (chronological)
+    assert back.index[-1] < forward.index[0]
+
+
+def test_split_backforward_custom_pct():
+    """Custom split ratio."""
+    from backtester.data.splitting import split_backforward
+
+    df = _make_m1_data(1000)
+    back, forward = split_backforward(df, back_pct=0.70)
+
+    assert len(back) == 700
+    assert len(forward) == 300
+
+
+def test_split_holdout():
+    """Holdout reserves last N months."""
+    from backtester.data.splitting import split_holdout
+
+    # 5 days of data, 1-month holdout → all data is in holdout (training empty)
+    df = _make_m1_data(1440 * 5)
+    training, holdout = split_holdout(df, holdout_months=1)
+
+    assert len(training) + len(holdout) == len(df)
+    # With only 5 days, the 1-month cutoff is before all data
+    assert len(training) == 0
+    assert len(holdout) == len(df)
+
+    # More realistic: use a very short holdout on same data
+    training2, holdout2 = split_holdout(df, holdout_months=0)
+    # 0 months = cutoff at last timestamp, so holdout is empty or minimal
+    assert len(training2) + len(holdout2) == len(df)
+
+
+def test_split_data_modes():
+    """split_data dispatches correctly."""
+    from backtester.data.splitting import split_data
+
+    df = _make_m1_data(1000)
+
+    result = split_data(df, mode="backforward")
+    assert "back" in result
+    assert "forward" in result
+    assert len(result["back"]) + len(result["forward"]) == 1000
+
+    result2 = split_data(df, mode="holdout", holdout_months=1)
+    assert "back" in result2
+    assert "forward" in result2
+
+
+def test_split_empty_dataframe():
+    """Splitting empty data returns two empty frames."""
+    from backtester.data.splitting import split_backforward
+
+    df = pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+    back, forward = split_backforward(df)
+    assert len(back) == 0
+    assert len(forward) == 0

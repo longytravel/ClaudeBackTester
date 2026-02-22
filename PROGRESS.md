@@ -53,9 +53,9 @@
 - [x] REQ-D19: Reject low-quality datasets (configurable min_score)
 
 ### Data Splitting
-- [ ] REQ-D20: 80/20 back/forward split
-- [ ] REQ-D21: Holdout mode (last N months)
-- [ ] REQ-D22: Both portions available downstream
+- [x] REQ-D20: 80/20 back/forward split (chronological)
+- [x] REQ-D21: Holdout mode (last N months)
+- [x] REQ-D22: Both portions available downstream (dict with back/forward keys)
 
 ### Data Freshness
 - [x] REQ-D23: Stale data check before pipeline (is_stale / ensure_fresh)
