@@ -1,8 +1,12 @@
 """Dukascopy historical data downloader.
 
-Downloads M1 OHLCV data from Dukascopy's free data feed, stores as yearly
-Parquet chunks on Google Drive, then consolidates into a single file per pair.
+Downloads M1 OHLCV data from Dukascopy's free data feed (both bid AND ask
+sides), computes per-candle spread, and stores as yearly Parquet chunks on
+Google Drive. Consolidates into a single file per pair.
+
 Supports resume (skips already-downloaded years) and incremental updates.
+Data columns: open, high, low, close, volume, spread (all bid-side prices
+with spread = ask - bid).
 """
 
 import os
@@ -52,34 +56,80 @@ def _consolidated_path(data_dir: str, pair: str) -> Path:
     return Path(data_dir) / f"{_pair_to_filename(pair)}_M1.parquet"
 
 
+def _add_spread(bid_df: pd.DataFrame, ask_df: pd.DataFrame) -> pd.DataFrame:
+    """Compute per-candle spread from bid and ask dataframes.
+
+    Spread = average of (ask_open - bid_open) and (ask_close - bid_close).
+    This gives a representative spread for each M1 candle.
+    """
+    common = bid_df.index.intersection(ask_df.index)
+
+    if len(common) == 0:
+        bid_df["spread"] = float("nan")
+        return bid_df
+
+    ask_aligned = ask_df.loc[common]
+    bid_aligned = bid_df.loc[common]
+
+    spread_open = ask_aligned["open"] - bid_aligned["open"]
+    spread_close = ask_aligned["close"] - bid_aligned["close"]
+    spread = (spread_open + spread_close) / 2
+
+    bid_df["spread"] = float("nan")
+    bid_df.loc[common, "spread"] = spread
+
+    coverage = len(common) / len(bid_df) * 100
+    median_spread = float(spread.median()) if len(spread) > 0 else 0
+    log.info(
+        "spread_computed",
+        coverage_pct=round(coverage, 1),
+        median_spread=round(median_spread, 6),
+    )
+    return bid_df
+
+
 def download_year(
     pair: str,
     year: int,
     data_dir: str = DEFAULT_DATA_DIR,
-    offer_side: str = dk.OFFER_SIDE_BID,
 ) -> pd.DataFrame | None:
-    """Download one year of M1 data for a pair.
+    """Download one year of M1 bid + ask data, compute per-candle spread.
 
-    Returns the DataFrame, or None if no data available for that year.
+    Returns bid-side DataFrame with added 'spread' column, or None if no data.
     """
     start = datetime(year, 1, 1, tzinfo=timezone.utc)
-    # End at Jan 1 of next year (exclusive)
     end = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
 
-    # Don't try to download future data
     now = datetime.now(timezone.utc)
     if start > now:
         return None
     if end > now:
         end = now
 
-    log.info("downloading", pair=pair, year=year)
     t0 = time.time()
 
-    df = dk.fetch(
+    # --- Bid side ---
+    log.info("downloading_bid", pair=pair, year=year)
+    bid_df = dk.fetch(
         instrument=pair,
         interval=dk.INTERVAL_MIN_1,
-        offer_side=offer_side,
+        offer_side=dk.OFFER_SIDE_BID,
+        start=start,
+        end=end,
+        max_retries=7,
+    )
+
+    if bid_df is None or bid_df.empty:
+        log.warning("no_bid_data", pair=pair, year=year)
+        return None
+
+    # --- Ask side ---
+    time.sleep(1)  # small delay to avoid rate-limiting
+    log.info("downloading_ask", pair=pair, year=year)
+    ask_df = dk.fetch(
+        instrument=pair,
+        interval=dk.INTERVAL_MIN_1,
+        offer_side=dk.OFFER_SIDE_ASK,
         start=start,
         end=end,
         max_retries=7,
@@ -87,18 +137,22 @@ def download_year(
 
     elapsed = time.time() - t0
 
-    if df is None or df.empty:
-        log.warning("no_data", pair=pair, year=year)
-        return None
+    # --- Compute spread ---
+    if ask_df is not None and not ask_df.empty:
+        bid_df = _add_spread(bid_df, ask_df)
+    else:
+        log.warning("no_ask_data_spread_nan", pair=pair, year=year)
+        bid_df["spread"] = float("nan")
 
     log.info(
         "downloaded",
         pair=pair,
         year=year,
-        rows=len(df),
+        rows=len(bid_df),
         elapsed_s=round(elapsed, 1),
+        has_spread=bool(bid_df["spread"].notna().any()),
     )
-    return df
+    return bid_df
 
 
 def save_chunk(df: pd.DataFrame, data_dir: str, pair: str, year: int) -> Path:

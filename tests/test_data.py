@@ -9,18 +9,22 @@ import pytest
 
 # --- Timeframe conversion tests ---
 
-def _make_m1_data(minutes: int = 1440) -> pd.DataFrame:
-    """Create synthetic M1 OHLCV data."""
+def _make_m1_data(minutes: int = 1440, include_spread: bool = True) -> pd.DataFrame:
+    """Create synthetic M1 OHLCV data with optional spread column."""
     idx = pd.date_range("2025-01-06", periods=minutes, freq="1min", tz="UTC")
     rng = np.random.default_rng(42)
     base = 1.1000 + np.cumsum(rng.normal(0, 0.0001, minutes))
-    return pd.DataFrame({
+    data = {
         "open": base,
         "high": base + rng.uniform(0, 0.0005, minutes),
         "low": base - rng.uniform(0, 0.0005, minutes),
         "close": base + rng.normal(0, 0.0002, minutes),
         "volume": rng.uniform(10, 500, minutes),
-    }, index=idx)
+    }
+    if include_spread:
+        # Realistic spread: 0.5 to 2.5 pips (0.00005 to 0.00025 for EUR/USD)
+        data["spread"] = rng.uniform(0.00005, 0.00025, minutes)
+    return pd.DataFrame(data, index=idx)
 
 
 def test_resample_ohlcv_h1():
@@ -171,3 +175,93 @@ def test_save_and_read_chunk(tmp_path):
     assert path.exists()
     loaded = pd.read_parquet(path)
     assert len(loaded) == 100
+
+
+# --- Spread computation tests ---
+
+def test_add_spread_aligned():
+    """Spread computed correctly when bid and ask have matching timestamps."""
+    from backtester.data.downloader import _add_spread
+
+    idx = pd.date_range("2025-01-06", periods=100, freq="1min", tz="UTC")
+    bid = pd.DataFrame({
+        "open": np.full(100, 1.1000),
+        "high": np.full(100, 1.1010),
+        "low": np.full(100, 1.0990),
+        "close": np.full(100, 1.1005),
+        "volume": np.full(100, 100.0),
+    }, index=idx)
+
+    # Ask is exactly 1.5 pips above bid
+    ask = pd.DataFrame({
+        "open": np.full(100, 1.10015),
+        "high": np.full(100, 1.10115),
+        "low": np.full(100, 1.09915),
+        "close": np.full(100, 1.10065),
+        "volume": np.full(100, 100.0),
+    }, index=idx)
+
+    result = _add_spread(bid, ask)
+
+    assert "spread" in result.columns
+    assert result["spread"].notna().all()
+    # Spread should be ~0.00015 (1.5 pips)
+    assert abs(result["spread"].iloc[0] - 0.00015) < 1e-10
+
+
+def test_add_spread_partial_overlap():
+    """Spread is NaN where ask data is missing."""
+    from backtester.data.downloader import _add_spread
+
+    bid_idx = pd.date_range("2025-01-06 00:00", periods=100, freq="1min", tz="UTC")
+    ask_idx = pd.date_range("2025-01-06 00:30", periods=70, freq="1min", tz="UTC")
+
+    bid = pd.DataFrame({
+        "open": 1.1, "high": 1.101, "low": 1.099, "close": 1.1005, "volume": 100.0,
+    }, index=bid_idx)
+    ask = pd.DataFrame({
+        "open": 1.10015, "high": 1.10115, "low": 1.09915, "close": 1.10065, "volume": 100.0,
+    }, index=ask_idx)
+
+    result = _add_spread(bid, ask)
+
+    assert result["spread"].isna().sum() == 30  # first 30 min have no ask
+    assert result["spread"].notna().sum() == 70
+
+
+def test_resample_preserves_spread():
+    """Spread column survives timeframe conversion with median aggregation."""
+    from backtester.data.timeframes import resample_ohlcv
+
+    df = _make_m1_data(120, include_spread=True)  # 2 hours
+    h1 = resample_ohlcv(df, "1h")
+
+    assert "spread" in h1.columns
+    assert len(h1) == 2
+    # Median of first hour's spreads
+    first_hour_spreads = df["spread"].iloc[:60]
+    assert abs(h1["spread"].iloc[0] - first_hour_spreads.median()) < 1e-10
+
+
+def test_resample_works_without_spread():
+    """Resampling still works if spread column is absent (backward compat)."""
+    from backtester.data.timeframes import resample_ohlcv
+
+    df = _make_m1_data(120, include_spread=False)
+    h1 = resample_ohlcv(df, "1h")
+
+    assert len(h1) == 2
+    assert "spread" not in h1.columns
+
+
+def test_save_chunk_with_spread(tmp_path):
+    """Chunk with spread column round-trips through Parquet."""
+    from backtester.data.downloader import save_chunk
+
+    df = _make_m1_data(100, include_spread=True)
+    path = save_chunk(df, str(tmp_path), "EUR/USD", 2025)
+
+    loaded = pd.read_parquet(path)
+    assert "spread" in loaded.columns
+    assert len(loaded) == 100
+    assert loaded["spread"].notna().all()

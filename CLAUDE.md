@@ -106,6 +106,15 @@ Before context gets long or session ends:
 3. Update `CURRENT_TASK.md` with exact next steps and any blockers
 4. Run `uv run pytest tests/ -v` to confirm everything passes
 
+## Critical Assessment Rule — NEVER WALK PAST ANYTHING
+- Before implementing ANY section of the PRD, critically assess it first. The PRD was written early and our thinking has evolved. Do NOT blindly accept requirements, numbers, or formulas
+- Question every threshold, magic number, and scoring formula. If a number looks arbitrary or wrong, flag it to the user before building it
+- If output looks suspicious (like a quality score of 60 on good data), investigate WHY before moving on. Assume the code is wrong before assuming the data is wrong
+- If data is missing, incomplete, or unexpected, say so loudly — don't silently accept partial results
+- When a validation, metric, or gate produces surprising results, dig into the breakdown. Show the raw numbers
+- Treat every PRD requirement as a starting point, not gospel. Challenge anything that doesn't make sense in context
+- This applies to everything: scoring formulas, thresholds, architectural decisions, data assumptions, test results
+
 ## Development Workflow
 - Work in small, testable increments (one FR sub-section at a time)
 - Run tests after each increment

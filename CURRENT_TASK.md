@@ -1,39 +1,38 @@
 # Current Task
 
-## Status: Infrastructure Reset — Updating to IC Markets / Dukascopy / MT5
+## Status: Phase 1 Data Pipeline — COMPLETE (pending full re-download with spread)
 
-## What Changed (from previous sessions, now documented)
-- **Broker**: OANDA → IC Markets Global (Seychelles, MT5, 1:500 leverage)
-- **Historical Data**: OANDA API → Dukascopy (free 15+ year tick/M1 data)
-- **Execution**: REST API → MetaTrader 5 Python library
-- **Deployment**: Local only → Local dev + VPS production
-- **Data Storage**: `G:\My Drive\BackTestData` (Google Drive)
-- Full details in `INFRASTRUCTURE.md`
+## What's Built
+- **Downloader** (`backtester/data/downloader.py`): Downloads bid + ask M1 data from Dukascopy, computes per-candle spread, stores as yearly Parquet chunks, consolidates
+- **Timeframe conversion** (`backtester/data/timeframes.py`): M1 → M5, M15, M30, H1, H4, D, W with correct OHLCV aggregation + median spread
+- **Validation** (`backtester/data/validation.py`): Gap detection (weekend/holiday-aware), anomaly checks, yearly coverage, quality scoring
+- **CLI commands**: `bt data download`, `bt data update`, `bt data status`, `bt data build-timeframes`, `bt data validate`
+- **20 tests passing** (smoke + data pipeline + spread computation)
 
-## Data Already Downloaded
-- EUR_USD: M1 (2005-2026) + all higher TFs — COMPLETE
-- GBP_USD: M1 (2005-2026) + all higher TFs — COMPLETE
-- AUD_USD: M1 chunks started (19 years) — IN PROGRESS
-- Still need: USD_JPY, XAU_USD, and remaining majors/crosses
+## Data Columns
+All M1 data now includes: `open, high, low, close, volume, spread`
+- Prices are bid-side
+- Spread = average of (ask_open - bid_open) and (ask_close - bid_close) per candle
+- Higher timeframes use median spread for the period
+
+## Data Download Status
+- Previous downloads (bid-only) exist for some pairs on G: drive
+- All pairs need re-downloading with `--force` to get bid+ask spread data
+- 25 pairs total, ~2005-2026 each
 
 ## Next Steps (in order)
-1. Get Python/uv environment working (verify deps install)
-2. Rebuild Dukascopy data download pipeline (`backtester/data/`)
-   - Downloader that fetches M1 data from Dukascopy
-   - Yearly chunk storage with crash recovery
-   - Timeframe conversion (M1 → M5, M15, M30, H1, H4, D, W)
-   - Data validation (gaps, quality score)
-   - Resume capability for partially downloaded pairs
-3. Build MT5 broker abstraction (`backtester/broker/`)
+1. **Re-download all pairs with spread data** (`bt data download --force`)
+   - Start with majors: EUR/USD, GBP/USD, USD/JPY, AUD/USD
+   - This takes time (~10-15 min per pair) — run overnight or in batches
+2. **Build MT5 broker abstraction** (`backtester/broker/`)
    - Connect to IC Markets demo account
    - Fetch live candles, place orders, manage positions
-4. Continue with Phase 2 (Strategy Framework) onward per PRD
+3. **Continue with Phase 2** (Strategy Framework) per PRD
 
 ## Last Completed
-- Phase 0: Project scaffold, Numba+TBB parallel verified (11.5x speedup)
-- Infrastructure documented: IC Markets, Dukascopy, MT5, VPS deployment
-- Existing data preserved on G: drive
+- Phase 0: Scaffold, Numba+TBB parallel verified (11.5x speedup)
+- Phase 1: Full data pipeline with bid+ask spread support
+- Environment: uv + Python 3.12 + all deps working
 
 ## Blockers
-- Need to verify uv/Python environment is set up correctly on this machine
-- MetaTrader5 Python package only works on Windows (VPS deployment needs consideration)
+- MetaTrader5 Python package only works on Windows (VPS needs consideration)

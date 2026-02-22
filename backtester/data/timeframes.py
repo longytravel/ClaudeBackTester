@@ -30,14 +30,19 @@ def resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     """Resample M1 OHLCV data to a higher timeframe.
 
     Uses correct aggregation: first open, max high, min low, last close, sum volume.
+    If spread column exists, takes the median spread for the period.
     """
-    resampled = df.resample(rule).agg({
+    agg = {
         "open": "first",
         "high": "max",
         "low": "min",
         "close": "last",
         "volume": "sum",
-    })
+    }
+    if "spread" in df.columns:
+        agg["spread"] = "median"
+
+    resampled = df.resample(rule).agg(agg)
     # Drop rows where all values are NaN (no data in that period)
     resampled = resampled.dropna(how="all")
     return resampled
