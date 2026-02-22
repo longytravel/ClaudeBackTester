@@ -70,47 +70,47 @@
 ## Phase 2: Strategy Framework (FR-2)
 
 ### Strategy Interface
-- [ ] REQ-S01: Name and version identifiers
-- [ ] REQ-S02: Parameter space definition
-- [ ] REQ-S03: Signal generation method
-- [ ] REQ-S04: Signal filtering method
-- [ ] REQ-S05: SL/TP calculation method
+- [x] REQ-S01: Name and version identifiers (Strategy.name, Strategy.version)
+- [x] REQ-S02: Parameter space definition (ParamSpace with ParamDef)
+- [x] REQ-S03: Signal generation method (generate_signals + vectorized variant)
+- [x] REQ-S04: Signal filtering method (filter_signals + vectorized variant)
+- [x] REQ-S05: SL/TP calculation method (sl_tp.calc_sl_tp)
 
 ### Performance Architecture
-- [ ] REQ-S06: Precompute-once, filter-many separation
-- [ ] REQ-S07: 300+ evals/sec throughput
-- [ ] REQ-S08: Vectorized fast path (numpy boolean masks)
+- [x] REQ-S06: Precompute-once, filter-many separation (generate once, filter per trial)
+- [ ] REQ-S07: 300+ evals/sec throughput (needs Phase 3 engine)
+- [x] REQ-S08: Vectorized fast path (generate_signals_vectorized, filter_signals_vectorized)
 
 ### Signal Attributes
-- [ ] REQ-S09: Mandatory atr_pips attribute
-- [ ] REQ-S10: Arbitrary additional attributes
+- [x] REQ-S09: Mandatory atr_pips attribute (Signal.atr_pips)
+- [x] REQ-S10: Arbitrary additional attributes (Signal.attrs dict)
 
 ### Parameter Organization
-- [ ] REQ-S11: Named parameter groups
-- [ ] REQ-S12: Reusable standard groups (Risk, Management, Time)
-- [ ] REQ-S13: Management params default to OFF
+- [x] REQ-S11: Named parameter groups (ParamDef.group, ParamSpace.groups)
+- [x] REQ-S12: Reusable standard groups (risk_params, management_params, time_params)
+- [x] REQ-S13: Management params default to OFF (trailing_mode="off", breakeven=False, etc.)
 
 ### SL/TP Modes
-- [ ] REQ-S14: Fixed, ATR-based, swing-based SL
-- [ ] REQ-S15: RR ratio, ATR-based, fixed TP
-- [ ] REQ-S16: ATR auto-scaling with volatility
-- [ ] REQ-S17: Minimum TP >= SL constraint
+- [x] REQ-S14: Fixed, ATR-based, swing-based SL (sl_tp.py)
+- [x] REQ-S15: RR ratio, ATR-based, fixed TP (sl_tp.py)
+- [x] REQ-S16: ATR auto-scaling with volatility (atr_pips * multiplier)
+- [x] REQ-S17: Minimum TP >= SL constraint (enforced in calc_sl_tp)
 
 ### Trade Management
-- [ ] REQ-S18: Trailing stop (fixed-pip + chandelier/ATR)
-- [ ] REQ-S19: Breakeven lock
-- [ ] REQ-S20: Partial close
-- [ ] REQ-S21: Max bars exit
-- [ ] REQ-S22: Stale exit
+- [~] REQ-S18: Trailing stop (params defined, execution in Phase 3 engine)
+- [~] REQ-S19: Breakeven lock (params defined, execution in Phase 3 engine)
+- [~] REQ-S20: Partial close (params defined, execution in Phase 3 engine)
+- [~] REQ-S21: Max bars exit (params defined, execution in Phase 3 engine)
+- [~] REQ-S22: Stale exit (params defined, execution in Phase 3 engine)
 - [ ] REQ-S23: Identical management logic in backtest and live
 
 ### Indicator Library
-- [ ] REQ-S24: Full indicator set (RSI, ATR, SMA, EMA, BB, Stoch, MACD, ADX, Donchian, Supertrend, Keltner, Williams %R, CCI, Swing Hi/Lo)
-- [ ] REQ-S25: All indicators numpy-based
+- [x] REQ-S24: Full indicator set (RSI, ATR, SMA, EMA, BB, Stoch, MACD, ADX, Donchian, Supertrend, Keltner, Williams %R, CCI, Swing Hi/Lo)
+- [x] REQ-S25: All indicators numpy-based (indicators.py)
 
 ### Registration & Lifecycle
-- [ ] REQ-S26: Central strategy registry
-- [ ] REQ-S27: Strategy lifecycle tracking
+- [x] REQ-S26: Central strategy registry (registry.py with aliases)
+- [x] REQ-S27: Strategy lifecycle tracking (StrategyStage enum, set_stage/get_stage)
 
 ---
 
