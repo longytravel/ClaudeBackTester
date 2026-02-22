@@ -1,28 +1,39 @@
 # Current Task
 
-## Status: Phase 1 — Historical Data Management (FR-1) — NOT STARTED
+## Status: Infrastructure Reset — Updating to IC Markets / Dukascopy / MT5
+
+## What Changed (from previous sessions, now documented)
+- **Broker**: OANDA → IC Markets Global (Seychelles, MT5, 1:500 leverage)
+- **Historical Data**: OANDA API → Dukascopy (free 15+ year tick/M1 data)
+- **Execution**: REST API → MetaTrader 5 Python library
+- **Deployment**: Local only → Local dev + VPS production
+- **Data Storage**: `G:\My Drive\BackTestData` (Google Drive)
+- Full details in `INFRASTRUCTURE.md`
+
+## Data Already Downloaded
+- EUR_USD: M1 (2005-2026) + all higher TFs — COMPLETE
+- GBP_USD: M1 (2005-2026) + all higher TFs — COMPLETE
+- AUD_USD: M1 chunks started (19 years) — IN PROGRESS
+- Still need: USD_JPY, XAU_USD, and remaining majors/crosses
 
 ## Next Steps (in order)
-1. Build OANDA broker abstraction layer (`backtester/broker/`)
-   - Base abstract class for broker API
-   - OANDA implementation (connect, fetch candles, account info)
-   - Test with practice account
-2. Build data download module (`backtester/data/`)
-   - REQ-D01 through REQ-D06: download OHLCV, rate limits, retries, progress, incremental
-3. Build Parquet caching layer
-   - REQ-D07 through REQ-D10: storage, naming, checkpointing, chunking
-4. Timeframe conversion
-   - REQ-D11 through REQ-D14: M1 source of truth, aggregation, fallback
-5. Data validation
-   - REQ-D15 through REQ-D19: gaps, zeros, anomalies, quality score, rejection
-6. Data splitting
-   - REQ-D20 through REQ-D22: back/forward split, holdout mode
-7. CLI tooling
-   - REQ-D25 through REQ-D26: download, update, status, rebuild commands
+1. Get Python/uv environment working (verify deps install)
+2. Rebuild Dukascopy data download pipeline (`backtester/data/`)
+   - Downloader that fetches M1 data from Dukascopy
+   - Yearly chunk storage with crash recovery
+   - Timeframe conversion (M1 → M5, M15, M30, H1, H4, D, W)
+   - Data validation (gaps, quality score)
+   - Resume capability for partially downloaded pairs
+3. Build MT5 broker abstraction (`backtester/broker/`)
+   - Connect to IC Markets demo account
+   - Fetch live candles, place orders, manage positions
+4. Continue with Phase 2 (Strategy Framework) onward per PRD
 
 ## Last Completed
 - Phase 0: Project scaffold, Numba+TBB parallel verified (11.5x speedup)
-- Initial commit: a373c36
+- Infrastructure documented: IC Markets, Dukascopy, MT5, VPS deployment
+- Existing data preserved on G: drive
 
 ## Blockers
-- Need OANDA API key from user to test broker connectivity
+- Need to verify uv/Python environment is set up correctly on this machine
+- MetaTrader5 Python package only works on Windows (VPS deployment needs consideration)

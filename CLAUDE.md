@@ -7,13 +7,26 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - **Language**: Python 3.12
 - **JIT Compilation**: Numba @njit(parallel=True) + prange for backtest hot loops
 - **Threading Backend**: TBB (Intel Threading Building Blocks) — MUST be installed on Windows
-- **Data**: numpy arrays, Parquet storage
+- **Data**: numpy arrays, Parquet storage, Dukascopy historical data
 - **Parallelism**: Numba prange (NOT ThreadPoolExecutor, NOT multiprocessing)
-- **Broker**: OANDA (REST API via oandapyV20 or tpqoa)
+- **Broker**: IC Markets Global (MT5) — offshore branch (Seychelles FSA), 1:500 leverage
+- **Execution**: MetaTrader 5 Python library (`MetaTrader5` package)
+- **Historical Data**: Dukascopy (free tick/M1 data, 15+ years) via `dukascopy-python`
+- **Data Location**: `G:\My Drive\BackTestData` (Google Drive, NOT in repo)
 - **Dashboard**: React + Tailwind CSS
 - **Notifications**: Telegram Bot
 - **Package Manager**: uv
-- **OS**: Windows 11
+- **OS**: Windows 11 (dev), Linux VPS (production)
+
+## Broker & Data Setup
+- **Broker**: IC Markets Global (Raw Trading Ltd, Seychelles FSA / Bahamas SCB)
+- **Leverage**: 1:500 (UK resident, offshore branch)
+- **Platform**: MetaTrader 5 — demo account creds in `.env` (gitignored)
+- **Historical data**: Dukascopy M1 data (15+ years), stored as Parquet on `G:\My Drive\BackTestData`
+- **Naming**: `{PAIR}_{TIMEFRAME}.parquet` + yearly chunks in `{PAIR}_{TIMEFRAME}_chunks/`
+- **Target instruments**: EURUSD, GBPUSD, USDJPY, XAUUSD (expanding to 20+ pairs)
+- **Deployment**: Dev/test locally on Windows 11 → deploy to VPS for 24/7 live trading
+- **MT5 config**: Set "Max Bars in Chart" to 10,000,000+ (Tools > Options > Charts)
 
 ## Architecture Principles
 - All backtest-critical code uses numpy arrays and Numba @njit(parallel=True) — no pandas/Python objects in hot paths
@@ -24,7 +37,7 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - Staged optimization uses random search (zero overhead, <=12 params per stage)
 - Full-space uses BATCHED Bayesian/Optuna TPE (13+ params) — ask() batch of trials, evaluate via prange, tell() results back
 - Auto-selects search strategy: <=12 params -> random, 13+ params -> batched TPE. CLI override: --search random|tpe|cma-es
-- Broker integration is an abstraction layer — swappable without touching strategy/pipeline code
+- Broker integration is an abstraction layer — swappable without touching strategy/pipeline code (currently IC Markets via MT5)
 - Backtest and live trader use identical signal generation and trade management logic
 - All state files use atomic writes (write temp, then rename)
 - All long-running processes checkpoint to disk for crash recovery
@@ -54,12 +67,11 @@ backtester/
   verification/   # Trade verification, signal replay, P&L reconciliation
   reporting/      # HTML report generation, leaderboard
   research/       # Strategy research factory, source tracker
-  broker/         # Broker abstraction layer (OANDA implementation)
+  broker/         # Broker abstraction layer (IC Markets / MT5 implementation)
   notifications/  # Telegram bot integration
   config/         # Configuration management, defaults
   cli/            # CLI entry points
 dashboard/        # React + Tailwind frontend (separate)
-data_cache/       # Downloaded price data (Parquet files) — gitignored
 output/           # Pipeline run outputs — gitignored
 state/            # Live trading state files — gitignored
 logs/             # Log files — gitignored
@@ -79,6 +91,7 @@ tests/            # Unit and integration tests
 - `PROGRESS.md` — Requirement-level progress tracking
 - `CURRENT_TASK.md` — What to do next (exact steps, blockers, last completed)
 - `pyproject.toml` — Python project config and dependencies
+- `.env` — Credentials (gitignored, NEVER committed)
 
 ## Session Continuity Protocol
 On every new session or after /clear:

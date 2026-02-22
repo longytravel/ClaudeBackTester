@@ -57,7 +57,8 @@ Build a **fully automated forex trading system** that autonomously discovers, va
 
 - **Asset class**: Forex currency pairs only (e.g., GBP/USD, EUR/USD, USD/JPY). 20+ major and cross pairs
 - **Timeframes**: M1, M5, M15, M30, H1, H4, Daily
-- **Broker requirement**: Must connect to a forex broker API for historical data retrieval and order execution. The system should be designed such that the broker integration layer can be swapped without affecting strategy logic, backtesting, or the pipeline
+- **Broker**: IC Markets Global (MT5) for execution. Dukascopy for historical data. The broker integration layer must be swappable without affecting strategy logic, backtesting, or the pipeline
+- **Deployment**: Develop and test locally (Windows 11), deploy to Linux VPS for 24/7 live trading
 - **Target operator**: A single developer who builds, runs, and monitors the entire system
 
 ---

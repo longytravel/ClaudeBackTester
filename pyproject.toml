@@ -16,9 +16,12 @@ dependencies = [
     # Optimization
     "optuna>=3.6",
 
-    # Broker API
-    "oandapyV20>=0.7",
+    # Broker API (IC Markets via MT5)
+    "MetaTrader5>=5.0.45",
     "requests>=2.31",
+
+    # Historical data (Dukascopy)
+    "dukascopy-python>=0.3",
 
     # CLI
     "click>=8.1",
