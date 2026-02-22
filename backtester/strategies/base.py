@@ -299,7 +299,7 @@ class Strategy(ABC):
                 "day_of_week": np.array([], dtype=np.int64),
                 "atr_pips": np.array([], dtype=np.float64),
             }
-        return {
+        result = {
             "bar_index": np.array([s.bar_index for s in signals], dtype=np.int64),
             "direction": np.array([s.direction.value for s in signals], dtype=np.int64),
             "entry_price": np.array([s.entry_price for s in signals], dtype=np.float64),
@@ -307,6 +307,15 @@ class Strategy(ABC):
             "day_of_week": np.array([s.day_of_week for s in signals], dtype=np.int64),
             "atr_pips": np.array([s.atr_pips for s in signals], dtype=np.float64),
         }
+        # Propagate strategy-specific attrs into the vectorized dict (REQ-S10)
+        all_keys: set[str] = set()
+        for s in signals:
+            all_keys.update(s.attrs.keys())
+        for key in all_keys:
+            result[f"attr_{key}"] = np.array(
+                [s.attrs.get(key, np.nan) for s in signals], dtype=np.float64,
+            )
+        return result
 
     def filter_signals_vectorized(
         self,
@@ -320,10 +329,12 @@ class Strategy(ABC):
 
         Default implementation wraps filter_signals().
         """
-        # Reconstruct Signal objects for the default path
+        # Reconstruct Signal objects (including attrs) for the default path
         n = len(signals["bar_index"])
+        attr_keys = [k[5:] for k in signals if k.startswith("attr_")]
         sig_list = []
         for i in range(n):
+            attrs = {k: float(signals[f"attr_{k}"][i]) for k in attr_keys}
             sig_list.append(Signal(
                 bar_index=int(signals["bar_index"][i]),
                 direction=Direction(int(signals["direction"][i])),
@@ -331,6 +342,7 @@ class Strategy(ABC):
                 hour=int(signals["hour"][i]),
                 day_of_week=int(signals["day_of_week"][i]),
                 atr_pips=float(signals["atr_pips"][i]),
+                attrs=attrs,
             ))
         filtered = self.filter_signals(sig_list, params)
         filtered_indices = {s.bar_index for s in filtered}

@@ -136,12 +136,12 @@ def stochastic(
             k[i] = 50.0
         else:
             k[i] = 100.0 * (close[i] - ll) / (hh - ll)
-    d = sma(k[~np.isnan(k)], d_period)
-    # Align %D back into full-length array
+    # %D = SMA of %K over d_period bars (rolling average of valid %K values)
     d_full = np.full(n, np.nan)
-    valid_start = k_period - 1
-    if len(d) > 0:
-        d_full[valid_start + d_period - 1 : valid_start + d_period - 1 + len(d)] = d[d_period - 1:]
+    # %K is valid from index k_period-1 onward, so %D valid from k_period-1+d_period-1
+    start = k_period - 1
+    for i in range(start + d_period - 1, n):
+        d_full[i] = np.mean(k[i - d_period + 1 : i + 1])
     return k, d_full
 
 

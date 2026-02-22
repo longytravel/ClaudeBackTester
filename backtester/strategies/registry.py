@@ -25,7 +25,15 @@ def register(
     aliases: list[str] | None = None,
 ) -> type[Strategy]:
     """Register a strategy class. Can be used as a decorator."""
-    name = cls.name.fget(cls)  # type: ignore[attr-defined]
+    # Create a temporary instance to safely read the name property.
+    # Use try/except: __new__ alone may not set up state needed by the property,
+    # so fall back to full __init__() if needed.
+    try:
+        instance = cls.__new__(cls)
+        name = instance.name
+    except (AttributeError, TypeError):
+        instance = cls()
+        name = instance.name
     _REGISTRY[name] = cls
     _STAGES[name] = StrategyStage.BUILT
 

@@ -71,6 +71,11 @@ class TestEMA:
         result = ind.ema(data, 10)
         np.testing.assert_almost_equal(result[-1], 5.0)
 
+    def test_period_exceeds_data(self):
+        data = np.array([1.0, 2.0])
+        result = ind.ema(data, 5)
+        assert all(np.isnan(result))
+
 
 class TestATR:
     def test_constant_range(self):
@@ -129,6 +134,31 @@ class TestStochastic:
         k, d = ind.stochastic(high, low, close, k_period=14, d_period=3)
         valid_k = k[~np.isnan(k)]
         assert all(0 <= v <= 100 for v in valid_k)
+
+    def test_d_is_sma_of_k(self):
+        """Verify %D is actually the SMA of %K."""
+        _, high, low, close, _, _ = _random_ohlcv(100)
+        k, d = ind.stochastic(high, low, close, k_period=14, d_period=3)
+        # %D should be the 3-period moving average of %K
+        # Check a few values manually
+        for i in range(15, 50):  # well past warmup
+            expected = np.mean(k[i - 2 : i + 1])
+            np.testing.assert_almost_equal(d[i], expected, decimal=10)
+
+    def test_d_range(self):
+        """Verify %D values are also in 0-100 range."""
+        _, high, low, close, _, _ = _random_ohlcv(100)
+        k, d = ind.stochastic(high, low, close, k_period=14, d_period=3)
+        valid_d = d[~np.isnan(d)]
+        assert len(valid_d) > 0
+        assert all(0 <= v <= 100 for v in valid_d)
+
+    def test_d_starts_at_correct_index(self):
+        _, high, low, close, _, _ = _random_ohlcv(100)
+        k, d = ind.stochastic(high, low, close, k_period=14, d_period=3)
+        # %K valid from index 13, %D valid from index 15 (13 + 3 - 1)
+        assert np.isnan(d[14])
+        assert not np.isnan(d[15])
 
 
 class TestMACD:
@@ -397,3 +427,190 @@ class TestRegistry:
         result = list_strategies()
         assert len(result) == 1
         assert result[0]["name"] == "dummy_test"
+
+    def test_register_strategy_with_self_access(self):
+        """Verify registry works when name property uses self."""
+        class _SelfAccessStrategy(_DummyStrategy):
+            def __init__(self):
+                self._my_name = "self_access_test"
+
+            @property
+            def name(self) -> str:
+                return self._my_name
+
+        # This should NOT fail — the registry should handle self access
+        register(_SelfAccessStrategy)
+        cls = get("self_access_test")
+        assert cls is _SelfAccessStrategy
+
+
+# ---------------------------------------------------------------------------
+# Vectorized Path Tests
+# ---------------------------------------------------------------------------
+
+class _SignalProducingStrategy(Strategy):
+    """Strategy that produces signals with attrs for testing vectorized path."""
+
+    @property
+    def name(self) -> str:
+        return "signal_producer"
+
+    @property
+    def version(self) -> str:
+        return "0.1"
+
+    def param_space(self) -> ParamSpace:
+        ps = ParamSpace()
+        ps.add("min_rsi", [30, 40, 50])
+        return ps
+
+    def generate_signals(self, open, high, low, close, volume, spread):
+        return [
+            Signal(bar_index=10, direction=Direction.BUY, entry_price=1.1000,
+                   hour=10, day_of_week=2, atr_pips=20.0,
+                   attrs={"rsi": 35.0, "trend": 1.0}),
+            Signal(bar_index=20, direction=Direction.SELL, entry_price=1.1050,
+                   hour=14, day_of_week=3, atr_pips=25.0,
+                   attrs={"rsi": 70.0, "trend": -1.0}),
+            Signal(bar_index=30, direction=Direction.BUY, entry_price=1.0980,
+                   hour=9, day_of_week=1, atr_pips=18.0,
+                   attrs={"rsi": 42.0, "trend": 1.0}),
+        ]
+
+    def filter_signals(self, signals, params):
+        min_rsi = params.get("min_rsi", 30)
+        return [s for s in signals if s.attrs.get("rsi", 0) >= min_rsi]
+
+    def calc_sl_tp(self, signal, params, high, low):
+        from backtester.strategies.base import SLTPResult
+        return SLTPResult(0, 0, 0, 0)
+
+
+class TestVectorizedPath:
+    def test_vectorized_generation_preserves_attrs(self):
+        """REQ-S10: attrs must be propagated in vectorized path."""
+        strat = _SignalProducingStrategy()
+        dummy = np.zeros(50)
+        result = strat.generate_signals_vectorized(dummy, dummy, dummy, dummy, dummy, dummy)
+
+        assert len(result["bar_index"]) == 3
+        assert "attr_rsi" in result
+        assert "attr_trend" in result
+        np.testing.assert_array_almost_equal(result["attr_rsi"], [35.0, 70.0, 42.0])
+        np.testing.assert_array_almost_equal(result["attr_trend"], [1.0, -1.0, 1.0])
+
+    def test_vectorized_generation_empty(self):
+        strat = _DummyStrategy()  # returns empty signals
+        dummy = np.zeros(50)
+        result = strat.generate_signals_vectorized(dummy, dummy, dummy, dummy, dummy, dummy)
+        assert len(result["bar_index"]) == 0
+
+    def test_vectorized_filter_default(self):
+        strat = _SignalProducingStrategy()
+        dummy = np.zeros(50)
+        signals = strat.generate_signals_vectorized(dummy, dummy, dummy, dummy, dummy, dummy)
+        # With min_rsi=40, only signals with rsi >= 40 pass (rsi=70 and rsi=42)
+        mask = strat.filter_signals_vectorized(signals, {"min_rsi": 40})
+        assert mask.sum() == 2
+        assert not mask[0]  # rsi=35 < 40
+        assert mask[1]      # rsi=70 >= 40
+        assert mask[2]      # rsi=42 >= 40
+
+
+# ---------------------------------------------------------------------------
+# SL/TP Edge Cases
+# ---------------------------------------------------------------------------
+
+class TestSLTPEdgeCases:
+    def _make_signal(self, direction=Direction.BUY, price=1.1000, atr=20.0):
+        return Signal(
+            bar_index=100, direction=direction, entry_price=price,
+            hour=10, day_of_week=2, atr_pips=atr,
+        )
+
+    def test_zero_atr_fixed_sl(self):
+        """Zero ATR should still work with fixed SL mode."""
+        sig = self._make_signal(atr=0.0)
+        result = calc_sl_tp(
+            sig, {"sl_mode": "fixed_pips", "sl_fixed_pips": 30, "tp_mode": "rr_ratio", "tp_rr_ratio": 2.0},
+            high=np.array([]), low=np.array([]),
+        )
+        np.testing.assert_almost_equal(result.sl_pips, 30.0)
+
+    def test_zero_atr_atr_mode_gives_zero(self):
+        """Zero ATR with ATR-based SL gives zero SL distance (edge case)."""
+        sig = self._make_signal(atr=0.0)
+        result = calc_sl_tp(
+            sig, {"sl_mode": "atr_based", "sl_atr_mult": 1.5, "tp_mode": "rr_ratio", "tp_rr_ratio": 2.0},
+            high=np.array([]), low=np.array([]),
+        )
+        # 0 ATR * 1.5 = 0 SL distance, 0 * 2.0 RR = 0 TP distance
+        np.testing.assert_almost_equal(result.sl_pips, 0.0)
+
+    def test_swing_no_data_falls_back_to_atr(self):
+        """Swing mode with no lookback data falls back to ATR."""
+        sig = self._make_signal(atr=20.0)
+        sig.bar_index = 0  # No bars to look back
+        result = calc_sl_tp(
+            sig, {"sl_mode": "swing", "tp_mode": "rr_ratio", "tp_rr_ratio": 2.0},
+            high=np.array([1.1050]), low=np.array([1.0950]), swing_lookback=50,
+        )
+        # Should fallback to ATR * 1.5 = 30 pips
+        np.testing.assert_almost_equal(result.sl_pips, 30.0)
+
+    def test_jpy_pip_value(self):
+        """Test with JPY pip value (0.01 instead of 0.0001)."""
+        sig = Signal(
+            bar_index=100, direction=Direction.BUY, entry_price=150.00,
+            hour=10, day_of_week=2, atr_pips=50.0,
+        )
+        result = calc_sl_tp(
+            sig, {"sl_mode": "atr_based", "sl_atr_mult": 1.0, "tp_mode": "rr_ratio", "tp_rr_ratio": 2.0},
+            high=np.array([]), low=np.array([]), pip_value=0.01,
+        )
+        np.testing.assert_almost_equal(result.sl_pips, 50.0)
+        np.testing.assert_almost_equal(result.sl_price, 149.50)  # 150 - 50*0.01
+
+
+# ---------------------------------------------------------------------------
+# Integration Test: Full Strategy Workflow
+# ---------------------------------------------------------------------------
+
+class TestIntegration:
+    def test_end_to_end_strategy_workflow(self):
+        """Register, generate signals, filter, calc SL/TP — full flow."""
+        clear()
+
+        strat = _SignalProducingStrategy()
+        register(_SignalProducingStrategy)
+
+        # Look up and instantiate
+        cls = get("signal_producer")
+        instance = cls()
+        assert instance.name == "signal_producer"
+
+        # Generate signals
+        dummy = np.zeros(50)
+        signals = instance.generate_signals(dummy, dummy, dummy, dummy, dummy, dummy)
+        assert len(signals) == 3
+
+        # Filter with params
+        filtered = instance.filter_signals(signals, {"min_rsi": 40})
+        assert len(filtered) == 2
+
+        # Calc SL/TP for each filtered signal
+        for sig in filtered:
+            result = calc_sl_tp(
+                sig, {"sl_mode": "atr_based", "sl_atr_mult": 1.5, "tp_mode": "rr_ratio", "tp_rr_ratio": 2.0},
+                high=dummy, low=dummy,
+            )
+            assert result.tp_pips >= result.sl_pips  # REQ-S17
+            assert result.sl_pips > 0
+
+    def test_time_params_valid(self):
+        """Verify time_params returns valid parameter definitions."""
+        tp = time_params()
+        assert len(tp) == 3
+        assert all(p.group == "time" for p in tp)
+        hours_start = next(p for p in tp if p.name == "allowed_hours_start")
+        assert len(hours_start.values) == 24  # 0..23
