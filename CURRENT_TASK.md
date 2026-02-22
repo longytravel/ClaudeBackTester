@@ -1,40 +1,32 @@
 # Current Task
 
-## Status: Phase 1 COMPLETE — Starting Phase 2 (Strategy Framework)
+## Status: Phase 3 — Backtesting Engine (FR-3)
 
 ## What's Built
-- **Data Pipeline** (Phase 1): Dukascopy downloader (bid+ask spread), timeframe conversion, validation, splitting, CLI
-- **MT5 Broker Module** (`backtester/broker/mt5.py`): IC Markets connectivity, UTC timezone conversion, candle fetching
-- **Data Verification**: Dukascopy vs IC Markets prices match within 0.1-0.3 pip (99%+ within 1 pip)
-- **25 tests passing** (smoke + data pipeline + spread + splitting)
+- **Phase 1**: Data pipeline (Dukascopy downloader, timeframes, validation, splitting, MT5 broker)
+- **Phase 2**: Strategy framework (14 indicators, base class, param space, SL/TP calc, registry)
+- **63 tests passing**
 
-## Data Columns
-All M1 data: `open, high, low, close, volume, spread`
-- Prices are bid-side, spread = avg(ask-bid) per candle
-- Higher timeframes use median spread
-
-## Data Download Status
-- Background download running for 25 pairs with `--force` (bid+ask spread)
-- Completed: USD/JPY, USD/CAD
-- Failed (need retry): EUR/USD, GBP/USD, AUD/USD, NZD/USD
-- Run `uv run python scripts/download_retry.py` after batch completes
-
-## Next Steps (in order)
-1. **Start Phase 2: Strategy Framework** (FR-2)
-   - Strategy base class with parameter space definition
-   - Signal generation interface
-   - Indicator library (numpy-based: RSI, ATR, SMA, EMA, BB, etc.)
-   - SL/TP calculation modes
-   - Trade management (trailing stop, breakeven, partial close)
-2. **Phase 3: Backtest Engine** (FR-3)
-   - Numba JIT core loop
-   - Parallel eval across cores
-   - Metrics computation
+## Next Steps: Phase 3 Backtest Engine
+1. **Core backtest loop** (`backtester/core/engine.py`)
+   - Bar-by-bar simulation with SL/TP checking on intra-bar highs/lows
+   - Trade management: trailing stop, breakeven, partial close, max bars, stale exit
+   - Conservative same-bar SL/TP tiebreak (SL wins)
+   - Configurable spread and slippage
+2. **Metrics computation** (`backtester/core/metrics.py`)
+   - Win rate, profit factor, Sharpe, Sortino, max drawdown, return%, R-squared, Ulcer Index
+3. **Numba JIT hot loop** (`backtester/core/jit_loop.py`)
+   - @njit(parallel=True) with prange over trials
+   - Pre-allocated output arrays (zero allocation in prange)
+   - Shared memory for price arrays
+4. **Execution modes**
+   - Basic (SL/TP only, 700+ evals/sec target)
+   - Full (all management, 400+ evals/sec)
 
 ## Last Completed
-- Phase 0: Scaffold, Numba+TBB parallel verified
-- Phase 1: Full data pipeline + MT5 broker integration
-- MT5 timezone handling: EET → UTC at ingestion boundary
+- Phase 2 strategy framework committed with 38 tests
+- All 14 PRD-required indicators implemented and tested
+- SL/TP calculator with all 3 modes each + TP>=SL constraint
 
 ## Blockers
-- None — ready for Phase 2
+- None
