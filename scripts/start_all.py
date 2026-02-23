@@ -170,6 +170,7 @@ def main():
             "--pipeline", s["checkpoint"],
             "--mode", mode,
             "--state-dir", state_dir,
+            "--fixed-lots", "0.01",
         ]
 
         with open(log_file, "a") as lf:

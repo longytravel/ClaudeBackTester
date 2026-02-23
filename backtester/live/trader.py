@@ -300,7 +300,10 @@ class LiveTrader:
         if symbol_info is None:
             log.error("no_symbol_info")
             return
-        volume = self.risk_manager.calculate_position_size(balance, sl_pips, symbol_info)
+        if self.config.fixed_lot_size > 0:
+            volume = self.config.fixed_lot_size
+        else:
+            volume = self.risk_manager.calculate_position_size(balance, sl_pips, symbol_info)
         if volume <= 0:
             log.warning("zero_volume", sl_pips=sl_pips)
             return

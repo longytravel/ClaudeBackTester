@@ -28,6 +28,9 @@ class LiveConfig:
     max_open_positions: int = 3        # REQ-R09
     max_spread_pips: float = 3.0       # REQ-R07
 
+    # Position sizing override — set > 0 to use fixed lot size instead of risk-based
+    fixed_lot_size: float = 0.0        # 0 = use risk-based sizing
+
     # Execution costs
     slippage_pips: float = 0.5
     commission_per_lot: float = 7.0    # USD per round trip

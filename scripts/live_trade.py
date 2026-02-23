@@ -40,6 +40,7 @@ def main():
     parser.add_argument("--config", help="JSON config file (overrides CLI args)")
     parser.add_argument("--risk-pct", type=float, default=1.0, help="Risk %% per trade")
     parser.add_argument("--max-spread", type=float, default=3.0, help="Max spread in pips")
+    parser.add_argument("--fixed-lots", type=float, default=0.0, help="Fixed lot size (0 = risk-based)")
     parser.add_argument("--state-dir", default="", help="State directory")
     parser.add_argument("--lookback", type=int, default=500, help="Candle lookback count")
 
@@ -57,6 +58,7 @@ def main():
             candidate_index=cfg_data.get("candidate_index", args.candidate),
             mode=TradingMode(cfg_data.get("mode", args.mode)),
             risk_pct=cfg_data.get("risk_pct", args.risk_pct),
+            fixed_lot_size=cfg_data.get("fixed_lot_size", args.fixed_lots),
             max_spread_pips=cfg_data.get("max_spread_pips", args.max_spread),
             state_dir=cfg_data.get("state_dir", args.state_dir),
             lookback_bars=cfg_data.get("lookback_bars", args.lookback),
@@ -70,6 +72,7 @@ def main():
             candidate_index=args.candidate,
             mode=TradingMode(args.mode),
             risk_pct=args.risk_pct,
+            fixed_lot_size=args.fixed_lots,
             max_spread_pips=args.max_spread,
             state_dir=args.state_dir,
             lookback_bars=args.lookback,
