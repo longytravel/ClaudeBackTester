@@ -312,6 +312,8 @@ class Strategy(ABC):
         volume: np.ndarray,
         spread: np.ndarray,
         pip_value: float = 0.0001,
+        bar_hour: np.ndarray | None = None,
+        bar_day_of_week: np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
         """Vectorized signal generation returning numpy arrays.
 
@@ -322,6 +324,10 @@ class Strategy(ABC):
         Optional keys for signal filtering in JIT:
         - 'filter_value': (S,) float64 — strategy-specific filter value per signal
         - 'variant': (S,) int64 — signal variant index for period matching
+
+        Args:
+            bar_hour: Per-bar hour (0-23) from timestamps. None = zeros.
+            bar_day_of_week: Per-bar day (0=Mon..6=Sun) from timestamps. None = zeros.
 
         Default implementation wraps generate_signals().
         """

@@ -181,6 +181,18 @@
 
 ---
 
+## Code Review (Phases 1-4)
+- [x] Full code review of all 4 phases (6 parallel review agents)
+- [x] 7 critical bugs found and fixed (commit 8adae74)
+- [x] JIT pnl_buffers allocation moved outside prange (zero-allocation rule fix)
+- [x] RSI variant value bug (period_idx → actual period value)
+- [x] Filter PL layout defaults fixed (column 0 → -1 sentinel)
+- [x] Telemetry signal filtering, stale exit, partial close added
+- [x] Duplicate ParamDefs removed from RSI strategy
+- [x] 233 tests passing after all fixes
+
+---
+
 ## Phase 5: Validation Pipeline (FR-5)
 
 ### Pipeline Architecture

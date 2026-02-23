@@ -83,6 +83,8 @@ class RSIMeanReversion(Strategy):
         volume: np.ndarray,
         spread: np.ndarray,
         pip_value: float = 0.0001,
+        bar_hour: np.ndarray | None = None,
+        bar_day_of_week: np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
         """Generate RSI crossover signals for all RSI periods.
 
@@ -91,6 +93,10 @@ class RSIMeanReversion(Strategy):
         and by threshold (matching trial's rsi_oversold/overbought).
         """
         n = len(close)
+        if bar_hour is None:
+            bar_hour = np.zeros(n, dtype=np.int64)
+        if bar_day_of_week is None:
+            bar_day_of_week = np.zeros(n, dtype=np.int64)
 
         # Precompute indicators at all parameter periods
         atr_periods = [10, 14, 20]
@@ -135,8 +141,8 @@ class RSIMeanReversion(Strategy):
                     bar_indices.append(i)
                     directions.append(Direction.BUY.value)
                     entry_prices.append(close[i])
-                    hours_list.append(i % 24)  # placeholder
-                    days_list.append((i // 24) % 5)  # placeholder
+                    hours_list.append(int(bar_hour[i]))
+                    days_list.append(int(bar_day_of_week[i]))
                     atr_pips_list.append(atr_p)
                     filter_values.append(r_cur)  # actual RSI value
                     variants.append(rp)           # actual period value (matches rsi_period param)
@@ -146,8 +152,8 @@ class RSIMeanReversion(Strategy):
                     bar_indices.append(i)
                     directions.append(Direction.SELL.value)
                     entry_prices.append(close[i])
-                    hours_list.append(i % 24)
-                    days_list.append((i // 24) % 5)
+                    hours_list.append(int(bar_hour[i]))
+                    days_list.append(int(bar_day_of_week[i]))
                     atr_pips_list.append(atr_p)
                     filter_values.append(r_cur)
                     variants.append(rp)           # actual period value (matches rsi_period param)

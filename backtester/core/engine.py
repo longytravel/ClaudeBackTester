@@ -128,6 +128,8 @@ class BacktestEngine:
         bars_per_year: float = DEFAULT_BARS_PER_YEAR,
         commission_pips: float = DEFAULT_COMMISSION_PIPS,
         max_spread_pips: float = DEFAULT_MAX_SPREAD_PIPS,
+        bar_hour: np.ndarray | None = None,
+        bar_day_of_week: np.ndarray | None = None,
     ):
         self.strategy = strategy
         self.high = high
@@ -142,6 +144,15 @@ class BacktestEngine:
         self.commission_pips = commission_pips
         self.max_spread_pips = max_spread_pips
 
+        # Per-bar time arrays for time filtering (from timestamps)
+        # Default: all zeros — passes default time filters (hours 0-23, all weekdays)
+        n = len(high)
+        self.bar_hour = bar_hour if bar_hour is not None else np.zeros(n, dtype=np.int64)
+        self.bar_day_of_week = (
+            bar_day_of_week if bar_day_of_week is not None
+            else np.zeros(n, dtype=np.int64)
+        )
+
         # Build encoding spec from strategy's param space
         self.param_space = strategy.param_space()
         self.encoding = build_encoding_spec(self.param_space)
@@ -152,6 +163,7 @@ class BacktestEngine:
         # Generate signals ONCE (the expensive step)
         sig_dict = strategy.generate_signals_vectorized(
             open_, high, low, close, volume, spread, pip_value,
+            self.bar_hour, self.bar_day_of_week,
         )
         self._unpack_signals(sig_dict, high, low, swing_lookback)
 

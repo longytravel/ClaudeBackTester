@@ -65,7 +65,7 @@ def calc_sl_tp(
             sl_distance = max(sl_distance, 5 * pip_value)
         else:
             # Fallback to ATR-based if no swing found
-            sl_distance = atr_price * 1.5
+            sl_distance = atr_price * params.get("sl_atr_mult", 1.5)
     else:  # fixed_pips
         sl_pips = params.get("sl_fixed_pips", 30)
         sl_distance = sl_pips * pip_value

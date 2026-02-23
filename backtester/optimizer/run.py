@@ -98,6 +98,10 @@ def optimize(
     config: OptimizationConfig | None = None,
     pip_value: float = 0.0001,
     slippage_pips: float = 0.5,
+    bar_hour_back: np.ndarray | None = None,
+    bar_day_back: np.ndarray | None = None,
+    bar_hour_fwd: np.ndarray | None = None,
+    bar_day_fwd: np.ndarray | None = None,
 ) -> OptimizationResult:
     """Run full optimization pipeline.
 
@@ -133,6 +137,7 @@ def optimize(
         strategy, open_back, high_back, low_back, close_back,
         volume_back, spread_back, pip_value, slippage_pips,
         config.max_trades_per_trial,
+        bar_hour=bar_hour_back, bar_day_of_week=bar_day_back,
     )
     logger.info(f"Generated {engine_back.n_signals} signals")
 
@@ -176,6 +181,7 @@ def optimize(
                 strategy, open_fwd, high_fwd, low_fwd, close_fwd,
                 volume_fwd, spread_fwd, pip_value, slippage_pips,
                 config.max_trades_per_trial,
+                bar_hour=bar_hour_fwd, bar_day_of_week=bar_day_fwd,
             )
             from backtester.core.encoding import encode_params
             fwd_row = encode_params(spec, params_dict).reshape(1, -1)
