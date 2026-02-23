@@ -549,6 +549,42 @@ class TestStagedOptimizer:
         assert "signal" in stages
         assert "management" in stages
 
+    def test_refinement_collects_passing_trials(self):
+        """Refinement stage should collect all passing trials for multi-candidate."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=400,
+            batch_size=64,
+            min_trades=1,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # Refinement stage should be the last stage
+        refinement = result.stages[-1]
+        assert refinement.stage_name == "refinement"
+
+        # Should have collected passing trials
+        if refinement.valid_count > 0:
+            assert refinement.all_passing_indices is not None
+            assert refinement.all_passing_metrics is not None
+            # Shape: (K, P) and (K, NUM_METRICS)
+            assert refinement.all_passing_indices.shape[1] == engine.encoding.num_params
+            assert refinement.all_passing_metrics.shape[1] == NUM_METRICS
+            # K should match valid_count
+            assert refinement.all_passing_indices.shape[0] == refinement.valid_count
+            # StagedResult should mirror refinement data
+            assert result.refinement_indices is not None
+            assert result.refinement_metrics is not None
+            assert result.refinement_indices.shape == refinement.all_passing_indices.shape
+
 
 # ---------------------------------------------------------------------------
 # Base class additions tests
@@ -579,3 +615,74 @@ class TestStrategyBaseAdditions:
         strategy = OptimizerTestStrategy()
         stages = strategy.optimization_stages()
         assert stages == ["signal", "time", "risk", "management"]
+
+
+# ---------------------------------------------------------------------------
+# Multi-candidate selection tests
+# ---------------------------------------------------------------------------
+
+class TestMultiCandidate:
+    def _run_optimize(self, with_forward: bool = True):
+        """Helper: run optimize() with test data."""
+        from backtester.optimizer.run import optimize
+
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=400,
+            batch_size=64,
+            min_trades=1,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+            top_n_candidates=5,
+            min_forward_back_ratio=0.0,  # Don't filter in test
+        )
+
+        open_, high, low, close, volume, spread = data
+        if with_forward:
+            result = optimize(
+                strategy,
+                open_, high, low, close, volume, spread,
+                open_, high, low, close, volume, spread,  # Same data for forward
+                config=config,
+                slippage_pips=0.0,
+            )
+        else:
+            result = optimize(
+                strategy,
+                open_, high, low, close, volume, spread,
+                config=config,
+                slippage_pips=0.0,
+            )
+        return result
+
+    def test_multi_returns_candidates(self):
+        """Multi-candidate should return >= 1 candidates."""
+        result = self._run_optimize(with_forward=True)
+        assert len(result.candidates) >= 1
+
+    def test_forward_metrics_populated(self):
+        """Each candidate should have forward metrics when forward data provided."""
+        result = self._run_optimize(with_forward=True)
+        for cand in result.candidates:
+            assert cand.forward_metrics is not None
+            assert "quality_score" in cand.forward_metrics
+            assert "sharpe" in cand.forward_metrics
+            assert "trades" in cand.forward_metrics
+
+    def test_fallback_to_single_without_forward(self):
+        """Without forward data, should still produce candidates."""
+        result = self._run_optimize(with_forward=False)
+        assert len(result.candidates) >= 1
+        # Without forward data, forward_metrics should be None
+        for cand in result.candidates:
+            assert cand.forward_metrics is None
+
+    def test_ranking_order(self):
+        """Candidates should be sorted by combined rank (best first)."""
+        result = self._run_optimize(with_forward=True)
+        if len(result.candidates) > 1:
+            # Combined rank: lower is better. Candidates ordered 0, 1, 2, ...
+            for i in range(len(result.candidates) - 1):
+                assert result.candidates[i].combined_rank <= result.candidates[i + 1].combined_rank

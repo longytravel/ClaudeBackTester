@@ -45,6 +45,9 @@ class StageResult:
     best_metrics: np.ndarray     # (NUM_METRICS,)
     trials_evaluated: int
     valid_count: int
+    # When collect_all=True, all post-filter passing trials are stored
+    all_passing_indices: np.ndarray | None = None   # (K, P)
+    all_passing_metrics: np.ndarray | None = None   # (K, NUM_METRICS)
 
 
 @dataclass
@@ -55,6 +58,9 @@ class StagedResult:
     best_quality: float = 0.0
     best_metrics: np.ndarray | None = None
     total_trials: int = 0
+    # Refinement stage passing trials (for multi-candidate selection)
+    refinement_indices: np.ndarray | None = None   # (K, P)
+    refinement_metrics: np.ndarray | None = None   # (K, NUM_METRICS)
 
 
 class StagedOptimizer:
@@ -132,6 +138,7 @@ class StagedOptimizer:
             exec_mode=EXEC_FULL,
             trials=self.config.refinement_trials,
             use_locked_as_center=True,
+            collect_all=True,  # Collect all passing for multi-candidate selection
         )
         result.stages.append(refinement_result)
         result.total_trials += refinement_result.trials_evaluated
@@ -143,6 +150,10 @@ class StagedOptimizer:
         result.best_quality = refinement_result.best_quality
         result.best_metrics = refinement_result.best_metrics
 
+        # Copy refinement passing data for multi-candidate selection
+        result.refinement_indices = refinement_result.all_passing_indices
+        result.refinement_metrics = refinement_result.all_passing_metrics
+
         return result
 
     def _run_stage(
@@ -153,8 +164,14 @@ class StagedOptimizer:
         exec_mode: int,
         trials: int,
         use_locked_as_center: bool = False,
+        collect_all: bool = False,
     ) -> StageResult:
-        """Run a single optimization stage."""
+        """Run a single optimization stage.
+
+        Args:
+            collect_all: When True, accumulate all post-filter passing
+                trials (indices + metrics) for multi-candidate selection.
+        """
         batch_size = self.config.batch_size
         exploration_budget = int(trials * self.config.exploration_pct)
 
@@ -172,6 +189,10 @@ class StagedOptimizer:
         best_metrics = np.zeros(NUM_METRICS, dtype=np.float64)
         total_evaluated = 0
         total_valid = 0
+
+        # Accumulators for collect_all mode
+        all_indices_list: list[np.ndarray] = []
+        all_metrics_list: list[np.ndarray] = []
 
         # For refinement, unlock all but use locked values as starting point
         stage_locked = locked.copy()
@@ -226,11 +247,23 @@ class StagedOptimizer:
                     best_indices = valid_batch[best_in_batch].copy()
                     best_metrics = metrics[best_in_batch].copy()
 
+                # Collect all passing for multi-candidate selection
+                if collect_all:
+                    all_indices_list.append(valid_batch[passing].copy())
+                    all_metrics_list.append(metrics[passing].copy())
+
                 # Update EDA with elite subset
                 n_elite = max(1, int(len(passing) * self.config.elite_pct))
                 elite_order = np.argsort(-qualities)[:n_elite]
                 elite_indices = valid_batch[passing[elite_order]]
                 eda.update(elite_indices, mask=active_mask)
+
+        # Build collected arrays
+        all_passing_indices = None
+        all_passing_metrics = None
+        if collect_all and all_indices_list:
+            all_passing_indices = np.vstack(all_indices_list)
+            all_passing_metrics = np.vstack(all_metrics_list)
 
         return StageResult(
             stage_name=stage_name,
@@ -239,4 +272,6 @@ class StagedOptimizer:
             best_metrics=best_metrics,
             trials_evaluated=total_evaluated,
             valid_count=total_valid,
+            all_passing_indices=all_passing_indices,
+            all_passing_metrics=all_passing_metrics,
         )

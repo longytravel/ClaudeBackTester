@@ -58,6 +58,43 @@ class WalkForwardResult:
 
 
 # ---------------------------------------------------------------------------
+# CPCV (sub-step of Stage 3)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CPCVFoldResult:
+    """Result of evaluating one candidate on one CPCV fold."""
+    fold_index: int
+    train_blocks: tuple[int, ...]       # Block indices used for training
+    test_blocks: tuple[int, ...]        # Block indices used for testing
+    n_purged: int = 0                   # Bars removed by purging
+    n_trades: int = 0
+    sharpe: float = 0.0
+    quality_score: float = 0.0
+
+
+@dataclass
+class CPCVResult:
+    """Aggregate CPCV result for one candidate."""
+    n_blocks: int = 0
+    k_test: int = 0
+    n_folds: int = 0
+
+    mean_sharpe: float = 0.0
+    median_sharpe: float = 0.0
+    std_sharpe: float = 0.0
+    sharpe_ci_low: float = 0.0
+    sharpe_ci_high: float = 0.0
+
+    pct_positive_sharpe: float = 0.0     # Fraction of folds with Sharpe > 0
+    mean_quality: float = 0.0
+    median_quality: float = 0.0
+
+    passed_gate: bool = False
+    folds: list[CPCVFoldResult] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Stability (Stage 4)
 # ---------------------------------------------------------------------------
 
@@ -122,6 +159,7 @@ class ConfidenceResult:
     """Final confidence scoring for one candidate."""
     # Sub-scores (0-100 each)
     walk_forward_score: float = 0.0
+    cpcv_score: float = 0.0
     monte_carlo_score: float = 0.0
     forward_back_score: float = 0.0
     stability_score: float = 0.0
@@ -157,6 +195,9 @@ class CandidateResult:
 
     # Stage 3
     walk_forward: WalkForwardResult | None = None
+
+    # Stage 3b (CPCV sub-step)
+    cpcv: CPCVResult | None = None
 
     # Stage 4
     stability: StabilityResult | None = None

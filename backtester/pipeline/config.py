@@ -27,6 +27,16 @@ class PipelineConfig:
     wf_pass_rate_gate: float = 0.6      # Hard gate: >= 60% windows must pass
     wf_mean_sharpe_gate: float = 0.3    # Hard gate: mean OOS Sharpe >= 0.3
 
+    # --- CPCV (sub-step of Stage 3) ---
+    cpcv_enabled: bool = True
+    cpcv_n_blocks: int = 10
+    cpcv_k_test: int = 2
+    cpcv_purge_bars: int = 200         # Max trade duration (bars removed near test)
+    cpcv_embargo_bars: int = 168       # 1 week H1 (bars removed after test)
+    cpcv_min_block_bars: int = 500     # Skip CPCV if blocks smaller than this
+    cpcv_pct_positive_sharpe_gate: float = 0.6   # >= 60% folds positive Sharpe
+    cpcv_mean_sharpe_gate: float = 0.2           # Mean Sharpe >= 0.2
+
     # --- Stability (Stage 4) ---
     stab_perturbation_steps: int = 3      # +-3 steps per numeric param
     stab_use_forward_data: bool = True    # Test perturbations on forward data

@@ -12,6 +12,8 @@ from dataclasses import asdict
 from typing import Any
 
 from backtester.pipeline.types import (
+    CPCVFoldResult,
+    CPCVResult,
     CandidateResult,
     ConfidenceResult,
     MonteCarloResult,
@@ -167,12 +169,43 @@ def _reconstruct_candidate(cd: dict) -> CandidateResult:
             passed_gate=mc_data.get("passed_gate", False),
         )
 
+    # CPCV
+    cpcv_data = cd.get("cpcv")
+    if cpcv_data is not None:
+        folds = []
+        for fd in cpcv_data.get("folds", []):
+            folds.append(CPCVFoldResult(
+                fold_index=fd.get("fold_index", 0),
+                train_blocks=tuple(fd.get("train_blocks", ())),
+                test_blocks=tuple(fd.get("test_blocks", ())),
+                n_purged=fd.get("n_purged", 0),
+                n_trades=fd.get("n_trades", 0),
+                sharpe=fd.get("sharpe", 0.0),
+                quality_score=fd.get("quality_score", 0.0),
+            ))
+        c.cpcv = CPCVResult(
+            n_blocks=cpcv_data.get("n_blocks", 0),
+            k_test=cpcv_data.get("k_test", 0),
+            n_folds=cpcv_data.get("n_folds", 0),
+            mean_sharpe=cpcv_data.get("mean_sharpe", 0.0),
+            median_sharpe=cpcv_data.get("median_sharpe", 0.0),
+            std_sharpe=cpcv_data.get("std_sharpe", 0.0),
+            sharpe_ci_low=cpcv_data.get("sharpe_ci_low", 0.0),
+            sharpe_ci_high=cpcv_data.get("sharpe_ci_high", 0.0),
+            pct_positive_sharpe=cpcv_data.get("pct_positive_sharpe", 0.0),
+            mean_quality=cpcv_data.get("mean_quality", 0.0),
+            median_quality=cpcv_data.get("median_quality", 0.0),
+            passed_gate=cpcv_data.get("passed_gate", False),
+            folds=folds,
+        )
+
     # Confidence
     conf_data = cd.get("confidence")
     if conf_data is not None:
         rating_str = conf_data.get("rating", "RED")
         c.confidence = ConfidenceResult(
             walk_forward_score=conf_data.get("walk_forward_score", 0.0),
+            cpcv_score=conf_data.get("cpcv_score", 0.0),
             monte_carlo_score=conf_data.get("monte_carlo_score", 0.0),
             forward_back_score=conf_data.get("forward_back_score", 0.0),
             stability_score=conf_data.get("stability_score", 0.0),

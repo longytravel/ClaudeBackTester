@@ -25,6 +25,7 @@ from backtester.core.dtypes import (
 from backtester.core.encoding import (
     build_encoding_spec,
     decode_params,
+    encode_params,
     indices_to_values,
 )
 from backtester.core.engine import BacktestEngine
@@ -79,6 +80,176 @@ def _estimate_memory_mb(n_bars: int, n_signals: int, batch_size: int, n_params: 
     pnl_mb = batch_size * 50000 * 8 / 1e6
 
     return price_mb + signal_mb + param_mb + metrics_mb + pnl_mb
+
+
+def _add_single_best_candidate(
+    result: OptimizationResult,
+    staged_result: StagedResult,
+    spec: Any,
+    engine_fwd: BacktestEngine | None,
+    config: OptimizationConfig,
+) -> None:
+    """Add the single best candidate from staged optimization (fallback)."""
+    value_row = indices_to_values(spec, staged_result.best_indices.reshape(1, -1))
+    params_dict = decode_params(spec, value_row[0])
+
+    back_metrics_dict = {
+        "trades": float(staged_result.best_metrics[M_TRADES]),
+        "quality_score": float(staged_result.best_metrics[M_QUALITY]),
+        "sharpe": float(staged_result.best_metrics[M_SHARPE]),
+    }
+
+    candidate = Candidate(
+        index=0,
+        params=params_dict,
+        back_metrics=back_metrics_dict,
+    )
+
+    if engine_fwd is not None:
+        fwd_row = encode_params(spec, params_dict).reshape(1, -1)
+        fwd_metrics = engine_fwd.evaluate_batch(fwd_row, EXEC_FULL)
+
+        candidate.forward_metrics = {
+            "trades": float(fwd_metrics[0, M_TRADES]),
+            "quality_score": float(fwd_metrics[0, M_QUALITY]),
+            "sharpe": float(fwd_metrics[0, M_SHARPE]),
+        }
+
+        candidate.dsr = deflated_sharpe_ratio(
+            float(staged_result.best_metrics[M_SHARPE]),
+            staged_result.total_trials,
+            int(staged_result.best_metrics[M_TRADES]),
+        )
+
+        back_q = candidate.back_metrics.get("quality_score", 0)
+        fwd_q = candidate.forward_metrics.get("quality_score", 0)
+        candidate.forward_back_ratio = fwd_q / back_q if back_q > 0 else 0.0
+
+    result.candidates.append(candidate)
+    logger.info("Single-best candidate selected (fallback)")
+
+
+def _add_multi_candidates(
+    result: OptimizationResult,
+    staged_result: StagedResult,
+    spec: Any,
+    engine_fwd: BacktestEngine | None,
+    config: OptimizationConfig,
+) -> bool:
+    """Select multiple diverse candidates from refinement passing trials.
+
+    Returns True if at least one candidate was added, False otherwise.
+    """
+    ref_indices = staged_result.refinement_indices
+    ref_metrics = staged_result.refinement_metrics
+
+    if ref_indices is None or ref_metrics is None or len(ref_indices) == 0:
+        logger.info("No refinement passing trials for multi-candidate selection")
+        return False
+
+    n_candidates = min(config.top_n_candidates, len(ref_indices))
+    logger.info(
+        f"Multi-candidate: {len(ref_indices)} passing trials, "
+        f"selecting top {n_candidates} diverse"
+    )
+
+    # Step 1: Diversity selection from refinement passing trials
+    selected_local = select_top_n_diverse(
+        ref_metrics, n=n_candidates, params=ref_indices,
+    )
+
+    if not selected_local:
+        return False
+
+    # Build selected arrays (indices are into ref_indices/ref_metrics)
+    sel_back_indices = ref_indices[selected_local]  # (K, P) index-space
+    sel_back_metrics = ref_metrics[selected_local]  # (K, NUM_METRICS)
+
+    # Step 2: Convert to value space for forward evaluation
+    sel_value_matrix = indices_to_values(spec, sel_back_indices)
+
+    # Step 3: Forward-test all if forward engine available
+    sel_fwd_metrics = None
+    if engine_fwd is not None:
+        logger.info(f"Forward-testing {len(sel_value_matrix)} candidates...")
+        sel_fwd_metrics = engine_fwd.evaluate_batch(sel_value_matrix, EXEC_FULL)
+
+        # Step 4: Forward/back gate
+        gate_mask = forward_back_gate(
+            sel_back_metrics, sel_fwd_metrics,
+            min_ratio=config.min_forward_back_ratio,
+        )
+        n_passed = int(gate_mask.sum())
+        logger.info(
+            f"Forward/back gate: {n_passed}/{len(gate_mask)} passed "
+            f"(min ratio={config.min_forward_back_ratio})"
+        )
+
+        if n_passed == 0:
+            # No candidates pass gate — return False to fallback
+            logger.warning("All multi-candidates failed forward/back gate")
+            return False
+
+        # Filter to passing candidates only
+        passing_idx = np.where(gate_mask)[0]
+        sel_back_indices = sel_back_indices[passing_idx]
+        sel_back_metrics = sel_back_metrics[passing_idx]
+        sel_value_matrix = sel_value_matrix[passing_idx]
+        sel_fwd_metrics = sel_fwd_metrics[passing_idx]
+
+        # Step 5: Compute DSR and combined rank
+        dsrs = np.array([
+            deflated_sharpe_ratio(
+                float(sel_back_metrics[i, M_SHARPE]),
+                staged_result.total_trials,
+                int(sel_back_metrics[i, M_TRADES]),
+            )
+            for i in range(len(sel_back_metrics))
+        ])
+        comb_ranks = combined_rank(
+            sel_back_metrics, sel_fwd_metrics,
+            forward_weight=config.forward_weight,
+        )
+
+        # Sort by combined rank (lower = better)
+        sort_order = np.argsort(comb_ranks)
+    else:
+        # No forward data — sort by back quality descending
+        sort_order = np.argsort(-sel_back_metrics[:, M_QUALITY])
+        dsrs = np.zeros(len(sel_back_metrics))
+
+    # Step 6: Build Candidate objects
+    for rank, orig_idx in enumerate(sort_order):
+        params_dict = decode_params(spec, sel_value_matrix[orig_idx])
+
+        back_metrics_dict = {
+            "trades": float(sel_back_metrics[orig_idx, M_TRADES]),
+            "quality_score": float(sel_back_metrics[orig_idx, M_QUALITY]),
+            "sharpe": float(sel_back_metrics[orig_idx, M_SHARPE]),
+        }
+
+        candidate = Candidate(
+            index=rank,
+            params=params_dict,
+            back_metrics=back_metrics_dict,
+            dsr=float(dsrs[orig_idx]),
+        )
+
+        if sel_fwd_metrics is not None:
+            candidate.forward_metrics = {
+                "trades": float(sel_fwd_metrics[orig_idx, M_TRADES]),
+                "quality_score": float(sel_fwd_metrics[orig_idx, M_QUALITY]),
+                "sharpe": float(sel_fwd_metrics[orig_idx, M_SHARPE]),
+            }
+            back_q = back_metrics_dict.get("quality_score", 0)
+            fwd_q = candidate.forward_metrics.get("quality_score", 0)
+            candidate.forward_back_ratio = fwd_q / back_q if back_q > 0 else 0.0
+            candidate.combined_rank = float(comb_ranks[orig_idx])
+
+        result.candidates.append(candidate)
+
+    logger.info(f"Multi-candidate selection: {len(result.candidates)} candidates")
+    return True
 
 
 def optimize(
@@ -150,62 +321,32 @@ def optimize(
     )
 
     # --- Stage 2: Build final candidate list ---
-    # For now, return the best from staged optimization
     result = OptimizationResult()
     result.staged_result = staged_result
     result.total_trials = staged_result.total_trials
+    spec = engine_back.encoding
 
     if staged_result.best_indices is not None:
-        # Decode best params
-        spec = engine_back.encoding
-        value_row = indices_to_values(spec, staged_result.best_indices.reshape(1, -1))
-        params_dict = decode_params(spec, value_row[0])
-
-        # Back metrics
-        back_metrics_dict = {
-            "trades": float(staged_result.best_metrics[M_TRADES]),
-            "quality_score": float(staged_result.best_metrics[M_QUALITY]),
-            "sharpe": float(staged_result.best_metrics[M_SHARPE]),
-        }
-
-        candidate = Candidate(
-            index=0,
-            params=params_dict,
-            back_metrics=back_metrics_dict,
-        )
-
-        # Forward-test if data provided
+        # Build forward engine if data provided
+        engine_fwd = None
         if high_fwd is not None:
-            logger.info("Evaluating on forward-test data...")
             engine_fwd = BacktestEngine(
                 strategy, open_fwd, high_fwd, low_fwd, close_fwd,
                 volume_fwd, spread_fwd, pip_value, slippage_pips,
                 config.max_trades_per_trial,
                 bar_hour=bar_hour_fwd, bar_day_of_week=bar_day_fwd,
             )
-            from backtester.core.encoding import encode_params
-            fwd_row = encode_params(spec, params_dict).reshape(1, -1)
-            fwd_metrics = engine_fwd.evaluate_batch(fwd_row, EXEC_FULL)
 
-            candidate.forward_metrics = {
-                "trades": float(fwd_metrics[0, M_TRADES]),
-                "quality_score": float(fwd_metrics[0, M_QUALITY]),
-                "sharpe": float(fwd_metrics[0, M_SHARPE]),
-            }
+        # Try multi-candidate path first
+        multi_ok = _add_multi_candidates(
+            result, staged_result, spec, engine_fwd, config,
+        )
 
-            # DSR
-            candidate.dsr = deflated_sharpe_ratio(
-                float(staged_result.best_metrics[M_SHARPE]),
-                staged_result.total_trials,
-                int(staged_result.best_metrics[M_TRADES]),
+        # Fallback to single-best if multi-candidate didn't produce results
+        if not multi_ok:
+            _add_single_best_candidate(
+                result, staged_result, spec, engine_fwd, config,
             )
-
-            # Forward/back quality ratio
-            back_q = candidate.back_metrics.get("quality_score", 0)
-            fwd_q = candidate.forward_metrics.get("quality_score", 0)
-            candidate.forward_back_ratio = fwd_q / back_q if back_q > 0 else 0.0
-
-        result.candidates.append(candidate)
 
     elapsed = time.time() - t0
     result.elapsed_seconds = elapsed

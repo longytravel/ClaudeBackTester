@@ -8,6 +8,7 @@ from backtester.pipeline.confidence import (
     assign_rating,
     compute_confidence,
     score_backtest_quality,
+    score_cpcv,
     score_dsr,
     score_forward_back,
     score_monte_carlo,
@@ -15,6 +16,8 @@ from backtester.pipeline.confidence import (
     score_walk_forward,
 )
 from backtester.pipeline.types import (
+    CPCVFoldResult,
+    CPCVResult,
     CandidateResult,
     ConfidenceResult,
     MonteCarloResult,
@@ -356,3 +359,94 @@ class TestAssignRating:
         cfg = PipelineConfig(conf_green_threshold=90.0, conf_yellow_threshold=60.0)
         assert assign_rating(85.0, True, cfg) == Rating.YELLOW
         assert assign_rating(95.0, True, cfg) == Rating.GREEN
+
+
+# ---------------------------------------------------------------------------
+# CPCV Scoring Tests
+# ---------------------------------------------------------------------------
+
+class TestScoreCPCV:
+    def test_perfect_cpcv_scores_high(self):
+        cpcv = CPCVResult(
+            n_folds=45,
+            pct_positive_sharpe=1.0,
+            mean_sharpe=2.0,
+            sharpe_ci_low=1.5,
+            sharpe_ci_high=2.5,  # CI width = 1.0
+        )
+        score = score_cpcv(cpcv)
+        # 40% * 100 + 30% * 100 + 20% * 50 + 10% * 100 = 90
+        assert score > 80
+
+    def test_none_cpcv_scores_zero(self):
+        assert score_cpcv(None) == 0.0
+
+    def test_zero_folds_scores_zero(self):
+        cpcv = CPCVResult(n_folds=0)
+        assert score_cpcv(cpcv) == 0.0
+
+    def test_weak_cpcv_scores_low(self):
+        cpcv = CPCVResult(
+            n_folds=10,
+            pct_positive_sharpe=0.3,
+            mean_sharpe=0.1,
+            sharpe_ci_low=-1.0,
+            sharpe_ci_high=1.0,  # CI width = 2.0
+        )
+        score = score_cpcv(cpcv)
+        assert score < 25
+
+
+class TestCompositeWithCPCV:
+    def test_cpcv_blends_into_walk_forward(self):
+        """When CPCV is present, walk-forward weight blends 60% WF + 40% CPCV."""
+        cfg = PipelineConfig()
+        c = _good_candidate()
+        # Add strong CPCV
+        c.cpcv = CPCVResult(
+            n_folds=45, n_blocks=10, k_test=2,
+            pct_positive_sharpe=0.9,
+            mean_sharpe=1.2,
+            sharpe_ci_low=0.5,
+            sharpe_ci_high=1.9,
+            passed_gate=True,
+        )
+        result = compute_confidence(c, cfg)
+        assert result.cpcv_score > 0
+        # Composite should still be in valid range
+        assert 0 <= result.composite_score <= 100
+
+    def test_without_cpcv_uses_pure_walk_forward(self):
+        """When CPCV is None, walk-forward weight is 100% WF (backward compatible)."""
+        cfg = PipelineConfig()
+        c = _good_candidate()
+        assert c.cpcv is None  # No CPCV by default
+        result = compute_confidence(c, cfg)
+        assert result.cpcv_score == 0.0
+        # Should still produce valid composite
+        assert result.composite_score > 0
+
+    def test_cpcv_gates_in_apply_gates(self):
+        """CPCV gates are added when CPCV data is present."""
+        cfg = PipelineConfig()
+        c = _good_candidate()
+        c.cpcv = CPCVResult(
+            n_folds=45,
+            pct_positive_sharpe=0.8,
+            mean_sharpe=0.5,
+            passed_gate=True,
+        )
+        gates = apply_gates(c, cfg)
+        assert "cpcv_positive_sharpe" in gates
+        assert "cpcv_mean_sharpe" in gates
+        assert gates["cpcv_positive_sharpe"] is True
+        assert gates["cpcv_mean_sharpe"] is True
+
+    def test_cpcv_gates_absent_when_no_cpcv(self):
+        """CPCV gates are NOT added when CPCV is None (backward compatible)."""
+        cfg = PipelineConfig()
+        c = _good_candidate()
+        assert c.cpcv is None
+        gates = apply_gates(c, cfg)
+        assert "cpcv_positive_sharpe" not in gates
+        assert "cpcv_mean_sharpe" not in gates

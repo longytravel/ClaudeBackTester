@@ -3,6 +3,8 @@
 from backtester.pipeline.config import PipelineConfig
 from backtester.pipeline.runner import PipelineRunner
 from backtester.pipeline.types import (
+    CPCVFoldResult,
+    CPCVResult,
     CandidateResult,
     ConfidenceResult,
     MonteCarloResult,
@@ -15,6 +17,8 @@ from backtester.pipeline.types import (
 )
 
 __all__ = [
+    "CPCVFoldResult",
+    "CPCVResult",
     "PipelineConfig",
     "PipelineRunner",
     "CandidateResult",

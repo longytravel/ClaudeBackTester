@@ -11,6 +11,7 @@ from typing import Any
 
 from backtester.pipeline.config import PipelineConfig
 from backtester.pipeline.types import (
+    CPCVResult,
     CandidateResult,
     ConfidenceResult,
     MonteCarloResult,
@@ -39,6 +40,15 @@ def apply_gates(candidate: CandidateResult, config: PipelineConfig) -> dict[str,
     else:
         gates["wf_pass_rate"] = False
         gates["wf_mean_sharpe"] = False
+
+    # Gate 2b: CPCV (from Stage 3b, optional)
+    cpcv = candidate.cpcv
+    if cpcv is not None:
+        gates["cpcv_positive_sharpe"] = (
+            cpcv.pct_positive_sharpe >= config.cpcv_pct_positive_sharpe_gate
+        )
+        gates["cpcv_mean_sharpe"] = cpcv.mean_sharpe >= config.cpcv_mean_sharpe_gate
+    # CPCV gates not added when cpcv is None (backward compatible)
 
     # Gate 3: DSR + permutation (from Stage 5)
     mc = candidate.monte_carlo
@@ -197,6 +207,39 @@ def score_dsr(dsr_value: float) -> float:
     return 80.0 * (dsr_value - 0.5) / 0.45
 
 
+def score_cpcv(cpcv: CPCVResult | None) -> float:
+    """Score CPCV distribution quality (0-100).
+
+    Components:
+    - pct_positive_sharpe (40% weight): fraction of folds with positive Sharpe
+    - mean_sharpe (30% weight): mean OOS Sharpe across folds
+    - CI width (20% weight): narrow CI → more confident (inverse)
+    - fold count bonus (10% weight): more folds → more reliable
+    """
+    if cpcv is None or cpcv.n_folds == 0:
+        return 0.0
+
+    # Pct positive: 0-100 directly
+    pct_score = cpcv.pct_positive_sharpe * 100.0
+
+    # Mean Sharpe: cap at 2.0 → 100
+    sharpe_score = min(max(cpcv.mean_sharpe, 0.0) / 2.0, 1.0) * 100.0
+
+    # CI width: narrow = good. Width 0 → 100, width >= 2.0 → 0
+    ci_width = cpcv.sharpe_ci_high - cpcv.sharpe_ci_low
+    ci_score = max(0.0, (1.0 - ci_width / 2.0)) * 100.0
+
+    # Fold count: 20+ folds → 100
+    fold_score = min(cpcv.n_folds / 20.0, 1.0) * 100.0
+
+    return (
+        0.40 * pct_score
+        + 0.30 * sharpe_score
+        + 0.20 * ci_score
+        + 0.10 * fold_score
+    )
+
+
 def score_backtest_quality(candidate: CandidateResult) -> float:
     """Score raw backtest quality (0-100).
 
@@ -231,6 +274,7 @@ def compute_confidence(
 
     # Step 2: Compute sub-scores
     result.walk_forward_score = score_walk_forward(candidate.walk_forward)
+    result.cpcv_score = score_cpcv(candidate.cpcv)
     result.monte_carlo_score = score_monte_carlo(candidate.monte_carlo)
     result.forward_back_score = score_forward_back(candidate.forward_back_ratio)
     result.stability_score = score_stability(candidate.stability)
@@ -240,8 +284,16 @@ def compute_confidence(
     result.backtest_quality_score = score_backtest_quality(candidate)
 
     # Step 3: Weighted composite
+    # When CPCV is available, blend it into the walk-forward weight:
+    # 60% WF + 40% CPCV. When not available, 100% WF (backward compatible).
+    wf_weight = config.conf_weight_walk_forward
+    if candidate.cpcv is not None and candidate.cpcv.n_folds > 0:
+        wf_component = 0.60 * result.walk_forward_score + 0.40 * result.cpcv_score
+    else:
+        wf_component = result.walk_forward_score
+
     result.composite_score = (
-        config.conf_weight_walk_forward * result.walk_forward_score
+        wf_weight * wf_component
         + config.conf_weight_monte_carlo * result.monte_carlo_score
         + config.conf_weight_forward_back * result.forward_back_score
         + config.conf_weight_stability * result.stability_score

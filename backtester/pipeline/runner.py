@@ -150,7 +150,7 @@ class PipelineRunner:
         return self.state
 
     def _run_walk_forward(self) -> None:
-        """Stage 3: Walk-forward validation."""
+        """Stage 3: Walk-forward validation + optional CPCV sub-step."""
         from backtester.pipeline.walk_forward import walk_forward_validate
 
         active = [c for c in self.state.candidates if not c.eliminated]
@@ -177,6 +177,37 @@ class PipelineRunner:
                 candidate.elimination_reason = (
                     f"pass_rate={wf_result.pass_rate:.2f}, "
                     f"mean_sharpe={wf_result.mean_sharpe:.2f}"
+                )
+
+        # Run CPCV sub-step on survivors if enabled
+        if self.config.cpcv_enabled:
+            self._run_cpcv()
+
+    def _run_cpcv(self) -> None:
+        """Stage 3b: CPCV sub-step (runs after walk-forward)."""
+        from backtester.pipeline.cpcv import cpcv_validate
+
+        active = [c for c in self.state.candidates if not c.eliminated]
+        if not active:
+            logger.info("No active candidates for CPCV")
+            return
+
+        param_dicts = [c.params for c in active]
+        results = cpcv_validate(
+            self.strategy, param_dicts, self.data,
+            config=self.config,
+            pip_value=self.pip_value,
+            slippage_pips=self.slippage_pips,
+        )
+
+        for candidate, cpcv_result in zip(active, results):
+            candidate.cpcv = cpcv_result
+            if not cpcv_result.passed_gate:
+                candidate.eliminated = True
+                candidate.eliminated_at_stage = "cpcv"
+                candidate.elimination_reason = (
+                    f"pct_positive={cpcv_result.pct_positive_sharpe:.2f}, "
+                    f"mean_sharpe={cpcv_result.mean_sharpe:.3f}"
                 )
 
     def _run_stability(self) -> None:
@@ -310,6 +341,13 @@ class PipelineRunner:
             if c.monte_carlo:
                 entry["dsr"] = c.monte_carlo.dsr
                 entry["permutation_p"] = c.monte_carlo.permutation_p_value
+            if c.cpcv:
+                entry["cpcv_n_folds"] = c.cpcv.n_folds
+                entry["cpcv_mean_sharpe"] = c.cpcv.mean_sharpe
+                entry["cpcv_pct_positive"] = c.cpcv.pct_positive_sharpe
+                entry["cpcv_ci_low"] = c.cpcv.sharpe_ci_low
+                entry["cpcv_ci_high"] = c.cpcv.sharpe_ci_high
+                entry["cpcv_gate"] = c.cpcv.passed_gate
             if c.stability:
                 entry["stability_rating"] = c.stability.rating.value
                 entry["stability_mean_ratio"] = c.stability.mean_ratio

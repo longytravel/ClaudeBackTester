@@ -30,7 +30,7 @@ class OptimizationConfig:
     # --- Ranking ---
     forward_weight: float = 1.5
     min_forward_back_ratio: float = 0.4
-    top_n_candidates: int = 50
+    top_n_candidates: int = 10
 
     # --- DSR ---
     dsr_threshold: float = 0.95   # DSR must exceed this to be "significant"
