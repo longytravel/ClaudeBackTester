@@ -27,14 +27,14 @@ echo      Done.
 echo.
 
 REM 2. Install/update dependencies
-echo [2/4] Installing dependencies...
+echo [2/4] Installing dependencies (first time is slow, be patient)...
 REM Try uv first (dev machine), fall back to pip (VPS)
 where uv >nul 2>&1
 if %errorlevel% equ 0 (
     uv sync --quiet
 ) else (
-    pip install -r requirements.txt --quiet 2>nul
-    pip install -e . --quiet 2>nul
+    pip install -r requirements.txt
+    pip install -e .
 )
 echo      Done.
 echo.
