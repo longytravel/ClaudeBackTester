@@ -2,6 +2,7 @@
 
 Scans results/*/checkpoint.json for pipeline results.
 Starts one live_trade.py process per strategy in the background.
+SAFE: skips strategies that are already running (no interruption).
 """
 
 from __future__ import annotations
@@ -66,6 +67,35 @@ def find_strategies(results_dir: str) -> list[dict]:
     return strategies
 
 
+def get_running_strategies() -> set[str]:
+    """Get dir_names of strategies that already have a running process."""
+    try:
+        ps_cmd = (
+            "Get-CimInstance Win32_Process | "
+            "Where-Object { $_.CommandLine -like '*live_trade.py*' -and $_.Name -eq 'python.exe' } | "
+            "Select-Object -ExpandProperty CommandLine"
+        )
+        result = subprocess.run(
+            ["powershell", "-Command", ps_cmd],
+            capture_output=True, text=True, timeout=10,
+        )
+        running = set()
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            # Extract --state-dir value to identify which strategy
+            if "--state-dir" in line:
+                parts = line.split("--state-dir")
+                if len(parts) > 1:
+                    state_dir = parts[1].strip().split()[0]
+                    # dir_name is the last folder in the state path
+                    running.add(Path(state_dir).name)
+        return running
+    except Exception:
+        return set()
+
+
 def main():
     mode = "practice"  # Default to demo account
     if len(sys.argv) > 1:
@@ -92,28 +122,41 @@ def main():
         print("Run optimization + validation first.")
         sys.exit(1)
 
+    # Find which strategies are already running
+    already_running = get_running_strategies()
+
     print(f"\n{'='*60}")
-    print(f"  Found {len(strategies)} strategy(ies) to launch")
+    print(f"  Found {len(strategies)} strategy(ies)")
+    print(f"  Already running: {len(already_running)}")
     print(f"  Mode: {mode.upper()}")
     print(f"{'='*60}\n")
 
     launched = 0
-    skipped = 0
+    skipped_rating = 0
+    skipped_running = 0
+
     for s in strategies:
         name = s["strategy"]
         pair = s["pair"]
         tf = s["timeframe"]
         rating = s["rating"]
-        state_dir = str(state_base / s["dir_name"])
+        dir_name = s["dir_name"]
+        state_dir = str(state_base / dir_name)
 
         # Only launch GREEN or AMBER rated strategies
         if rating and rating not in ("GREEN", "AMBER"):
-            print(f"  SKIPPING: {name} / {pair} / {tf}  [{rating}] — not GREEN/AMBER")
-            skipped += 1
+            print(f"  SKIP:    {name} / {pair} / {tf}  [{rating}] — not GREEN/AMBER")
+            skipped_rating += 1
+            continue
+
+        # Skip if already running (don't interrupt open trades!)
+        if dir_name in already_running:
+            print(f"  RUNNING: {name} / {pair} / {tf}  — already active, not touching it")
+            skipped_running += 1
             continue
 
         tag = f"  [{rating}]" if rating else ""
-        print(f"  Starting: {name} / {pair} / {tf}{tag}")
+        print(f"  START:   {name} / {pair} / {tf}{tag}")
 
         log_file = os.path.join(state_dir, "trader.log")
         os.makedirs(state_dir, exist_ok=True)
@@ -141,10 +184,11 @@ def main():
         launched += 1
 
     print(f"\n{'='*60}")
-    print(f"  {launched} trader(s) launched in background")
-    if skipped:
-        print(f"  {skipped} skipped (not GREEN/AMBER rated)")
-    print(f"  State dir: {state_base}")
+    print(f"  {launched} new trader(s) launched")
+    if skipped_running:
+        print(f"  {skipped_running} already running (left alone)")
+    if skipped_rating:
+        print(f"  {skipped_rating} skipped (not GREEN/AMBER)")
     print(f"{'='*60}")
     print(f"\n  You can close this window now.")
     print(f"  Run STATUS.bat to check on them.")
