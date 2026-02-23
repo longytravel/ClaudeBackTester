@@ -627,6 +627,8 @@ class TestFullMode:
         )
 
         assert metrics[0, M_TRADES] == 1.0
+        # BE offset = 2 pips, so exit should be slightly profitable
+        assert metrics[0, M_WIN_RATE] == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -917,3 +919,226 @@ class TestExecutionCosts:
         )
         # Total cost = spread (1.0) + commission (0.7) = 1.7 pips
         assert abs((pnl_no_cost - pnl_with_cost) - 1.7) < 0.01
+
+
+# ---------------------------------------------------------------------------
+# SELL direction management tests
+# ---------------------------------------------------------------------------
+
+class TestSellDirectionManagement:
+    def test_sell_trailing_stop(self):
+        """Trailing stop should lock in profits for SELL trades."""
+        pip = 0.0001
+        base = 1.1000
+        # Price drops 50 pips, then rallies back
+        moves = [
+            (5, -20),    # Bar 1: -20 low (favorable for SELL)
+            (5, -40),    # Bar 2: -40 low (trail activates at 30)
+            (5, -50),    # Bar 3: -50 low (trail moves down)
+            (30, -10),   # Bar 4: rallies, trail should trigger
+        ]
+        high, low, close, spread = _make_simple_prices(moves, base=base)
+        # For SELL: low is favorable, high is adverse. Fix signs:
+        # Actually _make_simple_prices uses offsets from base.
+        # For SELL: price going DOWN is good. Let me reconstruct properly.
+        n = 5
+        high = np.full(n, base, dtype=np.float64)
+        low = np.full(n, base, dtype=np.float64)
+        close = np.full(n, base, dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+        # Bar 0: entry bar
+        # Bar 1: price drops 20 pips
+        high[1] = base + 5 * pip;  low[1] = base - 20 * pip;  close[1] = base - 10 * pip
+        # Bar 2: price drops 40 pips
+        high[2] = base + 5 * pip;  low[2] = base - 40 * pip;  close[2] = base - 30 * pip
+        # Bar 3: price drops 50 pips
+        high[3] = base + 5 * pip;  low[3] = base - 50 * pip;  close[3] = base - 40 * pip
+        # Bar 4: price rallies (adverse for sell)
+        high[4] = base - 10 * pip; low[4] = base - 30 * pip;  close[4] = base - 15 * pip
+
+        pnl, exit_code = _simulate_trade_full(
+            DIR_SELL, 0, base,
+            sl_price=base + 50 * pip,  # Wide SL
+            tp_price=base - 100 * pip, # Wide TP
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_FIXED_PIP,
+            trail_activate_pips=30.0,  # Activate at +30 pips profit
+            trail_distance_pips=15.0,  # Trail 15 pips behind
+            trail_atr_mult=2.0,
+            breakeven_enabled=0, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=0, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.0,
+        )
+        assert exit_code == EXIT_TRAILING
+        assert pnl > 20  # Should lock in significant profit
+
+    def test_sell_breakeven_lock(self):
+        """Breakeven should work for SELL trades."""
+        pip = 0.0001
+        base = 1.1000
+        n = 4
+        high = np.full(n, base, dtype=np.float64)
+        low = np.full(n, base, dtype=np.float64)
+        close = np.full(n, base, dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+        # Bar 0: entry
+        # Bar 1: price drops 25 pips (triggers BE at 20)
+        high[1] = base + 5 * pip;  low[1] = base - 25 * pip;  close[1] = base - 15 * pip
+        # Bar 2: price rallies back above entry (should hit BE stop)
+        high[2] = base + 5 * pip;  low[2] = base - 5 * pip;   close[2] = base + 3 * pip
+
+        pnl, exit_code = _simulate_trade_full(
+            DIR_SELL, 0, base,
+            sl_price=base + 50 * pip,
+            tp_price=base - 100 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=10.0, trail_atr_mult=2.0,
+            breakeven_enabled=1, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=0, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.0,
+        )
+        assert exit_code == EXIT_BREAKEVEN
+        # BE offset = 2 pips below entry for SELL, so small profit
+        assert pnl > 0
+
+
+# ---------------------------------------------------------------------------
+# Partial close and stale exit tests
+# ---------------------------------------------------------------------------
+
+class TestPartialCloseAndStaleExit:
+    def test_partial_close_reduces_position(self):
+        """Partial close should realize some PnL and reduce remaining position."""
+        pip = 0.0001
+        base = 1.1000
+        n = 4
+        high = np.full(n, base, dtype=np.float64)
+        low = np.full(n, base, dtype=np.float64)
+        close = np.full(n, base, dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+        # Bar 0: entry
+        # Bar 1: price goes up 35 pips (triggers partial at 30, closes 50% at bar close)
+        high[1] = base + 35 * pip;  low[1] = base - 2 * pip;   close[1] = base + 30 * pip
+        # Bar 2: price drops to SL
+        high[2] = base + 5 * pip;   low[2] = base - 50 * pip;  close[2] = base - 40 * pip
+
+        pnl_with_partial, _ = _simulate_trade_full(
+            DIR_BUY, 0, base,
+            sl_price=base - 40 * pip,
+            tp_price=base + 100 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=10.0, trail_atr_mult=2.0,
+            breakeven_enabled=0, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=1, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=0, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.0,
+        )
+        pnl_without_partial, _ = _simulate_trade_full(
+            DIR_BUY, 0, base,
+            sl_price=base - 40 * pip,
+            tp_price=base + 100 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=10.0, trail_atr_mult=2.0,
+            breakeven_enabled=0, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=0, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.0,
+        )
+        # Without partial: full SL hit = -40 pips
+        # With partial: 50% closed at +30 pips (+15) + 50% hits SL at -40 pips (-20) = -5
+        # So partial close should significantly improve the losing trade
+        assert pnl_with_partial > pnl_without_partial
+
+    def test_stale_exit_triggers(self):
+        """Stale exit should close trade when price barely moves."""
+        pip = 0.0001
+        base = 1.1000
+        # Create 60 bars of tiny range (< atr_thresh * atr_pips)
+        n = 65
+        high = np.full(n, base + 0.1 * pip, dtype=np.float64)
+        low = np.full(n, base - 0.1 * pip, dtype=np.float64)
+        close = np.full(n, base, dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl, exit_code = _simulate_trade_full(
+            DIR_BUY, 0, base,
+            sl_price=base - 50 * pip,
+            tp_price=base + 100 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=10.0, trail_atr_mult=2.0,
+            breakeven_enabled=0, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=1, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.0,
+        )
+        assert exit_code == EXIT_STALE
+        # PnL should be near zero (price barely moved)
+        assert abs(pnl) < 5
+
+
+# ---------------------------------------------------------------------------
+# Hour wrap-around filter test
+# ---------------------------------------------------------------------------
+
+class TestHourWrapAround:
+    def test_hour_wrap_around_filter(self):
+        """Hours filter 22-06 should accept signals at hour 2 and reject hour 10."""
+        pip = 0.0001
+        base = 1.1000
+        high, low, close, spread = _make_simple_prices(
+            [(-5, 70)] * 3, base=base,
+        )
+
+        # Signal at hour 2 (should pass 22-06 filter)
+        sig_bar = np.array([0], dtype=np.int64)
+        sig_dir = np.array([DIR_BUY], dtype=np.int64)
+        sig_entry = np.array([base], dtype=np.float64)
+        sig_hour = np.array([2], dtype=np.int64)  # 2 AM
+        sig_day = np.array([1], dtype=np.int64)
+        sig_atr = np.array([20.0], dtype=np.float64)
+        sig_swing = np.array([np.nan], dtype=np.float64)
+
+        params = _basic_params()
+        params[PL_HOURS_START] = 22  # Wrap-around filter: 22:00 to 06:00
+        params[PL_HOURS_END] = 6
+        params = params.reshape(1, -1)
+        layout = _default_param_layout()
+        metrics = np.zeros((1, NUM_METRICS), dtype=np.float64)
+
+        batch_evaluate(
+            high, low, close, spread, pip, 0.0,
+            sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
+        )
+        assert metrics[0, M_TRADES] == 1.0  # Hour 2 is within 22-06
+
+        # Signal at hour 10 (should be filtered out by 22-06)
+        sig_hour_10 = np.array([10], dtype=np.int64)
+        metrics2 = np.zeros((1, NUM_METRICS), dtype=np.float64)
+
+        batch_evaluate(
+            high, low, close, spread, pip, 0.0,
+            sig_bar, sig_dir, sig_entry, sig_hour_10, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
+            params, layout, EXEC_BASIC, metrics2, 1000, 6048.0,
+            0.0, 0.0,
+        )
+        assert metrics2[0, M_TRADES] == 0.0  # Hour 10 is outside 22-06

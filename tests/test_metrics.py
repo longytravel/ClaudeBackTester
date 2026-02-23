@@ -82,12 +82,13 @@ class TestSharpe:
     def test_positive(self):
         pnl = np.array([10.0, 12.0, 8.0, 11.0, 9.0])
         sh = sharpe_ratio(pnl, trades_per_year=252)
-        assert sh > 0
+        # mean=10, std~1.58, raw~6.32, annualized~6.32*sqrt(252)~100
+        assert 50 < sh < 200
 
     def test_negative(self):
         pnl = np.array([-10.0, -12.0, -8.0, -11.0, -9.0])
         sh = sharpe_ratio(pnl, trades_per_year=252)
-        assert sh < 0
+        assert -200 < sh < -50
 
     def test_zero_std(self):
         pnl = np.array([5.0, 5.0, 5.0])
@@ -140,12 +141,14 @@ class TestMaxDrawdown:
     def test_simple_drawdown(self):
         pnl = np.array([10.0, 10.0, -15.0, 10.0])
         dd = max_drawdown_pct(pnl)
-        assert dd > 0
+        # equity=[10,20,5,15], peak=20, dd=15, base=max(20,20)=20, dd%=75
+        assert 70 < dd < 80
 
     def test_all_losses(self):
         pnl = np.array([-10.0, -10.0, -10.0])
         dd = max_drawdown_pct(pnl)
-        assert dd > 0
+        # equity=[-10,-20,-30], peak=0, dd=30, base=max(30,0)=30, dd%=100
+        assert 95 < dd <= 100
 
     def test_empty(self):
         assert max_drawdown_pct(np.array([])) == 0.0
@@ -215,7 +218,7 @@ class TestUlcerIndex:
     def test_some_drawdown(self):
         pnl = np.array([10.0, -5.0, 10.0])
         u = ulcer_index(pnl)
-        assert u > 0
+        assert 0 < u < 100  # Meaningful range check
 
     def test_empty(self):
         assert ulcer_index(np.array([])) == 0.0
@@ -298,7 +301,10 @@ class TestComputeMetrics:
 
     def test_consistent_with_individual_functions(self):
         pnl = np.array([10.0, -5.0, 20.0, -8.0, 15.0, -2.0, 12.0])
-        m = compute_metrics(pnl, avg_sl_pips=20.0)
+        tpy = 252.0
+        m = compute_metrics(pnl, avg_sl_pips=20.0, trades_per_year=tpy)
         assert abs(m["win_rate"] - win_rate(pnl)) < 1e-10
         assert abs(m["profit_factor"] - profit_factor(pnl)) < 1e-10
         assert abs(m["r_squared"] - r_squared(pnl)) < 1e-10
+        assert abs(m["sharpe"] - sharpe_ratio(pnl, trades_per_year=tpy)) < 1e-10
+        assert abs(m["sortino"] - sortino_ratio(pnl, trades_per_year=tpy)) < 1e-10

@@ -179,8 +179,8 @@ class TestADX:
         low = close - 0.005
         adx_val, plus_di, minus_di = ind.adx(high, low, close, period=14)
         valid_adx = adx_val[~np.isnan(adx_val)]
-        if len(valid_adx) > 0:
-            assert valid_adx[-1] > 20  # Should show trending
+        assert len(valid_adx) > 0, "ADX should have valid values for 100-bar trending data"
+        assert valid_adx[-1] > 20  # Should show trending
 
 
 class TestDonchian:

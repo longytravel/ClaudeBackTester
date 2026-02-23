@@ -337,6 +337,8 @@ class TestExecutionCosts:
         r0 = engine_no_cost.evaluate_single(params)
         r1 = engine_with_cost.evaluate_single(params)
         assert r0["trades"] == r1["trades"]  # Same trade count
+        if r0["trades"] > 0:
+            assert r0["return_pct"] > r1["return_pct"]  # Commission reduces returns
 
     def test_max_spread_filter_engine(self):
         """Engine with tight max_spread_pips should filter high-spread signals."""
