@@ -36,14 +36,37 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - CRITICAL: Zero allocation inside prange loops. No np.empty(), no .append(), no NumPy function calls in the hot path. Pre-allocate ALL output arrays before the parallel region. Violating this causes worse-than-single-threaded performance (Numba issue #8686)
 - JIT compiles ONCE, all threads share compiled code natively
 - Precompute-Once, Filter-Many: indicators computed once, parameter filtering is cheap per-trial
-- Staged optimization uses random search (zero overhead, <=12 params per stage)
-- Full-space uses BATCHED Bayesian/Optuna TPE (13+ params) — ask() batch of trials, evaluate via prange, tell() results back
-- Auto-selects search strategy: <=12 params -> random, 13+ params -> batched TPE. CLI override: --search random|tpe|cma-es
+- **Optimizer Design**: Sobol/LHS exploration + Cross-Entropy/EDA exploitation + MAP-Elites diversity archive. Staged optimization is the biggest lever (reduces search space exponentially per stage). Optuna/TPE is NOT used in the hot loop (suggestion overhead dominates at sub-ms eval times per research). Optuna kept as dependency for future expensive-objective use (walk-forward, Monte Carlo)
+- **Batch-first principle**: optimizer generates N param sets → engine evaluates all N via prange → optimizer updates once per batch. Never single-trial evaluation in the hot loop
+- **DSR overfitting gate**: Deflated Sharpe Ratio for multiple-testing correction. Forward/back quality ratio >= 0.4 as promotion gate
 - Broker integration is an abstraction layer — swappable without touching strategy/pipeline code (currently IC Markets via MT5)
 - Backtest and live trader use identical signal generation and trade management logic
 - All state files use atomic writes (write temp, then rename)
 - All long-running processes checkpoint to disk for crash recovery
 - Upgrade path: Rust (PyO3) + Rayon for hot loop if more speed needed later
+
+## Staged Optimization
+- Stage order is **strategy-defined** via `optimization_stages()`, NOT hard-coded
+- Default order: signal → time → risk → management → refinement
+- Custom strategies override with their own group order
+- Engine switches from Basic mode (SL/TP only) to Full mode at management stage
+- Each stage locks best params before advancing to next stage
+- Refinement stage: all params active with narrow range around locked best values
+
+## Extensibility Patterns
+- **New exit mechanism**: pre-compute signal attrs + add exit code in `dtypes.py` + add if-block in `_simulate_trade_full()` + add `ParamDef` to `management_params()`
+- **New SL/TP mode**: add constant in `dtypes.py` + add elif in `_compute_sl_tp()` + add value to `risk_params()`
+- **New indicator**: add numpy function to `indicators.py` + use in strategy's `generate_signals()`
+- **New fitness function**: add numeric code to `dtypes.py` + elif in metrics section
+- **New param group**: add `group="my_group"` to `ParamDef` + add group to strategy's `optimization_stages()` list
+- **New strategy**: subclass `Strategy`, implement `generate_signals/filter_signals/calc_sl_tp`, register with `@register`
+- Principle: the framework adapts to strategy needs, not the other way around
+
+## Key Interfaces
+- `BacktestEngine.evaluate_batch(param_matrix) -> metrics_matrix` — (N,P) → (N,10)
+- `BacktestEngine.evaluate_single(params_dict) -> metrics_dict` — convenience wrapper
+- `StagedOptimizer` reads strategy's `optimization_stages()` dynamically
+- `EncodingSpec` bridges Python ParamSpace ↔ JIT float64 arrays (categoricals as indices, booleans as 0/1, lists as bitmasks)
 
 ## Windows-Specific Requirements
 - Install TBB: `pip install tbb` (or via conda)
