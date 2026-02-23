@@ -36,13 +36,13 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - CRITICAL: Zero allocation inside prange loops. No np.empty(), no .append(), no NumPy function calls in the hot path. Pre-allocate ALL output arrays before the parallel region. Violating this causes worse-than-single-threaded performance (Numba issue #8686)
 - JIT compiles ONCE, all threads share compiled code natively
 - Precompute-Once, Filter-Many: indicators computed once, parameter filtering is cheap per-trial
-- **Optimizer Design**: Sobol/LHS exploration + Cross-Entropy/EDA exploitation + MAP-Elites diversity archive. Staged optimization is the biggest lever (reduces search space exponentially per stage). Optuna/TPE is NOT used in the hot loop (suggestion overhead dominates at sub-ms eval times per research). Optuna kept as dependency for future expensive-objective use (walk-forward, Monte Carlo)
+- **Optimizer Design**: Sobol exploration + EDA exploitation + MAP-Elites diversity archive. Staged optimization is the biggest lever (reduces search space exponentially per stage). Optuna/TPE is NOT used in the hot loop (suggestion overhead dominates at sub-ms eval times per research). Optuna kept as dependency for future expensive-objective use (walk-forward, Monte Carlo)
 - **Batch-first principle**: optimizer generates N param sets → engine evaluates all N via prange → optimizer updates once per batch. Never single-trial evaluation in the hot loop
 - **DSR overfitting gate**: Deflated Sharpe Ratio for multiple-testing correction. Forward/back quality ratio >= 0.4 as promotion gate
 - Broker integration is an abstraction layer — swappable without touching strategy/pipeline code (currently IC Markets via MT5)
-- Backtest and live trader use identical signal generation and trade management logic
-- All state files use atomic writes (write temp, then rename)
-- All long-running processes checkpoint to disk for crash recovery
+- Backtest and live trader will use identical signal generation and trade management logic (live trader not yet built)
+- State files will use atomic writes (write temp, then rename) — currently only in data downloader
+- Long-running processes will checkpoint to disk for crash recovery (not yet implemented)
 - Upgrade path: Rust (PyO3) + Rayon for hot loop if more speed needed later
 
 ## Staged Optimization
@@ -63,7 +63,7 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - Principle: the framework adapts to strategy needs, not the other way around
 
 ## Key Interfaces
-- `BacktestEngine.evaluate_batch(param_matrix) -> metrics_matrix` — (N,P) → (N,10)
+- `BacktestEngine.evaluate_batch(param_matrix, exec_mode) -> metrics_matrix` — (N,P) → (N,10), exec_mode=EXEC_BASIC or EXEC_FULL
 - `BacktestEngine.evaluate_single(params_dict) -> metrics_dict` — convenience wrapper
 - `StagedOptimizer` reads strategy's `optimization_stages()` dynamically
 - `EncodingSpec` bridges Python ParamSpace ↔ JIT float64 arrays (categoricals as indices, booleans as 0/1, lists as bitmasks)
@@ -77,7 +77,7 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 ## Hardware Target (i9-14900HX)
 - 24 physical cores (8P + 16E), 32 logical threads, 64 GB RAM
 - Realistic parallel scaling: 16-20x on 24 cores (memory bandwidth limited)
-- Estimated throughput: 600-800 evals/sec (random), 400-600 evals/sec (batched TPE)
+- Measured throughput: 18K-35K evals/sec BASIC, 4K-10K evals/sec FULL (EUR/USD H1, 96K bars)
 
 ## Project Structure
 ```
@@ -86,20 +86,18 @@ backtester/
   data/           # Data download, caching, validation, timeframe conversion
   strategies/     # Strategy framework, base classes, indicator library
   optimizer/      # Parameter optimization, staged search
-  pipeline/       # 7-stage validation pipeline orchestration
-  live/           # Live trading engine, position management, broker sync
-  risk/           # Risk management, position sizing, circuit breakers
-  verification/   # Trade verification, signal replay, P&L reconciliation
-  reporting/      # HTML report generation, leaderboard
-  research/       # Strategy research factory, source tracker
+  pipeline/       # 7-stage validation pipeline orchestration (not yet built)
+  live/           # Live trading engine, position management (not yet built)
+  risk/           # Risk management, position sizing, circuit breakers (not yet built)
+  verification/   # Trade verification, signal replay (not yet built)
+  reporting/      # HTML report generation, leaderboard (not yet built)
+  research/       # Strategy research factory, source tracker (not yet built)
   broker/         # Broker abstraction layer (IC Markets / MT5 implementation)
-  notifications/  # Telegram bot integration
+  notifications/  # Telegram bot integration (not yet built)
   config/         # Configuration management, defaults
   cli/            # CLI entry points
-dashboard/        # React + Tailwind frontend (separate)
-output/           # Pipeline run outputs — gitignored
-state/            # Live trading state files — gitignored
-logs/             # Log files — gitignored
+scripts/          # Operational scripts (download, live data testing)
+Research/         # Strategy research papers and documents
 tests/            # Unit and integration tests
 ```
 
