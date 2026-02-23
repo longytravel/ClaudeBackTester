@@ -110,10 +110,10 @@ def deflated_sharpe_ratio(
     if n_trades < 2 or n_trials < 1:
         return 0.0
 
-    # Expected maximum Sharpe under null (multiple testing)
-    # E[max(Z_1,...,Z_n)] ≈ sqrt(2 * ln(n)) for normal
+    # Expected maximum z-score from N iid standard normals
+    # E[max(Z_1,...,Z_n)] ≈ sqrt(2 * ln(n))
     import math
-    e_max_sharpe = math.sqrt(2.0 * math.log(max(n_trials, 2)))
+    e_max_z = math.sqrt(2.0 * math.log(max(n_trials, 2)))
 
     # Variance of Sharpe estimator with non-normal returns
     # Var(SR) ≈ (1 + 0.5*SR² - skew*SR + (kurt-3)/4 * SR²) / (N-1)
@@ -122,10 +122,11 @@ def deflated_sharpe_ratio(
               + (kurtosis - 3.0) / 4.0 * sr**2) / max(n_trades - 1, 1)
     std_sr = math.sqrt(max(var_sr, 1e-10))
 
-    # Deflated SR: how many standard deviations above E[max]
+    # DSR z-score: observed SR in standard errors minus expected max z-score
+    # z = SR*/σ(SR) - E[max(Z)] per Bailey & Lopez de Prado (2014)
     if std_sr == 0:
         return 0.0
-    z = (sr - e_max_sharpe) / std_sr
+    z = sr / std_sr - e_max_z
 
     # Convert to probability using normal CDF
     # Approximation: Phi(z) ≈ 1/(1+exp(-1.7*z - 0.73*z^3))

@@ -43,8 +43,8 @@ def resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
         agg["spread"] = "median"
 
     resampled = df.resample(rule).agg(agg)
-    # Drop rows where all values are NaN (no data in that period)
-    resampled = resampled.dropna(how="all")
+    # Drop rows with no price data (volume sum=0 survives dropna(how="all"))
+    resampled = resampled.dropna(subset=["close"])
     return resampled
 
 

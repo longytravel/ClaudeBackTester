@@ -200,6 +200,11 @@ def optimize(
                 int(staged_result.best_metrics[M_TRADES]),
             )
 
+            # Forward/back quality ratio
+            back_q = candidate.back_metrics.get("quality_score", 0)
+            fwd_q = candidate.forward_metrics.get("quality_score", 0)
+            candidate.forward_back_ratio = fwd_q / back_q if back_q > 0 else 0.0
+
         result.candidates.append(candidate)
 
     elapsed = time.time() - t0
