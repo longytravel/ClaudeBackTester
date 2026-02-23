@@ -1,6 +1,8 @@
 # Current Task
 
-## Status: Phase 5 — Validation Pipeline Complete (MVP)
+## Status: Phase 5b Complete (VP-1 + VP-2) — Ready for Next Enhancement
+
+Phase 6 (live trading) is being built by another agent. Phase 5b validation enhancements are complete.
 
 ## What's Built
 - **Phase 1**: Data pipeline (Dukascopy downloader, timeframes, validation, splitting, MT5 broker)
@@ -9,40 +11,24 @@
 - **Phase 4**: Parameter optimizer (Sobol/EDA samplers, staged optimization, ranking, diversity archive)
 - **Execution Cost Modeling**: SELL exit spread, round-trip commission, max spread filter
 - **Phase 5**: Validation pipeline (walk-forward, stability, Monte Carlo, confidence scoring, checkpoint/resume, JSON reports)
-- **362 tests passing**
+- **Phase 5b VP-2**: Multi-candidate pipeline — optimizer returns top N diverse candidates, pipeline validates all
+- **Phase 5b VP-1**: CPCV validation — C(N,k) purged cross-validation, 45 folds, integrated into confidence scoring
+- **442 tests passing**
 
-## Phase 5 Summary (Feb 2026)
-Research-informed design with improvements over the original PRD:
+## Completed Phase 5b Enhancements
+- [x] VP-2: Multi-Candidate Pipeline (Increments 1-4)
+- [x] VP-1: CPCV Combinatorial Purged Cross-Validation (Increments 5-10)
 
-1. **Types + Config** (`pipeline/types.py`, `pipeline/config.py`) — All dataclasses, configurable thresholds
-2. **Walk-Forward** (`pipeline/walk_forward.py`) — Rolling/anchored windows with embargo gap, IS/OOS labeling, per-window engine instantiation, 60% pass rate + 0.3 Sharpe gates, WFE metric
-3. **Monte Carlo** (`pipeline/monte_carlo.py`) — Block bootstrap (preserves autocorrelation), sign-flip permutation test, trade-skip resilience (5%/10%), execution stress (+50% slippage, +30% commission), DSR hard gate (>= 0.95)
-4. **Stability** (`pipeline/stability.py`) — +-3 step perturbation on forward data, ROBUST/MODERATE/FRAGILE/OVERFIT rating (advisory only)
-5. **Confidence** (`pipeline/confidence.py`) — Sequential hard gates then 6-component weighted composite (0-100), RED/YELLOW/GREEN rating
-6. **Checkpoint + Runner** (`pipeline/checkpoint.py`, `pipeline/runner.py`) — JSON checkpoint/resume, stage orchestration, JSON report output
+## Remaining Phase 5b Enhancements (priority order)
+1. **OPT-1: CE Exploitation Upgrade** — Pairwise dependencies, adaptive LR, entropy monitoring
+2. **VP-3: Regime-Aware Validation** — ADX/ATR quadrant classification, per-regime stats
+3. **OPT-2: GT-Score Objective** — A/B test vs Quality Score
+4. **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select
 
-Key PRD deviations:
-- **DSR as hard gate** (not just scoring component) — research recommendation
-- **Block bootstrap** instead of naive shuffle — preserves autocorrelation
-- **+-3 steps** perturbation (not +-1) on forward data — catches fragile optima
-- **Removed DOF penalty** — redundant with DSR
-- **JSON report only** for MVP — HTML deferred to Phase 5b
-
-## Deferred / Post-MVP
-- Phase 5b: HTML report generation (REQ-P38-P40)
-- Phase 5b: CPCV (Combinatorial Purged Cross-Validation)
-- Pipeline CLI integration (`bt validate` command)
-- Increment 11: CLI integration (`bt optimize` command)
-- Increment 12: Cross-Entropy exploitation upgrade
-- Increment 13: Throughput benchmarking, batch size tuning
-- REQ-B03: Grid mode (multiple concurrent positions)
-- Regime-aware validation (HMM, ADX/ATR)
-- GT-Score as optimizer objective
-
-## Next Steps: Phase 6 — Live Trading (FR-6)
-1. **Live Trading Engine** (REQ-L01-L15): Trading loop, order execution, position management
-2. **Risk Management** (REQ-R01-R13): Pre-trade checks, position sizing, circuit breaker
-3. **Broker Integration** (REQ-L16-L30): MT5 order management, state sync
+## Phase 6 — Live Trading (separate agent, do NOT build)
+- Live Trading Engine (REQ-L01-L15)
+- Risk Management (REQ-R01-R13)
+- Broker Integration (REQ-L16-L30)
 
 ## Blockers
 - None

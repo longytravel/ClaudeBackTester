@@ -202,7 +202,7 @@
 - [x] NaN spread sanitization in telemetry (entry & exit)
 - [x] Time array warning when bar_hour/bar_day_of_week not provided
 - [x] Weekly timeframe anchor: "1W" → "W-MON" for FX weekly bars
-- [x] 253 tests passing (15 new regression tests), 362 after Phase 5
+- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b
 
 ---
 
@@ -229,6 +229,76 @@
 
 ### Pipeline CLI
 - [ ] REQ-P41-P43: Full CLI args, config override, progress logging (deferred)
+
+---
+
+## Phase 5b: Validation Pipeline & Optimizer Enhancements
+
+Research papers (paper1.txt, paper2.txt, report_a.txt, validation_pipeline.txt) identified improvements deferred from the Phase 5 MVP. These are safe to build now — no conflict with Phase 6 (live trading).
+
+### Validation Pipeline Enhancements
+
+#### VP-1: CPCV (Combinatorial Purged Cross-Validation) — HIGH PRIORITY ✓
+- [x] Implement CPCV alongside existing walk-forward (`pipeline/cpcv.py`)
+- [x] Purge overlapping observations between train/test folds (configurable purge_bars=200)
+- [x] Embargo buffer after each test fold (configurable embargo_bars=168)
+- [x] Generate C(N,k) train/test splits → distribution of OOS metrics (default N=10, k=2 → 45 folds)
+- [x] Integrate CPCV results into confidence scoring (60% WF + 40% CPCV blend when available)
+- [x] CPCV gates: pct_positive_sharpe >= 60%, mean_sharpe >= 0.2
+- [x] Checkpoint save/load for CPCV data
+- [x] 26 tests in test_cpcv.py, 8 CPCV confidence tests in test_confidence.py
+
+#### VP-2: Multi-Candidate Pipeline — HIGH PRIORITY ✓
+- [x] Optimizer returns top N diverse candidates (select_top_n_diverse from archive)
+- [x] Forward/back gate filters overfitters, DSR + combined_rank for ordering
+- [x] Pipeline validates all N candidates through walk-forward/CPCV/MC/stability/confidence
+- [x] Confidence scoring ranks survivors by composite score
+- [x] Fallback to single-best when refinement data unavailable
+- [x] 5 tests in test_optimizer.py for multi-candidate logic
+
+#### VP-3: Regime-Aware Validation (Simple) — MEDIUM PRIORITY
+- [ ] Label historical periods using ADX + normalized ATR (2x2 quadrant: trend strength × volatility)
+- [ ] Per-regime performance breakdown in walk-forward results
+- [ ] Advisory flag if strategy only works in one regime
+- **Source**: validation_pipeline.txt (HMM deferred, but simple ADX/ATR version is tractable)
+- **Impact**: Medium — catches strategies that only work in one market condition
+- **Location**: New `pipeline/regime.py`, updates to `pipeline/walk_forward.py`
+
+### Optimizer Enhancements
+
+#### OPT-1: Cross-Entropy Exploitation Upgrade — MEDIUM PRIORITY
+- [ ] Track pairwise parameter dependencies (not just marginals)
+- [ ] Adaptive learning rate (decay as convergence detected)
+- [ ] Temperature/entropy monitoring to detect premature collapse
+- [ ] Optional: bivariate distributions for top correlated param pairs
+- **Source**: paper2.txt (CE/EDA with probabilistic graphical models)
+- **Impact**: Medium — current EDA works but treats params independently
+- **Location**: `optimizer/sampler.py` (EDASampler enhancements)
+
+#### OPT-2: GT-Score as Alternative Objective — MEDIUM PRIORITY
+- [ ] Implement GT-Score: performance × significance × consistency × downside risk
+- [ ] A/B test framework: optimize same strategy with QS vs GT-Score
+- [ ] Compare walk-forward generalization ratios between the two
+- **Source**: Sheppert 2026 (arXiv 2602.00080), validated on US equities only
+- **Impact**: Potentially high — but unvalidated on FX, needs experimentation
+- **Location**: New fitness function in `core/metrics.py` or `optimizer/ranking.py`
+
+#### OPT-3: Batch Size Auto-Tuning — LOW PRIORITY
+- [ ] Benchmark batch sizes (128, 256, 512, 1024, 2048) at startup
+- [ ] Auto-select optimal batch size based on throughput curve knee
+- [ ] Cache result per (strategy, data_length) to avoid re-benchmarking
+- **Source**: paper2.txt (batch size depends on cache behavior, memory bandwidth)
+- **Impact**: Low — current 512 default works, but optimal varies by workload
+- **Location**: `optimizer/config.py`, `optimizer/staged.py`
+
+### NOT building now (correctly deferred)
+- **NSGA-II / full GA rewrite** — current Sobol+EDA works well, massive rewrite not justified
+- **Island model** — complex threading, current approach effective
+- **White's RC / Hansen SPA** — needs multiple strategies (Phase 8: Research Factory)
+- **Full HMM regime detection** — too complex, simple ADX/ATR first
+- **Multi-fidelity / Hyperband** — eval already sub-ms, not needed until CPCV makes it expensive
+- **Factor attribution** — needs external data (interest rates, PPP), Phase 7/8
+- **HTML reports** — Phase 7 dashboard covers this
 
 ---
 
