@@ -36,7 +36,7 @@ class OptimizationConfig:
     dsr_threshold: float = 0.95   # DSR must exceed this to be "significant"
 
     # --- Execution ---
-    max_trades_per_trial: int = 5000
+    max_trades_per_trial: int = 50000
     seed: int | None = None
 
 

@@ -85,7 +85,10 @@ PL_MAX_BARS = 20
 PL_STALE_ENABLED = 21
 PL_STALE_BARS = 22
 PL_STALE_ATR_THRESH = 23
-NUM_PL = 24
+PL_SIGNAL_VARIANT = 24     # Which signal variant to accept (-1 = all)
+PL_BUY_FILTER_MAX = 25     # Max filter_value for BUY signals (-1 = no filter)
+PL_SELL_FILTER_MIN = 26    # Min filter_value for SELL signals (-1 = no filter)
+NUM_PL = 27
 
 
 @njit(cache=True)
@@ -672,6 +675,8 @@ def batch_evaluate(
     sig_day: np.ndarray,        # (S,) int64
     sig_atr_pips: np.ndarray,   # (S,) float64
     sig_swing_sl: np.ndarray,   # (S,) float64 — pre-computed swing SL prices
+    sig_filter_value: np.ndarray,  # (S,) float64 — strategy-specific filter value
+    sig_variant: np.ndarray,    # (S,) int64 — signal variant index (-1 = no variant)
     # Parameter matrix
     param_matrix: np.ndarray,   # (N, P) float64 — actual values, not indices
     param_layout: np.ndarray,   # (NUM_PL,) int64 — maps PL_* to column index
@@ -695,6 +700,9 @@ def batch_evaluate(
     n_trials = param_matrix.shape[0]
     n_signals = len(sig_bar_index)
     n_bars = len(high)
+
+    # Pre-allocate PnL buffers OUTSIDE prange (zero-allocation rule)
+    pnl_buffers = np.empty((n_trials, max_trades), dtype=np.float64)
 
     for trial in prange(n_trials):
         # Get params for this trial
@@ -729,15 +737,42 @@ def batch_evaluate(
         stale_atr = params[param_layout[PL_STALE_ATR_THRESH]]
 
         # --- Filter signals ---
-        # We can't allocate inside prange, so use a fixed-size buffer
-        # by iterating signals and counting/tracking which pass
         trade_count = 0
         total_sl_pips = 0.0
-        # PnL array — pre-allocated per trial slice
-        # We use a local array trick: write to a contiguous region
-        pnl_buffer = np.empty(max_trades, dtype=np.float64)
+        pnl_buffer = pnl_buffers[trial]
+
+        # Strategy-specific signal filter params (-1 in layout = disabled)
+        variant_col = param_layout[PL_SIGNAL_VARIANT]
+        if variant_col >= 0:
+            trial_variant = int(params[variant_col])
+        else:
+            trial_variant = -1
+        bfm_col = param_layout[PL_BUY_FILTER_MAX]
+        if bfm_col >= 0:
+            buy_filter_max = params[bfm_col]
+        else:
+            buy_filter_max = -1.0
+        sfm_col = param_layout[PL_SELL_FILTER_MIN]
+        if sfm_col >= 0:
+            sell_filter_min = params[sfm_col]
+        else:
+            sell_filter_min = -1.0
 
         for si in range(n_signals):
+            # Signal variant filter (e.g., RSI period matching)
+            if trial_variant >= 0 and sig_variant[si] >= 0:
+                if sig_variant[si] != trial_variant:
+                    continue
+
+            # Strategy-specific value filter (e.g., RSI threshold)
+            direction = sig_direction[si]
+            if buy_filter_max >= 0.0 and direction == DIR_BUY:
+                if sig_filter_value[si] > buy_filter_max:
+                    continue
+            if sell_filter_min >= 0.0 and direction == DIR_SELL:
+                if sig_filter_value[si] < sell_filter_min:
+                    continue
+
             # Time filter
             day_bit = 1 << sig_day[si]
             if (days_bitmask & day_bit) == 0:
@@ -753,7 +788,6 @@ def batch_evaluate(
 
             # Compute SL/TP
             bar_idx = sig_bar_index[si]
-            direction = sig_direction[si]
             entry_p = sig_entry_price[si]
             atr_p = sig_atr_pips[si]
             swing_sl = sig_swing_sl[si]

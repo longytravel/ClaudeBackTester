@@ -76,7 +76,7 @@ def _estimate_memory_mb(n_bars: int, n_signals: int, batch_size: int, n_params: 
     # Metrics output: batch_size × NUM_METRICS × 8 bytes
     metrics_mb = batch_size * NUM_METRICS * 8 / 1e6
     # PnL buffers: batch_size × max_trades × 8 bytes
-    pnl_mb = batch_size * 5000 * 8 / 1e6
+    pnl_mb = batch_size * 50000 * 8 / 1e6
 
     return price_mb + signal_mb + param_mb + metrics_mb + pnl_mb
 

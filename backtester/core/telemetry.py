@@ -122,6 +122,25 @@ def run_telemetry(
     # Build day set
     day_set = set(allowed_days) if isinstance(allowed_days, list) else {0, 1, 2, 3, 4}
 
+    # Signal filter params (for strategy-specific filtering like RSI variant/threshold)
+    # These may be mapped from strategy-specific params (e.g. rsi_period → signal_variant)
+    trial_variant = -1
+    buy_filter_max_val = -1.0
+    sell_filter_min_val = -1.0
+    # Check for direct filter params or mapped strategy params
+    if "signal_variant" in params:
+        trial_variant = int(params["signal_variant"])
+    elif "rsi_period" in params:
+        trial_variant = int(params["rsi_period"])
+    if "buy_filter_max" in params:
+        buy_filter_max_val = float(params["buy_filter_max"])
+    elif "rsi_oversold" in params:
+        buy_filter_max_val = float(params["rsi_oversold"])
+    if "sell_filter_min" in params:
+        sell_filter_min_val = float(params["sell_filter_min"])
+    elif "rsi_overbought" in params:
+        sell_filter_min_val = float(params["rsi_overbought"])
+
     result.n_signals_total = engine.n_signals
     pnl_list = []
 
@@ -132,6 +151,22 @@ def run_telemetry(
         hour = int(engine.sig_hour[si])
         day = int(engine.sig_day[si])
         atr_pips = float(engine.sig_atr_pips[si])
+
+        # Signal variant filter (e.g., RSI period matching)
+        if trial_variant >= 0 and hasattr(engine, 'sig_variant'):
+            sig_var = int(engine.sig_variant[si])
+            if sig_var >= 0 and sig_var != trial_variant:
+                continue
+
+        # Strategy-specific value filter (e.g., RSI threshold)
+        if hasattr(engine, 'sig_filter_value'):
+            fv = float(engine.sig_filter_value[si])
+            if buy_filter_max_val >= 0.0 and direction == DIR_BUY:
+                if fv > buy_filter_max_val:
+                    continue
+            if sell_filter_min_val >= 0.0 and direction == DIR_SELL:
+                if fv < sell_filter_min_val:
+                    continue
 
         # Time filter
         if day not in day_set:
@@ -209,6 +244,9 @@ def run_telemetry(
         exit_bar = engine.n_bars - 1
         exit_price = 0.0
         bars_held = 0
+        position_pct = 1.0
+        realized_pnl_pips = 0.0
+        partial_done = False
 
         trailing_active = False
         be_locked = False
@@ -236,6 +274,20 @@ def run_telemetry(
                     exit_price = bar_close
                     exit_bar = bar
                     break
+
+                # Stale exit: check if price hasn't moved enough
+                if stale_en and bars_held >= stale_bars:
+                    lookback_start = max(bar_idx + 1, bar - stale_bars + 1)
+                    max_range = 0.0
+                    for b in range(lookback_start, bar + 1):
+                        r = (engine.high[b] - engine.low[b]) / pip
+                        if r > max_range:
+                            max_range = r
+                    if max_range < stale_atr_thresh * atr_pips:
+                        exit_reason = EXIT_STALE
+                        exit_price = bar_close
+                        exit_bar = bar
+                        break
 
                 # Floating PnL for management
                 float_pnl = fav
@@ -267,6 +319,18 @@ def run_telemetry(
                             new_sl = bar_low + t_dist
                             if new_sl < current_sl:
                                 current_sl = new_sl
+
+                # Partial close
+                if partial_en and not partial_done:
+                    if float_pnl >= partial_trig:
+                        partial_done = True
+                        close_pct = partial_pct / 100.0
+                        if is_buy:
+                            partial_pnl = (bar_close - actual_entry) / pip * close_pct
+                        else:
+                            partial_pnl = (actual_entry - bar_close) / pip * close_pct
+                        realized_pnl_pips += partial_pnl
+                        position_pct -= close_pct
 
             # Check SL/TP
             if is_buy:
@@ -304,11 +368,12 @@ def run_telemetry(
         if exit_reason == EXIT_NONE:
             exit_price = engine.close[engine.n_bars - 1]
 
-        # Compute PnL
+        # Compute PnL (accounting for partial close)
         if is_buy:
-            pnl = (exit_price - actual_entry) / pip
+            pnl = (exit_price - actual_entry) / pip * position_pct
         else:
-            pnl = (actual_entry - exit_price) / pip
+            pnl = (actual_entry - exit_price) / pip * position_pct
+        pnl += realized_pnl_pips
 
         # Apply execution costs
         # SELL: deduct exit bar spread (BUY already paid spread at entry)

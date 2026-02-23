@@ -126,3 +126,8 @@ BARS_PER_YEAR: dict[str, float] = {
     "W": 52,                 # 52
 }
 DEFAULT_BARS_PER_YEAR: float = 6048.0  # H1 default
+
+# ---------------------------------------------------------------------------
+# Signal filter sentinel value (disabled)
+# ---------------------------------------------------------------------------
+FILTER_DISABLED: float = -1.0  # sentinel: filter not active

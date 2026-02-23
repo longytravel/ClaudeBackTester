@@ -49,6 +49,9 @@ from backtester.core.jit_loop import (
     PL_STALE_ATR_THRESH,
     PL_STALE_BARS,
     PL_STALE_ENABLED,
+    PL_SIGNAL_VARIANT,
+    PL_BUY_FILTER_MAX,
+    PL_SELL_FILTER_MIN,
     PL_TP_ATR_MULT,
     PL_TP_FIXED_PIPS,
     PL_TP_MODE,
@@ -90,6 +93,15 @@ _PARAM_TO_PL: dict[str, int] = {
     "stale_exit_enabled": PL_STALE_ENABLED,
     "stale_exit_bars": PL_STALE_BARS,
     "stale_exit_atr_threshold": PL_STALE_ATR_THRESH,
+    # Strategy-specific filter params (mapped to generic JIT filter mechanism)
+    # Any strategy can use these PL slots by defining params with matching names.
+    "signal_variant": PL_SIGNAL_VARIANT,
+    "buy_filter_max": PL_BUY_FILTER_MAX,
+    "sell_filter_min": PL_SELL_FILTER_MIN,
+    # RSI strategy maps its params to the generic filter:
+    "rsi_period": PL_SIGNAL_VARIANT,       # variant = RSI period value
+    "rsi_oversold": PL_BUY_FILTER_MAX,     # BUY if RSI <= oversold
+    "rsi_overbought": PL_SELL_FILTER_MIN,  # SELL if RSI >= overbought
 }
 
 
@@ -139,7 +151,7 @@ class BacktestEngine:
 
         # Generate signals ONCE (the expensive step)
         sig_dict = strategy.generate_signals_vectorized(
-            open_, high, low, close, volume, spread,
+            open_, high, low, close, volume, spread, pip_value,
         )
         self._unpack_signals(sig_dict, high, low, swing_lookback)
 
@@ -147,11 +159,22 @@ class BacktestEngine:
         """Build the param_layout array that maps PL_* to encoding column indices."""
         layout = np.zeros(NUM_PL, dtype=np.int64)
 
+        # Filter PL slots default to -1 (disabled) when strategy doesn't define them.
+        # Without this, unmapped filter slots point to column 0 which contains
+        # an unrelated param value, causing incorrect signal filtering.
+        from backtester.core.jit_loop import (
+            PL_BUY_FILTER_MAX,
+            PL_SELL_FILTER_MIN,
+            PL_SIGNAL_VARIANT,
+        )
+        layout[PL_SIGNAL_VARIANT] = -1
+        layout[PL_BUY_FILTER_MAX] = -1
+        layout[PL_SELL_FILTER_MIN] = -1
+
         for param_name, pl_index in _PARAM_TO_PL.items():
             if param_name in self.encoding.name_to_index:
                 layout[pl_index] = self.encoding.name_to_index[param_name]
-            # If param not in space, layout stays 0 — param will read from column 0
-            # which is fine since the default value will be used
+            # If param not in space, layout stays at its default (0 or -1 for filters)
 
         return layout
 
@@ -184,6 +207,16 @@ class BacktestEngine:
             if swing is not None:
                 self.sig_swing_sl[i] = swing
 
+        # Unpack filter arrays (for strategy-specific signal filtering in JIT)
+        if "filter_value" in sig_dict:
+            self.sig_filter_value = sig_dict["filter_value"]
+        else:
+            self.sig_filter_value = np.full(self.n_signals, 0.0, dtype=np.float64)
+        if "variant" in sig_dict:
+            self.sig_variant = sig_dict["variant"]
+        else:
+            self.sig_variant = np.full(self.n_signals, -1, dtype=np.int64)
+
         # Store attr keys for telemetry
         self.attr_keys = [k[5:] for k in sig_dict if k.startswith("attr_")]
         self.sig_attrs = {k: sig_dict[f"attr_{k}"] for k in self.attr_keys}
@@ -213,6 +246,7 @@ class BacktestEngine:
             self.pip_value, self.slippage_pips,
             self.sig_bar_index, self.sig_direction, self.sig_entry_price,
             self.sig_hour, self.sig_day, self.sig_atr_pips, self.sig_swing_sl,
+            self.sig_filter_value, self.sig_variant,
             param_matrix, self.param_layout, exec_mode,
             metrics_out, self.max_trades, self.bars_per_year,
             self.commission_pips, self.max_spread_pips,

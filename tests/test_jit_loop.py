@@ -35,6 +35,7 @@ from backtester.core.jit_loop import (
     PL_BREAKEVEN_ENABLED,
     PL_BREAKEVEN_OFFSET,
     PL_BREAKEVEN_TRIGGER,
+    PL_BUY_FILTER_MAX,
     PL_DAYS_BITMASK,
     PL_HOURS_END,
     PL_HOURS_START,
@@ -42,6 +43,8 @@ from backtester.core.jit_loop import (
     PL_PARTIAL_ENABLED,
     PL_PARTIAL_PCT,
     PL_PARTIAL_TRIGGER,
+    PL_SELL_FILTER_MIN,
+    PL_SIGNAL_VARIANT,
     PL_SL_ATR_MULT,
     PL_SL_FIXED_PIPS,
     PL_SL_MODE,
@@ -130,6 +133,10 @@ def _basic_params(sl_pips: float = 30.0, tp_rr: float = 2.0) -> np.ndarray:
     params[PL_STALE_ENABLED] = 0
     params[PL_STALE_BARS] = 50
     params[PL_STALE_ATR_THRESH] = 0.5
+    # Signal filter params: -1 = disabled (accept all signals)
+    params[PL_SIGNAL_VARIANT] = -1.0
+    params[PL_BUY_FILTER_MAX] = -1.0
+    params[PL_SELL_FILTER_MIN] = -1.0
     return params
 
 
@@ -325,6 +332,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -351,6 +359,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, 0.0001, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -382,6 +391,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -414,6 +424,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -447,6 +458,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -489,6 +501,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -529,6 +542,7 @@ class TestFullMode:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_FULL, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -567,6 +581,7 @@ class TestFullMode:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_FULL, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -606,6 +621,7 @@ class TestFullMode:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_FULL, metrics, 1000, 6048.0,
             0.0, 0.0,
         )
@@ -763,6 +779,7 @@ class TestExecutionCosts:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 3.0,
         )
@@ -794,6 +811,7 @@ class TestExecutionCosts:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros_like(sig_atr), np.full_like(sig_bar, -1),
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
             0.0, 3.0,
         )

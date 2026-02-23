@@ -311,12 +311,17 @@ class Strategy(ABC):
         close: np.ndarray,
         volume: np.ndarray,
         spread: np.ndarray,
+        pip_value: float = 0.0001,
     ) -> dict[str, np.ndarray]:
         """Vectorized signal generation returning numpy arrays.
 
         Override this for 10-50x speedup over list-of-Signal approach.
         Returns dict with keys: bar_index, direction, entry_price,
         hour, day_of_week, atr_pips, plus any strategy-specific attrs.
+
+        Optional keys for signal filtering in JIT:
+        - 'filter_value': (S,) float64 — strategy-specific filter value per signal
+        - 'variant': (S,) int64 — signal variant index for period matching
 
         Default implementation wraps generate_signals().
         """
