@@ -106,9 +106,15 @@ class StagedOptimizer:
                 trials=self.config.trials_per_stage,
             )
 
-            # Lock best values from this stage
-            for idx in group_indices:
-                locked[idx] = stage_result.best_indices[idx]
+            # Lock best values from this stage (only if stage found passing candidates)
+            if stage_result.best_quality > -np.inf:
+                for idx in group_indices:
+                    locked[idx] = stage_result.best_indices[idx]
+            else:
+                logger.warning(
+                    f"Stage '{stage_name}': no passing candidates, "
+                    f"leaving params unlocked for refinement"
+                )
 
             result.stages.append(stage_result)
             result.total_trials += stage_result.trials_evaluated
@@ -130,11 +136,12 @@ class StagedOptimizer:
         result.stages.append(refinement_result)
         result.total_trials += refinement_result.trials_evaluated
 
-        # Set overall best
-        best_stage = max(result.stages, key=lambda s: s.best_quality)
-        result.best_indices = best_stage.best_indices
-        result.best_quality = best_stage.best_quality
-        result.best_metrics = best_stage.best_metrics
+        # Set overall best from refinement (the final stage with all params active).
+        # Earlier stages use partial param sets, so their quality scores aren't
+        # directly comparable to refinement which evaluates the full configuration.
+        result.best_indices = refinement_result.best_indices
+        result.best_quality = refinement_result.best_quality
+        result.best_metrics = refinement_result.best_metrics
 
         return result
 

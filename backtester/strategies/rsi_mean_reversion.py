@@ -21,13 +21,17 @@ from backtester.strategies.base import (
     risk_params,
     time_params,
 )
-from backtester.strategies.indicators import atr, rsi, sma
+from backtester.strategies.indicators import atr, rsi
 from backtester.strategies.registry import register
 from backtester.strategies.sl_tp import calc_sl_tp
 
 
 # RSI period values — used as variant identifiers in signal filtering
 RSI_PERIODS = [7, 9, 14, 21]
+
+# Threshold values — signals generated at each crossing, filtered by exact match
+OVERSOLD_THRESHOLDS = [20, 25, 30, 35]
+OVERBOUGHT_THRESHOLDS = [65, 70, 75, 80]
 
 
 @register
@@ -46,13 +50,11 @@ class RSIMeanReversion(Strategy):
         params = [
             # Signal params
             # rsi_period maps to PL_SIGNAL_VARIANT in engine (variant filtering)
-            # rsi_oversold maps to PL_BUY_FILTER_MAX (BUY accepted when RSI <= this)
-            # rsi_overbought maps to PL_SELL_FILTER_MIN (SELL accepted when RSI >= this)
+            # rsi_oversold maps to PL_BUY_FILTER_MAX (BUY accepted when threshold == this)
+            # rsi_overbought maps to PL_SELL_FILTER_MIN (SELL accepted when threshold == this)
             ParamDef("rsi_period", RSI_PERIODS, group="signal"),
-            ParamDef("rsi_oversold", [20, 25, 30, 35], group="signal"),
-            ParamDef("rsi_overbought", [65, 70, 75, 80], group="signal"),
-            ParamDef("atr_period", [10, 14, 20], group="signal"),
-            ParamDef("sma_filter_period", [0, 50, 100, 200], group="signal"),
+            ParamDef("rsi_oversold", OVERSOLD_THRESHOLDS, group="signal"),
+            ParamDef("rsi_overbought", OVERBOUGHT_THRESHOLDS, group="signal"),
         ]
         params += risk_params()
         params += management_params()
@@ -86,11 +88,12 @@ class RSIMeanReversion(Strategy):
         bar_hour: np.ndarray | None = None,
         bar_day_of_week: np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
-        """Generate RSI crossover signals for all RSI periods.
+        """Generate RSI crossover signals for all RSI periods and thresholds.
 
-        Each RSI period generates its own signals tagged with a variant index.
-        The JIT loop filters signals by variant (matching trial's rsi_period)
-        and by threshold (matching trial's rsi_oversold/overbought).
+        For each RSI period, generates a separate signal at each threshold
+        crossing (20, 25, 30, 35 for oversold; 65, 70, 75, 80 for overbought).
+        The JIT loop uses exact-match filtering: only signals whose threshold
+        matches the trial's rsi_oversold/rsi_overbought are accepted.
         """
         n = len(close)
         if bar_hour is None:
@@ -98,20 +101,8 @@ class RSIMeanReversion(Strategy):
         if bar_day_of_week is None:
             bar_day_of_week = np.zeros(n, dtype=np.int64)
 
-        # Precompute indicators at all parameter periods
-        atr_periods = [10, 14, 20]
-
         rsi_arrays = {p: rsi(close, p) for p in RSI_PERIODS}
-        atr_arrays = {p: atr(high, low, close, p) for p in atr_periods}
-
-        # Use the default ATR period (14) for signal atr_pips
-        atr_14 = atr_arrays[14]
-
-        # Use widest thresholds to capture ALL potential crossover signals.
-        # The JIT's signal filter (buy_filter_max / sell_filter_min) handles
-        # per-trial threshold filtering.
-        min_oversold = 35       # widest oversold threshold
-        max_overbought = 65     # widest overbought threshold
+        atr_14 = atr(high, low, close, 14)
 
         bar_indices = []
         directions = []
@@ -119,7 +110,7 @@ class RSIMeanReversion(Strategy):
         hours_list = []
         days_list = []
         atr_pips_list = []
-        filter_values = []   # RSI value at signal's period
+        filter_values = []   # threshold value that was crossed (for exact match)
         variants = []         # RSI period value (7, 9, 14, 21) matching rsi_period param
 
         for i in range(max(RSI_PERIODS) + 1, n - 1):
@@ -129,34 +120,35 @@ class RSIMeanReversion(Strategy):
 
             atr_p = atr_val / pip_value
 
-            # Generate signals for EACH RSI period (no break — one per period)
-            for period_idx, rp in enumerate(RSI_PERIODS):
+            for rp in RSI_PERIODS:
                 r_cur = rsi_arrays[rp][i]
                 r_prev = rsi_arrays[rp][i - 1]
                 if np.isnan(r_cur) or np.isnan(r_prev):
                     continue
 
-                # Buy signal: RSI crosses below oversold (widest threshold)
-                if r_cur < min_oversold and r_prev >= min_oversold:
-                    bar_indices.append(i)
-                    directions.append(Direction.BUY.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    filter_values.append(r_cur)  # actual RSI value
-                    variants.append(rp)           # actual period value (matches rsi_period param)
+                # Buy signals: generate at EACH oversold threshold crossing
+                for thresh in OVERSOLD_THRESHOLDS:
+                    if r_cur < thresh and r_prev >= thresh:
+                        bar_indices.append(i)
+                        directions.append(Direction.BUY.value)
+                        entry_prices.append(close[i])
+                        hours_list.append(int(bar_hour[i]))
+                        days_list.append(int(bar_day_of_week[i]))
+                        atr_pips_list.append(atr_p)
+                        filter_values.append(float(thresh))
+                        variants.append(rp)
 
-                # Sell signal: RSI crosses above overbought (widest threshold)
-                if r_cur > max_overbought and r_prev <= max_overbought:
-                    bar_indices.append(i)
-                    directions.append(Direction.SELL.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    filter_values.append(r_cur)
-                    variants.append(rp)           # actual period value (matches rsi_period param)
+                # Sell signals: generate at EACH overbought threshold crossing
+                for thresh in OVERBOUGHT_THRESHOLDS:
+                    if r_cur > thresh and r_prev <= thresh:
+                        bar_indices.append(i)
+                        directions.append(Direction.SELL.value)
+                        entry_prices.append(close[i])
+                        hours_list.append(int(bar_hour[i]))
+                        days_list.append(int(bar_day_of_week[i]))
+                        atr_pips_list.append(atr_p)
+                        filter_values.append(float(thresh))
+                        variants.append(rp)
 
         if not bar_indices:
             return {
@@ -186,7 +178,7 @@ class RSIMeanReversion(Strategy):
         signals: list[Signal],
         params: dict[str, Any],
     ) -> list[Signal]:
-        # Filtering is handled by the JIT via filter_value/variant
+        # Filtering handled by JIT: variant exact-match + filter_value exact-match
         return signals
 
     def calc_sl_tp(

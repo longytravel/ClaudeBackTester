@@ -1142,3 +1142,175 @@ class TestHourWrapAround:
             0.0, 0.0,
         )
         assert metrics2[0, M_TRADES] == 0.0  # Hour 10 is outside 22-06
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for code review fixes (Feb 2026)
+# ---------------------------------------------------------------------------
+
+class TestExactMatchFilter:
+    """Verify signal filter uses exact match, not range comparison."""
+
+    def _run_with_filter(self, buy_filter_max, sell_filter_min, filter_values, directions):
+        """Helper: run batch_evaluate with given filter params and signal filter values."""
+        n_bars = 50
+        pip = 0.0001
+        base = 1.1000
+        high, low, close, spread = _make_price_data(n_bars, base, pip)
+        n_sig = len(filter_values)
+
+        sig_bar = np.array([5] * n_sig, dtype=np.int64)
+        sig_dir = np.array(directions, dtype=np.int64)
+        sig_entry = np.array([base] * n_sig, dtype=np.float64)
+        sig_hour = np.zeros(n_sig, dtype=np.int64)
+        sig_day = np.ones(n_sig, dtype=np.int64)
+        sig_atr = np.full(n_sig, 20.0, dtype=np.float64)
+        sig_swing = np.full(n_sig, np.nan, dtype=np.float64)
+        sig_filter = np.array(filter_values, dtype=np.float64)
+        sig_variant = np.full(n_sig, -1, dtype=np.int64)
+
+        params = _basic_params()
+        params[PL_BUY_FILTER_MAX] = buy_filter_max
+        params[PL_SELL_FILTER_MIN] = sell_filter_min
+        params = params.reshape(1, -1)
+
+        layout = _default_param_layout()
+        metrics = np.zeros((1, NUM_METRICS), dtype=np.float64)
+
+        batch_evaluate(
+            high, low, close, spread, pip, 0.0,
+            sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            sig_filter, sig_variant,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
+        )
+        return int(metrics[0, M_TRADES])
+
+    def test_buy_exact_match_accepts_equal(self):
+        """BUY signal with filter_value==25 should pass when buy_filter_max==25."""
+        trades = self._run_with_filter(25.0, -1.0, [25.0], [DIR_BUY])
+        assert trades == 1
+
+    def test_buy_exact_match_rejects_lower(self):
+        """BUY signal with filter_value==20 should be rejected when buy_filter_max==25."""
+        trades = self._run_with_filter(25.0, -1.0, [20.0], [DIR_BUY])
+        assert trades == 0
+
+    def test_buy_exact_match_rejects_higher(self):
+        """BUY signal with filter_value==30 should be rejected when buy_filter_max==25."""
+        trades = self._run_with_filter(25.0, -1.0, [30.0], [DIR_BUY])
+        assert trades == 0
+
+    def test_sell_exact_match_accepts_equal(self):
+        """SELL signal with filter_value==70 should pass when sell_filter_min==70."""
+        trades = self._run_with_filter(-1.0, 70.0, [70.0], [DIR_SELL])
+        assert trades == 1
+
+    def test_sell_exact_match_rejects_lower(self):
+        """SELL signal with filter_value==65 should be rejected when sell_filter_min==70."""
+        trades = self._run_with_filter(-1.0, 70.0, [65.0], [DIR_SELL])
+        assert trades == 0
+
+    def test_sell_exact_match_rejects_higher(self):
+        """SELL signal with filter_value==75 should be rejected when sell_filter_min==70."""
+        trades = self._run_with_filter(-1.0, 70.0, [75.0], [DIR_SELL])
+        assert trades == 0
+
+    def test_multiple_signals_exact_filter(self):
+        """Only signals with exact matching filter_value should be accepted."""
+        # 3 BUY signals with filter values 20, 25, 30; filter = 25
+        trades = self._run_with_filter(
+            25.0, -1.0,
+            [20.0, 25.0, 30.0],
+            [DIR_BUY, DIR_BUY, DIR_BUY],
+        )
+        assert trades == 1  # Only the 25.0 signal passes
+
+
+class TestNaNSpreadHandling:
+    """Verify NaN spreads don't corrupt PnL calculations."""
+
+    def test_nan_spread_basic_buy(self):
+        """BUY trade with NaN spread should not produce NaN PnL."""
+        pip = 0.0001
+        base = 1.1000
+        # Create prices where TP is clearly hit
+        moves = [(-5, 65)]  # TP at 60 pips (2:1 RR on 30 pip SL)
+        high, low, close, spread = _make_simple_prices(moves, base, pip)
+        spread[:] = np.nan  # All NaN spreads
+
+        pnl, exit_reason = _simulate_trade_basic(
+            DIR_BUY, 0, base, base - 30 * pip, base + 60 * pip,
+            high, low, close, spread, pip, 0.0, len(high),
+            0.0,
+        )
+        assert not np.isnan(pnl)
+        assert exit_reason == EXIT_TP
+
+    def test_nan_spread_basic_sell(self):
+        """SELL trade with NaN spread should not produce NaN PnL."""
+        pip = 0.0001
+        base = 1.1000
+        moves = [(65, -5)]  # Inverted for sell: low goes down
+        high, low, close, spread = _make_simple_prices(
+            [(-65, 5)], base, pip
+        )
+        spread[:] = np.nan
+
+        pnl, exit_reason = _simulate_trade_basic(
+            DIR_SELL, 0, base, base + 30 * pip, base - 60 * pip,
+            high, low, close, spread, pip, 0.0, len(high),
+            0.0,
+        )
+        assert not np.isnan(pnl)
+
+    def test_nan_spread_full_mode(self):
+        """Full mode trade with NaN spread should not produce NaN PnL."""
+        pip = 0.0001
+        base = 1.1000
+        moves = [(-5, 65)]
+        high, low, close, spread = _make_simple_prices(moves, base, pip)
+        spread[:] = np.nan
+
+        pnl, exit_reason = _simulate_trade_full(
+            DIR_BUY, 0, base, base - 30 * pip, base + 60 * pip, 20.0,
+            high, low, close, spread, pip, 0.0, len(high),
+            TRAIL_OFF, 0.0, 10.0, 2.0,
+            0, 20.0, 2.0,
+            0, 50.0, 30.0,
+            0, 0, 50, 0.5,
+            0.0,
+        )
+        assert not np.isnan(pnl)
+        assert exit_reason == EXIT_TP
+
+    def test_nan_spread_max_spread_filter(self):
+        """NaN spread should be rejected by max_spread_filter (not crash)."""
+        n_bars = 50
+        pip = 0.0001
+        base = 1.1000
+        high, low, close, _ = _make_price_data(n_bars, base, pip)
+        spread = np.full(n_bars, np.nan, dtype=np.float64)
+
+        sig_bar = np.array([5], dtype=np.int64)
+        sig_dir = np.array([DIR_BUY], dtype=np.int64)
+        sig_entry = np.array([base], dtype=np.float64)
+        sig_hour = np.zeros(1, dtype=np.int64)
+        sig_day = np.ones(1, dtype=np.int64)
+        sig_atr = np.full(1, 20.0, dtype=np.float64)
+        sig_swing = np.full(1, np.nan, dtype=np.float64)
+
+        params = _basic_params()
+        params = params.reshape(1, -1)
+        layout = _default_param_layout()
+        metrics = np.zeros((1, NUM_METRICS), dtype=np.float64)
+
+        # With max_spread_pips=3.0, NaN spread should cause signal rejection
+        batch_evaluate(
+            high, low, close, spread, pip, 0.0,
+            sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            np.zeros(1, dtype=np.float64), np.full(1, -1, dtype=np.int64),
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 3.0,  # max_spread_pips = 3.0
+        )
+        assert metrics[0, M_TRADES] == 0.0  # NaN spread rejected

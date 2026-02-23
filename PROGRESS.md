@@ -189,7 +189,20 @@
 - [x] Filter PL layout defaults fixed (column 0 → -1 sentinel)
 - [x] Telemetry signal filtering, stale exit, partial close added
 - [x] Duplicate ParamDefs removed from RSI strategy
-- [x] 233 tests passing after all fixes
+
+## Code Review Round 2 (External reviewer, Feb 2026)
+- [x] RSI threshold crossover: generate signals at EACH threshold crossing (20/25/30/35, 65/70/75/80)
+- [x] JIT filter changed from range comparison to exact match on filter_value
+- [x] Telemetry filter changed to match JIT (exact match)
+- [x] Dead params removed (atr_period, sma_filter_period) from RSI strategy
+- [x] Staged optimizer: always use refinement result as overall best
+- [x] Staged optimizer: guard for zero-passing stages (don't lock -inf params)
+- [x] NaN spread sanitization in JIT basic + full modes (entry & exit)
+- [x] NaN spread handling in max_spread_filter (reject NaN as over-threshold)
+- [x] NaN spread sanitization in telemetry (entry & exit)
+- [x] Time array warning when bar_hour/bar_day_of_week not provided
+- [x] Weekly timeframe anchor: "1W" → "W-MON" for FX weekly bars
+- [x] 253 tests passing (15 new regression tests)
 
 ---
 

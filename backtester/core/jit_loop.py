@@ -215,6 +215,8 @@ def _simulate_trade_basic(
         actual_entry = entry_price + slippage_price
         # BUY: pay the spread on entry
         spread_at_entry = spread_arr[entry_bar] if entry_bar < len(spread_arr) else 0.0
+        if np.isnan(spread_at_entry):
+            spread_at_entry = 0.0
         actual_entry += spread_at_entry
     else:
         actual_entry = entry_price - slippage_price
@@ -266,6 +268,8 @@ def _simulate_trade_basic(
     # SELL: deduct exit bar spread (BUY already paid spread at entry)
     if not is_buy:
         sell_spread = spread_arr[exit_bar] if exit_bar < len(spread_arr) else 0.0
+        if np.isnan(sell_spread):
+            sell_spread = 0.0
         pnl -= sell_spread / pip_value
     # Commission applied to all trades
     pnl -= commission_pips
@@ -317,6 +321,8 @@ def _simulate_trade_full(
     if is_buy:
         actual_entry = entry_price + slippage_price
         spread_at_entry = spread_arr[entry_bar] if entry_bar < len(spread_arr) else 0.0
+        if np.isnan(spread_at_entry):
+            spread_at_entry = 0.0
         actual_entry += spread_at_entry
     else:
         actual_entry = entry_price - slippage_price
@@ -473,6 +479,8 @@ def _simulate_trade_full(
     # SELL: deduct exit bar spread (BUY already paid spread at entry)
     if not is_buy:
         sell_spread = spread_arr[exit_bar] if exit_bar < len(spread_arr) else 0.0
+        if np.isnan(sell_spread):
+            sell_spread = 0.0
         final_pnl -= sell_spread / pip_value
     # Commission applied to all trades
     final_pnl -= commission_pips
@@ -764,13 +772,13 @@ def batch_evaluate(
                 if sig_variant[si] != trial_variant:
                     continue
 
-            # Strategy-specific value filter (e.g., RSI threshold)
+            # Strategy-specific value filter (exact match on threshold)
             direction = sig_direction[si]
             if buy_filter_max >= 0.0 and direction == DIR_BUY:
-                if sig_filter_value[si] > buy_filter_max:
+                if sig_filter_value[si] != buy_filter_max:
                     continue
             if sell_filter_min >= 0.0 and direction == DIR_SELL:
-                if sig_filter_value[si] < sell_filter_min:
+                if sig_filter_value[si] != sell_filter_min:
                     continue
 
             # Time filter
@@ -795,7 +803,7 @@ def batch_evaluate(
             # Max spread filter: skip signals where spread exceeds threshold
             if max_spread_pips > 0.0:
                 spread_at_signal = spread[bar_idx] / pip_value  # convert to pips
-                if spread_at_signal > max_spread_pips:
+                if np.isnan(spread_at_signal) or spread_at_signal > max_spread_pips:
                     continue
 
             sl_p, tp_p, sl_pip, tp_pip = _compute_sl_tp(

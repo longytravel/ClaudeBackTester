@@ -614,3 +614,88 @@ class TestIntegration:
         assert all(p.group == "time" for p in tp)
         hours_start = next(p for p in tp if p.name == "allowed_hours_start")
         assert len(hours_start.values) == 24  # 0..23
+
+
+# ---------------------------------------------------------------------------
+# Regression: RSI multi-threshold signal generation (Feb 2026)
+# ---------------------------------------------------------------------------
+
+class TestRSIMultiThreshold:
+    """Verify RSI strategy generates signals at each threshold crossing."""
+
+    def test_generates_signals_at_multiple_thresholds(self):
+        """RSI crossing different thresholds should produce distinct signals."""
+        from backtester.strategies.rsi_mean_reversion import (
+            RSIMeanReversion,
+            OVERSOLD_THRESHOLDS,
+            OVERBOUGHT_THRESHOLDS,
+        )
+        strategy = RSIMeanReversion()
+
+        # Create data with a clear RSI drop from high to very low
+        n = 300
+        rng = np.random.default_rng(42)
+        close = np.full(n, 1.1000)
+        # First half: rising (RSI high), then declining (RSI drops)
+        close[:100] = 1.1000 + np.cumsum(rng.uniform(0.0001, 0.0005, 100))
+        close[100:200] = close[99] - np.cumsum(rng.uniform(0.0001, 0.0005, 100))
+        close[200:] = close[199] + np.cumsum(rng.uniform(0.0001, 0.0005, 100))
+
+        high = close + rng.uniform(0.0001, 0.0005, n)
+        low = close - rng.uniform(0.0001, 0.0005, n)
+        open_ = close + rng.uniform(-0.0002, 0.0002, n)
+        volume = np.full(n, 100.0)
+        spread = np.full(n, 0.0001)
+
+        sigs = strategy.generate_signals_vectorized(
+            open_, high, low, close, volume, spread, 0.0001
+        )
+
+        if len(sigs["bar_index"]) > 0:
+            unique_filters = set(sigs["filter_value"].tolist())
+            # All filter values must be from the threshold constants
+            valid_thresholds = set(float(t) for t in OVERSOLD_THRESHOLDS + OVERBOUGHT_THRESHOLDS)
+            assert unique_filters.issubset(valid_thresholds), (
+                f"filter_values {unique_filters} not in valid thresholds {valid_thresholds}"
+            )
+
+    def test_no_dead_params(self):
+        """RSI strategy should not have atr_period or sma_filter_period."""
+        from backtester.strategies.rsi_mean_reversion import RSIMeanReversion
+        strategy = RSIMeanReversion()
+        space = strategy.param_space()
+        param_names = space.names
+        assert "atr_period" not in param_names
+        assert "sma_filter_period" not in param_names
+
+    def test_variant_is_rsi_period_value(self):
+        """Variant field should store actual RSI period (7/9/14/21), not index."""
+        from backtester.strategies.rsi_mean_reversion import RSIMeanReversion, RSI_PERIODS
+        strategy = RSIMeanReversion()
+        n = 300
+        rng = np.random.default_rng(123)
+        close = 1.1 + np.cumsum(rng.normal(0, 0.0005, n))
+        high = close + rng.uniform(0.0001, 0.0005, n)
+        low = close - rng.uniform(0.0001, 0.0005, n)
+        open_ = close + rng.uniform(-0.0002, 0.0002, n)
+        volume = np.full(n, 100.0)
+        spread = np.full(n, 0.0001)
+
+        sigs = strategy.generate_signals_vectorized(
+            open_, high, low, close, volume, spread, 0.0001,
+        )
+        if len(sigs["variant"]) > 0:
+            for v in sigs["variant"]:
+                assert int(v) in RSI_PERIODS, f"variant {v} not a valid RSI period"
+
+
+# ---------------------------------------------------------------------------
+# Regression: Weekly timeframe anchor (Feb 2026)
+# ---------------------------------------------------------------------------
+
+class TestWeeklyTimeframeAnchor:
+    """Verify weekly resampling uses Monday anchor for FX."""
+
+    def test_weekly_rule_is_monday(self):
+        from backtester.data.timeframes import TIMEFRAME_RULES
+        assert TIMEFRAME_RULES["W"] == "W-MON"

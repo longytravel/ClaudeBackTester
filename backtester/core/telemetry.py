@@ -158,14 +158,14 @@ def run_telemetry(
             if sig_var >= 0 and sig_var != trial_variant:
                 continue
 
-        # Strategy-specific value filter (e.g., RSI threshold)
+        # Strategy-specific value filter (exact match on threshold)
         if hasattr(engine, 'sig_filter_value'):
             fv = float(engine.sig_filter_value[si])
             if buy_filter_max_val >= 0.0 and direction == DIR_BUY:
-                if fv > buy_filter_max_val:
+                if fv != buy_filter_max_val:
                     continue
             if sell_filter_min_val >= 0.0 and direction == DIR_SELL:
-                if fv < sell_filter_min_val:
+                if fv != sell_filter_min_val:
                     continue
 
         # Time filter
@@ -181,7 +181,7 @@ def run_telemetry(
         # Max spread filter
         if engine.max_spread_pips > 0:
             spread_at_signal = engine.spread[bar_idx] / pip if bar_idx < len(engine.spread) else 0.0
-            if spread_at_signal > engine.max_spread_pips:
+            if np.isnan(spread_at_signal) or spread_at_signal > engine.max_spread_pips:
                 continue
 
         result.n_signals_filtered += 1
@@ -232,7 +232,9 @@ def run_telemetry(
             actual_entry += slippage * pip
             # spread is already in price units (ask - bid)
             if bar_idx < len(engine.spread):
-                actual_entry += engine.spread[bar_idx]
+                spread_val = engine.spread[bar_idx]
+                if not np.isnan(spread_val):
+                    actual_entry += spread_val
         else:
             # SELL: slippage works against us (we enter at a worse price)
             actual_entry -= slippage * pip
@@ -379,6 +381,8 @@ def run_telemetry(
         # SELL: deduct exit bar spread (BUY already paid spread at entry)
         if not is_buy:
             sell_spread = engine.spread[exit_bar] if exit_bar < len(engine.spread) else 0.0
+            if np.isnan(sell_spread):
+                sell_spread = 0.0
             pnl -= sell_spread / pip
         # Commission applied to all trades
         pnl -= engine.commission_pips

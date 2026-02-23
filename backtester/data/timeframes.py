@@ -20,7 +20,7 @@ TIMEFRAME_RULES = {
     "H1": "1h",
     "H4": "4h",
     "D": "1D",
-    "W": "1W",
+    "W": "W-MON",
 }
 
 ALL_TIMEFRAMES = list(TIMEFRAME_RULES.keys())

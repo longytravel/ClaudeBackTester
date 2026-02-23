@@ -10,9 +10,12 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 from backtester.core.dtypes import (
     DEFAULT_BARS_PER_YEAR,
@@ -147,6 +150,11 @@ class BacktestEngine:
         # Per-bar time arrays for time filtering (from timestamps)
         # Default: all zeros — passes default time filters (hours 0-23, all weekdays)
         n = len(high)
+        if bar_hour is None or bar_day_of_week is None:
+            logger.warning(
+                "bar_hour/bar_day_of_week not provided — time filters will be "
+                "ineffective (all bars treated as hour=0, day=Monday)"
+            )
         self.bar_hour = bar_hour if bar_hour is not None else np.zeros(n, dtype=np.int64)
         self.bar_day_of_week = (
             bar_day_of_week if bar_day_of_week is not None
