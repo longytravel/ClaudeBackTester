@@ -1,27 +1,27 @@
 # Current Task
 
-## Status: Phase 3+4 Complete — Ready for Phase 5
+## Status: Phase 3+4 Complete + Live Data Validated — Ready for Phase 5
 
 ## What's Built
 - **Phase 1**: Data pipeline (Dukascopy downloader, timeframes, validation, splitting, MT5 broker)
 - **Phase 2**: Strategy framework (14 indicators, base class, param space, SL/TP calc, registry)
 - **Phase 3**: Backtest engine (JIT batch evaluator, metrics, encoding, telemetry, orchestrator)
 - **Phase 4**: Parameter optimizer (Sobol/EDA samplers, staged optimization, ranking, diversity archive)
+- **Live Data Validation**: RSI mean reversion strategy tested on 96K bars EUR/USD H1 (2007-2026)
 - **219 tests passing**
 
-## Completed This Session
-- Increment 1: Constants + Encoding (`core/dtypes.py`, `core/encoding.py`)
-- Increment 2: Python Metrics (`core/metrics.py`)
-- Increment 3: JIT Loop — Basic + Full Mode (`core/jit_loop.py`)
-- Increment 4: Engine Orchestrator (`core/engine.py`)
-- Increment 5: Full Mode Management (trailing, breakeven, partial close, max bars, stale exit)
-- Increment 6: Samplers + Pre-filters (`optimizer/sampler.py`, `optimizer/prefilter.py`)
-- Increment 7: Staged Optimizer (`optimizer/staged.py`)
-- Increment 8: Ranking + Diversity (`optimizer/ranking.py`, `optimizer/archive.py`)
-- Increment 9: Optimizer Run (`optimizer/run.py`, `optimizer/config.py`)
-- Increment 10: Telemetry (`core/telemetry.py`)
-- Updated `strategies/base.py` with `optimization_stages()` and `validate_params()`
-- Updated CLAUDE.md with extensibility patterns, staged optimization docs, key interfaces
+## Live Data Test Results (EUR/USD H1)
+- 16,579 signals, all 10 JIT vs Telemetry metrics match exactly
+- Throughput: 18K-35K evals/sec BASIC, 4K-10K evals/sec FULL (exceeds PRD targets)
+- Staged optimization: 6,000 trials in 1.0s, found candidate with sharpe=8.05
+- 5 bugs found and fixed through live data testing (spread, annualization, sell slippage, close price, MaxDD base)
+
+## Bugs Fixed This Session
+1. Spread double-scaling: spread already in price units, removed pip_value multiplication
+2. Sharpe/Sortino annualization: sqrt(total_trades) → sqrt(trades_per_year)
+3. JIT basic end-of-data: (H+L)/2 → actual close price
+4. Telemetry sell slippage: was missing for SELL trades
+5. MaxDD%/Ulcer mismatch: aligned Python metrics to match JIT base calculation
 
 ## Deferred / Post-MVP
 - Increment 11: CLI integration (`bt optimize` command) — not blocking Phase 5
