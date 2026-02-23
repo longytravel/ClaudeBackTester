@@ -9,26 +9,27 @@ import sys
 def main():
     print("\nStopping all live traders...")
 
-    # Find and kill all python processes running live_trade.py
+    # Use PowerShell to find python processes with live_trade.py in command line
+    ps_cmd = (
+        "Get-CimInstance Win32_Process | "
+        "Where-Object { $_.CommandLine -like '*live_trade.py*' -and $_.Name -eq 'python.exe' } | "
+        "Select-Object -ExpandProperty ProcessId"
+    )
     result = subprocess.run(
-        ["wmic", "process", "where",
-         "commandline like '%live_trade.py%' and name='python.exe'",
-         "get", "processid,commandline", "/format:list"],
+        ["powershell", "-Command", ps_cmd],
         capture_output=True, text=True,
     )
 
+    pids = [line.strip() for line in result.stdout.strip().split("\n") if line.strip()]
     killed = 0
-    for line in result.stdout.split("\n"):
-        line = line.strip()
-        if line.startswith("ProcessId="):
-            pid = line.split("=")[1]
-            try:
-                subprocess.run(["taskkill", "/F", "/PID", pid],
-                               capture_output=True)
-                print(f"  Killed PID {pid}")
-                killed += 1
-            except Exception:
-                pass
+
+    for pid in pids:
+        try:
+            subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+            print(f"  Killed PID {pid}")
+            killed += 1
+        except Exception:
+            pass
 
     if killed == 0:
         print("  No traders were running.")

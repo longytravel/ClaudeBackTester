@@ -98,12 +98,19 @@ def main():
     print(f"{'='*60}\n")
 
     launched = 0
+    skipped = 0
     for s in strategies:
         name = s["strategy"]
         pair = s["pair"]
         tf = s["timeframe"]
         rating = s["rating"]
         state_dir = str(state_base / s["dir_name"])
+
+        # Only launch GREEN or AMBER rated strategies
+        if rating and rating not in ("GREEN", "AMBER"):
+            print(f"  SKIPPING: {name} / {pair} / {tf}  [{rating}] — not GREEN/AMBER")
+            skipped += 1
+            continue
 
         tag = f"  [{rating}]" if rating else ""
         print(f"  Starting: {name} / {pair} / {tf}{tag}")
@@ -135,6 +142,8 @@ def main():
 
     print(f"\n{'='*60}")
     print(f"  {launched} trader(s) launched in background")
+    if skipped:
+        print(f"  {skipped} skipped (not GREEN/AMBER rated)")
     print(f"  State dir: {state_base}")
     print(f"{'='*60}")
     print(f"\n  You can close this window now.")

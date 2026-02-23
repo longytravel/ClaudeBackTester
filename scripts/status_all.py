@@ -9,25 +9,32 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def count_running_traders() -> int:
+    """Count python processes running live_trade.py."""
+    try:
+        ps_cmd = (
+            "Get-CimInstance Win32_Process | "
+            "Where-Object { $_.CommandLine -like '*live_trade.py*' -and $_.Name -eq 'python.exe' } | "
+            "Measure-Object | Select-Object -ExpandProperty Count"
+        )
+        result = subprocess.run(
+            ["powershell", "-Command", ps_cmd],
+            capture_output=True, text=True,
+        )
+        return int(result.stdout.strip()) if result.stdout.strip() else 0
+    except Exception:
+        return -1  # unknown
+
+
 def main():
     root = Path(__file__).parent.parent
     state_base = root / "state"
 
-    # Check which python processes are running live_trade.py
-    result = subprocess.run(
-        ["wmic", "process", "where",
-         "commandline like '%live_trade.py%' and name='python.exe'",
-         "get", "processid", "/format:list"],
-        capture_output=True, text=True,
-    )
-    running_pids = set()
-    for line in result.stdout.split("\n"):
-        line = line.strip()
-        if line.startswith("ProcessId="):
-            running_pids.add(line.split("=")[1])
+    running = count_running_traders()
+    running_str = str(running) if running >= 0 else "?"
 
     print(f"\n{'='*65}")
-    print(f"  TRADER STATUS  |  {len(running_pids)} process(es) running")
+    print(f"  TRADER STATUS  |  {running_str} process(es) running")
     print(f"{'='*65}")
 
     if not state_base.exists():
