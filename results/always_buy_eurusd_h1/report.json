@@ -1,0 +1,14 @@
+{
+  "strategy": "always_buy",
+  "version": "1.0.0",
+  "pair": "EUR/USD",
+  "timeframe": "H1",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {"sl_pips": 30, "tp_pips": 60},
+      "eliminated": false,
+      "rating": "GREEN"
+    }
+  ]
+}

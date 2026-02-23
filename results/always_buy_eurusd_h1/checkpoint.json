@@ -1,0 +1,24 @@
+{
+  "strategy_name": "always_buy",
+  "strategy_version": "1.0.0",
+  "pair": "EUR/USD",
+  "timeframe": "H1",
+  "completed_stages": [3, 4, 5, 6, 7],
+  "current_stage": 7,
+  "candidates": [
+    {
+      "candidate_index": 0,
+      "params": {
+        "sl_pips": 30,
+        "tp_pips": 60
+      },
+      "back_quality": 0,
+      "forward_quality": 0,
+      "forward_back_ratio": 0,
+      "back_sharpe": 0,
+      "back_trades": 0,
+      "n_trials": 1,
+      "eliminated": false
+    }
+  ]
+}
