@@ -235,12 +235,40 @@ class TestQualityScore:
         qs = quality_score(pnl)
         assert qs > 0
 
-    def test_low_for_bad_system(self):
-        """A system with mostly losses should have very low quality."""
+    def test_zero_for_losing_system(self):
+        """A system with negative Sortino must score exactly zero."""
         pnl = np.array([-10.0, -15.0, 2.0, -8.0, -12.0] * 10)
         qs = quality_score(pnl)
-        # Small positive possible due to formula structure, but should be near zero
-        assert qs < 1.0
+        assert qs == 0.0
+
+    def test_zero_for_consistently_losing(self):
+        """Consistently losing strategy must score zero, not false positive.
+
+        Regression test: previously, negative Sortino * negative Return%
+        produced a double-negative that gave a large POSITIVE quality score.
+        """
+        # Simulate a consistently losing strategy (like RSI with bad params)
+        pnl = np.array([-30.0, -25.0, 60.0, -30.0, -20.0] * 200)
+        qs = quality_score(pnl)
+        assert qs == 0.0, f"Losing strategy got quality={qs}, expected 0"
+
+    def test_zero_for_all_losses(self):
+        """All-loss strategy must score zero."""
+        pnl = np.array([-10.0] * 100)
+        qs = quality_score(pnl)
+        assert qs == 0.0
+
+    def test_negative_sortino_always_zero(self):
+        """Regardless of other metrics, negative Sortino must yield zero quality.
+
+        This is the key guard against double-negative inflation.
+        """
+        # Strategy with negative mean but high R² (consistent loser)
+        pnl = np.array([-5.0, -5.0, -5.0, 10.0, -5.0] * 100)
+        so = sortino_ratio(pnl)
+        assert so < 0, f"Expected negative Sortino, got {so}"
+        qs = quality_score(pnl)
+        assert qs == 0.0, f"Negative Sortino should give quality=0, got {qs}"
 
 
 # ---------------------------------------------------------------------------

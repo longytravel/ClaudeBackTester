@@ -581,19 +581,24 @@ def _compute_metrics_inline(
     # Ulcer Index
     metrics_row[M_ULCER] = np.sqrt(sum_sq_dd / n)
 
-    # Quality Score
+    # Quality Score — losing strategies (Sortino <= 0) score zero
     so = metrics_row[M_SORTINO]
-    r2 = metrics_row[M_R_SQUARED]
-    pf_c = min(pf, 5.0)
-    trades_f = np.sqrt(min(float(n), 200.0))
-    ret = metrics_row[M_RETURN_PCT]
-    ret_f = 1.0 + min(ret, 200.0) / 100.0
-    ulc = metrics_row[M_ULCER]
-    dd_pct = metrics_row[M_MAX_DD_PCT]
+    if so > 0:
+        r2 = metrics_row[M_R_SQUARED]
+        pf_c = min(pf, 5.0)
+        trades_f = np.sqrt(min(float(n), 200.0))
+        ret = metrics_row[M_RETURN_PCT]
+        # Return% bonus: only positive returns, clamped to [0, 200]
+        ret_clamped = min(ret, 200.0)
+        if ret_clamped < 0.0:
+            ret_clamped = 0.0
+        ret_f = 1.0 + ret_clamped / 100.0
+        ulc = metrics_row[M_ULCER]
+        dd_pct = metrics_row[M_MAX_DD_PCT]
 
-    denom = ulc + dd_pct / 2.0 + 5.0
-    if denom > 0:
-        metrics_row[M_QUALITY] = (so * r2 * pf_c * trades_f * ret_f) / denom
+        denom = ulc + dd_pct / 2.0 + 5.0
+        if denom > 0:
+            metrics_row[M_QUALITY] = (so * r2 * pf_c * trades_f * ret_f) / denom
 
 
 @njit(parallel=True, cache=True)

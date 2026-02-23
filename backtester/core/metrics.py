@@ -255,7 +255,12 @@ def quality_score(
     """Combined quality score for ranking strategies.
 
     Formula: (Sortino * R² * min(PF,5) * sqrt(min(Trades,200))
-              * (1 + min(Return%,200)/100)) / (Ulcer + MaxDD/2 + 5)
+              * (1 + clamp(Return%,0,200)/100)) / (Ulcer + MaxDD/2 + 5)
+
+    Guards:
+    - Sortino <= 0 → quality = 0 (losing strategies have no quality)
+    - Return% clamped to [0, 200] (negative returns give no bonus, never
+      flip the sign via double-negative with Sortino)
 
     Pre-computed metric values can be passed to avoid recalculation.
     """
@@ -264,6 +269,11 @@ def quality_score(
         return 0.0
 
     so = sortino if sortino is not None else sortino_ratio(pnl)
+
+    # Losing strategies score zero — no ranking needed
+    if so <= 0:
+        return 0.0
+
     r2 = rsq if rsq is not None else r_squared(pnl)
     p = pf if pf is not None else profit_factor(pnl)
     dd = max_dd if max_dd is not None else max_drawdown_pct(pnl)
@@ -273,7 +283,8 @@ def quality_score(
     # Clamp components
     p_clamped = min(p, 5.0)
     trades_factor = np.sqrt(min(n, 200))
-    ret_factor = 1.0 + min(ret, 200.0) / 100.0
+    # Return% bonus: only positive returns contribute, clamped to [0, 200]
+    ret_factor = 1.0 + max(0.0, min(ret, 200.0)) / 100.0
 
     numerator = so * r2 * p_clamped * trades_factor * ret_factor
     denominator = u + dd / 2.0 + 5.0
