@@ -270,6 +270,37 @@ class Strategy(ABC):
         """Calculate SL and TP prices for a signal (REQ-S05)."""
         ...
 
+    # --- Optimization support ---
+
+    def optimization_stages(self) -> list[str]:
+        """Define the optimization stage order for this strategy.
+
+        Each stage optimizes one parameter group at a time, locking
+        best values from prior stages. Override to customize.
+
+        Default: signal → time → risk → management
+        Any param group NOT listed is included in the final refinement stage.
+        """
+        return ["signal", "time", "risk", "management"]
+
+    def validate_params(self, params: dict[str, Any]) -> list[str]:
+        """Validate a parameter combination, returning list of error strings.
+
+        Override to add strategy-specific validation rules.
+        Empty list = valid. Non-empty = invalid (with reasons).
+        """
+        errors: list[str] = []
+
+        # Check breakeven offset < trigger
+        be_enabled = params.get("breakeven_enabled", False)
+        if be_enabled:
+            trigger = params.get("breakeven_trigger_pips", 20)
+            offset = params.get("breakeven_offset_pips", 0)
+            if offset >= trigger:
+                errors.append(f"breakeven_offset ({offset}) >= breakeven_trigger ({trigger})")
+
+        return errors
+
     # --- Vectorized fast path (REQ-S08) ---
 
     def generate_signals_vectorized(
