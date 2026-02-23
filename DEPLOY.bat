@@ -19,7 +19,7 @@ echo.
 
 echo Pulling from GitHub...
 git pull origin master
-if %errorlevel% neq 0 (
+IF ERRORLEVEL 1 (
     echo ERROR: git pull failed.
     pause
     exit /b 1
