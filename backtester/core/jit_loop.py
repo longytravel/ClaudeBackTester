@@ -191,6 +191,7 @@ def _simulate_trade_basic(
     tp_price: float,
     high: np.ndarray,
     low: np.ndarray,
+    close: np.ndarray,
     spread_arr: np.ndarray,
     pip_value: float,
     slippage_pips: float,
@@ -205,11 +206,12 @@ def _simulate_trade_basic(
     slippage_price = slippage_pips * pip_value
 
     # Apply entry slippage + spread
+    # spread_arr values are in price units (ask - bid), NOT in pips
     if is_buy:
         actual_entry = entry_price + slippage_price
         # BUY: pay the spread on entry
         spread_at_entry = spread_arr[entry_bar] if entry_bar < len(spread_arr) else 0.0
-        actual_entry += spread_at_entry * pip_value
+        actual_entry += spread_at_entry
     else:
         actual_entry = entry_price - slippage_price
         # SELL: no spread adjustment on entry (we sell at bid)
@@ -237,9 +239,8 @@ def _simulate_trade_basic(
                 return pnl, EXIT_TP
 
     # Trade still open at end of data — close at last bar close
-    # (We use high/low arrays; approximate close as (H+L)/2 of last bar)
     last_bar = num_bars - 1
-    close_price = (high[last_bar] + low[last_bar]) / 2.0
+    close_price = close[last_bar]
     if is_buy:
         pnl = (close_price - actual_entry) / pip_value
     else:
@@ -286,10 +287,11 @@ def _simulate_trade_full(
     slippage_price = slippage_pips * pip_value
 
     # Apply entry costs
+    # spread_arr values are in price units (ask - bid), NOT in pips
     if is_buy:
         actual_entry = entry_price + slippage_price
         spread_at_entry = spread_arr[entry_bar] if entry_bar < len(spread_arr) else 0.0
-        actual_entry += spread_at_entry * pip_value
+        actual_entry += spread_at_entry
     else:
         actual_entry = entry_price - slippage_price
 
@@ -426,6 +428,8 @@ def _compute_metrics_inline(
     pnl_arr: np.ndarray,
     trade_count: int,
     avg_sl_pips: float,
+    n_bars: int,
+    bars_per_year: float,
     metrics_row: np.ndarray,  # (NUM_METRICS,) — written in place
 ) -> None:
     """Compute all 10 metrics inline for one trial. Writes to metrics_row."""
@@ -476,17 +480,24 @@ def _compute_metrics_inline(
     else:
         std = 0.0
 
-    # Sharpe (using trade count as annualization, matching Python metrics)
+    # Annualization factor: trades per year
+    # = n_trades * (bars_per_year / n_bars)
+    if n_bars > 0 and bars_per_year > 0:
+        ann_factor = float(n) * bars_per_year / float(n_bars)
+    else:
+        ann_factor = min(float(n), 252.0)
+
+    # Sharpe (annualized)
     if std > 0:
-        metrics_row[M_SHARPE] = (mean / std) * np.sqrt(float(n))
+        metrics_row[M_SHARPE] = (mean / std) * np.sqrt(ann_factor)
     else:
         metrics_row[M_SHARPE] = 0.0
 
-    # Sortino
+    # Sortino (annualized)
     if down_count > 0:
         downside_std = np.sqrt(down_sq_sum / down_count)
         if downside_std > 0:
-            metrics_row[M_SORTINO] = (mean / downside_std) * np.sqrt(float(n))
+            metrics_row[M_SORTINO] = (mean / downside_std) * np.sqrt(ann_factor)
         else:
             metrics_row[M_SORTINO] = 0.0
     else:
@@ -611,6 +622,8 @@ def batch_evaluate(
     metrics_out: np.ndarray,    # (N, NUM_METRICS) float64 — written in place
     # Working memory: max trades per trial
     max_trades: int,
+    # Annualization: estimated bars per year for this timeframe
+    bars_per_year: float,
 ) -> None:
     """Evaluate N parameter sets in parallel.
 
@@ -695,7 +708,7 @@ def batch_evaluate(
             if exec_mode == EXEC_BASIC:
                 pnl, exit_reason = _simulate_trade_basic(
                     direction, bar_idx, entry_p, sl_p, tp_p,
-                    high, low, spread, pip_value, slippage_pips, n_bars,
+                    high, low, close, spread, pip_value, slippage_pips, n_bars,
                 )
             else:
                 pnl, exit_reason = _simulate_trade_full(
@@ -713,4 +726,7 @@ def batch_evaluate(
 
         # --- Compute metrics ---
         avg_sl = total_sl_pips / trade_count if trade_count > 0 else 30.0
-        _compute_metrics_inline(pnl_buffer, trade_count, avg_sl, metrics_out[trial])
+        _compute_metrics_inline(
+            pnl_buffer, trade_count, avg_sl,
+            n_bars, bars_per_year, metrics_out[trial],
+        )

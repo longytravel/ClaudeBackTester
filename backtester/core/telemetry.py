@@ -189,8 +189,12 @@ def run_telemetry(
         actual_entry = entry_price
         if is_buy:
             actual_entry += slippage * pip
+            # spread is already in price units (ask - bid)
             if bar_idx < len(engine.spread):
-                actual_entry += engine.spread[bar_idx] * pip
+                actual_entry += engine.spread[bar_idx]
+        else:
+            # SELL: slippage works against us (we enter at a worse price)
+            actual_entry -= slippage * pip
 
         current_sl = sl_price
         mfe = 0.0
@@ -325,7 +329,10 @@ def run_telemetry(
     if pnl_list:
         pnl_arr = np.array(pnl_list, dtype=np.float64)
         avg_sl = np.mean([t.sl_pips for t in result.trades])
-        result.metrics = compute_metrics(pnl_arr, avg_sl)
+        # Compute annualized trades per year
+        n_trades = len(pnl_list)
+        trades_per_year = n_trades * engine.bars_per_year / engine.n_bars
+        result.metrics = compute_metrics(pnl_arr, avg_sl, trades_per_year)
     else:
         result.metrics = compute_metrics(np.array([]))
 

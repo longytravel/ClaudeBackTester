@@ -15,6 +15,7 @@ from typing import Any
 import numpy as np
 
 from backtester.core.dtypes import (
+    DEFAULT_BARS_PER_YEAR,
     DEFAULT_PIP_VALUE,
     DEFAULT_SLIPPAGE_PIPS,
     EXEC_BASIC,
@@ -108,8 +109,9 @@ class BacktestEngine:
         spread: np.ndarray,
         pip_value: float = DEFAULT_PIP_VALUE,
         slippage_pips: float = DEFAULT_SLIPPAGE_PIPS,
-        max_trades_per_trial: int = 5000,
+        max_trades_per_trial: int = 50000,
         swing_lookback: int = 50,
+        bars_per_year: float = DEFAULT_BARS_PER_YEAR,
     ):
         self.strategy = strategy
         self.high = high
@@ -120,6 +122,7 @@ class BacktestEngine:
         self.slippage_pips = slippage_pips
         self.max_trades = max_trades_per_trial
         self.n_bars = len(high)
+        self.bars_per_year = bars_per_year
 
         # Build encoding spec from strategy's param space
         self.param_space = strategy.param_space()
@@ -205,7 +208,7 @@ class BacktestEngine:
             self.sig_bar_index, self.sig_direction, self.sig_entry_price,
             self.sig_hour, self.sig_day, self.sig_atr_pips, self.sig_swing_sl,
             param_matrix, self.param_layout, exec_mode,
-            metrics_out, self.max_trades,
+            metrics_out, self.max_trades, self.bars_per_year,
         )
 
         return metrics_out

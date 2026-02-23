@@ -141,7 +141,7 @@ def _make_trending_data(n_bars: int = 100, pip: float = 0.0001):
         close[i] = price + 2 * pip
 
     volume = np.ones(n_bars, dtype=np.float64)
-    spread = np.ones(n_bars, dtype=np.float64)  # 1 pip spread
+    spread = np.full(n_bars, 1.0 * pip)  # 1 pip spread in price units
     return open_, high, low, close, volume, spread
 
 
@@ -155,7 +155,7 @@ def _make_flat_data(n_bars: int = 100, pip: float = 0.0001):
     low = close - rng.uniform(3 * pip, 8 * pip, n_bars)
     open_ = close - noise / 2
     volume = np.ones(n_bars, dtype=np.float64)
-    spread = np.ones(n_bars, dtype=np.float64)
+    spread = np.full(n_bars, 1.0 * pip)  # 1 pip spread in price units
     return open_, high, low, close, volume, spread
 
 

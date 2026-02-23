@@ -43,7 +43,8 @@ def compute_metrics(
     wr = win_rate(pnl_pips)
     pf = profit_factor(pnl_pips)
 
-    ann_factor = trades_per_year if trades_per_year else n
+    # Use provided trades_per_year, or default to 252 (daily)
+    ann_factor = trades_per_year if trades_per_year else TRADING_DAYS_PER_YEAR
     sh = sharpe_ratio(pnl_pips, ann_factor)
     so = sortino_ratio(pnl_pips, ann_factor)
 
@@ -133,21 +134,27 @@ def max_drawdown_pct(pnl: np.ndarray) -> float:
     """Maximum drawdown as percentage of peak equity.
 
     Equity curve is computed from cumulative PnL.
-    Returns 0-100 scale.
+    Peak starts at 0 (the baseline before any trades).
+    Returns 0-100+ scale (can exceed 100% if drawdown exceeds peak).
+
+    Matches JIT inline implementation exactly.
     """
     if len(pnl) == 0:
         return 0.0
 
     equity = np.cumsum(pnl)
-    peak = np.maximum.accumulate(equity)
+    # Peak starts at 0 (baseline), matching JIT which initializes equity_peak=0
+    peak = np.maximum(np.maximum.accumulate(equity), 0.0)
 
-    # Avoid division by zero — use absolute drawdown if peak is near zero
-    # Add a base to prevent division issues with negative equity
-    base = max(abs(float(equity[-1])), abs(float(peak.max())), 1.0)
     drawdowns = peak - equity
     max_dd = float(np.max(drawdowns))
 
-    return (max_dd / base) * 100.0
+    # base_val = max(max_abs_equity_ever, equity_peak) — matching JIT
+    base_val = max(float(np.max(np.abs(equity))), float(np.max(peak)))
+    if base_val <= 0:
+        base_val = 1.0
+
+    return (max_dd / base_val) * 100.0
 
 
 def return_pct(pnl: np.ndarray, avg_sl_pips: float = 30.0) -> float:
@@ -203,20 +210,37 @@ def ulcer_index(pnl: np.ndarray) -> float:
 
     Computed from trade-level equity curve (one point per trade close).
     Lower is better. Measures both depth and duration of drawdowns.
+
+    Uses a running base_val (max of abs(equity) and peak seen so far)
+    to match the JIT inline implementation exactly.
     """
     if len(pnl) == 0:
         return 0.0
 
-    equity = np.cumsum(pnl)
-    peak = np.maximum.accumulate(equity)
+    n = len(pnl)
+    equity = 0.0
+    equity_peak = 0.0
+    base_val = 0.0
+    sum_sq_dd = 0.0
 
-    # Use absolute drawdown (pips) rather than percentage to avoid
-    # division issues when equity is near zero
-    drawdowns = peak - equity
-    base = max(abs(float(peak.max())), 1.0)
-    pct_drawdowns = (drawdowns / base) * 100.0
+    for i in range(n):
+        equity += pnl[i]
+        if equity > equity_peak:
+            equity_peak = equity
+        dd = equity_peak - equity
 
-    return float(np.sqrt(np.mean(pct_drawdowns ** 2)))
+        if abs(equity) > base_val:
+            base_val = abs(equity)
+        if equity_peak > base_val:
+            base_val = equity_peak
+
+        if base_val > 0:
+            pct_dd = (dd / base_val) * 100.0
+        else:
+            pct_dd = 0.0
+        sum_sq_dd += pct_dd * pct_dd
+
+    return float(np.sqrt(sum_sq_dd / n))
 
 
 def quality_score(

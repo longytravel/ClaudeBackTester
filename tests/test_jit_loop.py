@@ -73,7 +73,7 @@ def _make_price_data(n_bars: int = 100, base: float = 1.1000, pip: float = 0.000
     close = np.cumsum(returns) + base
     high = close + rng.uniform(0, 10 * pip, n_bars)
     low = close - rng.uniform(0, 10 * pip, n_bars)
-    spread = np.full(n_bars, 1.0)  # 1 pip spread
+    spread = np.full(n_bars, 1.0 * pip)  # 1 pip spread in price units
     return high, low, close, spread
 
 
@@ -190,7 +190,7 @@ class TestSimulateTradeBasic:
             DIR_BUY, 0, 1.1000,
             sl_price=1.1000 - 30 * pip,  # SL at -30 pips
             tp_price=1.1000 + 60 * pip,  # TP at +60 pips
-            high=high, low=low, spread_arr=spread,
+            high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
         assert exit_code == EXIT_SL
@@ -207,7 +207,7 @@ class TestSimulateTradeBasic:
             DIR_BUY, 0, 1.1000,
             sl_price=1.1000 - 30 * pip,
             tp_price=1.1000 + 60 * pip,
-            high=high, low=low, spread_arr=spread,
+            high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
         assert exit_code == EXIT_TP
@@ -224,7 +224,7 @@ class TestSimulateTradeBasic:
             DIR_BUY, 0, 1.1000,
             sl_price=1.1000 - 30 * pip,
             tp_price=1.1000 + 60 * pip,
-            high=high, low=low, spread_arr=spread,
+            high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
         assert exit_code == EXIT_SL  # Conservative tiebreak
@@ -240,7 +240,7 @@ class TestSimulateTradeBasic:
             DIR_SELL, 0, 1.1000,
             sl_price=1.1000 + 30 * pip,  # SL above for sell
             tp_price=1.1000 - 60 * pip,  # TP below for sell
-            high=high, low=low, spread_arr=spread,
+            high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
         assert exit_code == EXIT_SL
@@ -257,7 +257,7 @@ class TestSimulateTradeBasic:
             DIR_SELL, 0, 1.1000,
             sl_price=1.1000 + 30 * pip,
             tp_price=1.1000 - 60 * pip,
-            high=high, low=low, spread_arr=spread,
+            high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
         assert exit_code == EXIT_TP
@@ -274,15 +274,15 @@ class TestSimulateTradeBasic:
         pnl_no_spread, _ = _simulate_trade_basic(
             DIR_BUY, 0, 1.1000,
             sl_price=1.0970, tp_price=1.1060,
-            high=high, low=low, spread_arr=np.zeros_like(spread),
+            high=high, low=low, close=close, spread_arr=np.zeros_like(spread),
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
-        # With 2 pip spread
-        spread_2 = np.full_like(spread, 2.0)
+        # With 2 pip spread (in price units)
+        spread_2 = np.full_like(spread, 2.0 * pip)
         pnl_with_spread, _ = _simulate_trade_basic(
             DIR_BUY, 0, 1.1000,
             sl_price=1.0970, tp_price=1.1060,
-            high=high, low=low, spread_arr=spread_2,
+            high=high, low=low, close=close, spread_arr=spread_2,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
         )
         assert pnl_with_spread < pnl_no_spread
@@ -317,7 +317,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_BASIC, metrics, 1000,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
@@ -342,7 +342,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, 0.0001, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_BASIC, metrics, 1000,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 0.0
@@ -372,7 +372,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_BASIC, metrics, 1000,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 0.0  # Filtered out
@@ -403,7 +403,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_BASIC, metrics, 1000,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 0.0
@@ -435,7 +435,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_BASIC, metrics, 1000,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
         )
 
         # Both should have 1 trade
@@ -476,7 +476,7 @@ class TestBatchEvaluate:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_BASIC, metrics, 1000,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 2.0
@@ -515,7 +515,7 @@ class TestFullMode:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_FULL, metrics, 1000,
+            params, layout, EXEC_FULL, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
@@ -552,7 +552,7 @@ class TestFullMode:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_FULL, metrics, 1000,
+            params, layout, EXEC_FULL, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
@@ -590,7 +590,7 @@ class TestFullMode:
         batch_evaluate(
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
-            params, layout, EXEC_FULL, metrics, 1000,
+            params, layout, EXEC_FULL, metrics, 1000, 6048.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0

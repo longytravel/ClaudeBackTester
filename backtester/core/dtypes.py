@@ -111,3 +111,16 @@ DEFAULT_PIP_VALUE: float = 0.0001  # Most pairs; JPY = 0.01
 
 # Annualization factor for Sharpe/Sortino (assuming ~252 trading days)
 TRADING_DAYS_PER_YEAR: int = 252
+
+# Estimated bars per year for common timeframes (24h forex market, 252 trading days)
+BARS_PER_YEAR: dict[str, float] = {
+    "M1": 252 * 24 * 60,     # 362,880
+    "M5": 252 * 24 * 12,     # 72,576
+    "M15": 252 * 24 * 4,     # 24,192
+    "M30": 252 * 24 * 2,     # 12,096
+    "H1": 252 * 24,          # 6,048
+    "H4": 252 * 6,           # 1,512
+    "D": 252,                # 252
+    "W": 52,                 # 52
+}
+DEFAULT_BARS_PER_YEAR: float = 6048.0  # H1 default
