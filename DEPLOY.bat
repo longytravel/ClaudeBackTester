@@ -28,17 +28,24 @@ echo.
 
 REM 2. Install/update dependencies
 echo [2/4] Installing dependencies...
-uv sync --quiet
+REM Try uv first (dev machine), fall back to pip (VPS)
+where uv >nul 2>&1
+if %errorlevel% equ 0 (
+    uv sync --quiet
+) else (
+    pip install -r requirements.txt --quiet 2>nul
+    pip install -e . --quiet 2>nul
+)
 echo      Done.
 echo.
 
 REM 3. Stop any existing traders
 echo [3/4] Stopping old traders...
-uv run python scripts/stop_all.py
+python scripts/stop_all.py
 echo.
 
 REM 4. Launch all strategies
 echo [4/4] Launching strategies...
-uv run python scripts/start_all.py practice
+python scripts/start_all.py practice
 echo.
 pause
