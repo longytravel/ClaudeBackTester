@@ -1,0 +1,67 @@
+{
+  "strategy": "rsi_mean_reversion",
+  "version": "1.0.0",
+  "pair": "EUR/USD",
+  "timeframe": "H1",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {
+        "rsi_period": 7,
+        "rsi_oversold": 35,
+        "rsi_overbought": 65,
+        "sl_mode": "atr_based",
+        "sl_fixed_pips": 40,
+        "sl_atr_mult": 0.5,
+        "tp_mode": "atr_based",
+        "tp_rr_ratio": 4.0,
+        "tp_atr_mult": 1.0,
+        "tp_fixed_pips": 50,
+        "trailing_mode": "fixed_pip",
+        "trail_activate_pips": 0,
+        "trail_distance_pips": 5,
+        "trail_atr_mult": 1.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 5,
+        "breakeven_offset_pips": 3,
+        "partial_close_enabled": false,
+        "partial_close_pct": 40,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 1000,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 50,
+        "stale_exit_atr_threshold": 1.0,
+        "allowed_hours_start": 7,
+        "allowed_hours_end": 18,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "back_quality": 373.2745794329319,
+      "forward_quality": 155.51038922773057,
+      "forward_back_ratio": 0.41661125025973517,
+      "eliminated": false,
+      "composite_score": 71.80963271548833,
+      "rating": "GREEN",
+      "gates_passed": {
+        "forward_back_ratio": true,
+        "wf_pass_rate": true,
+        "wf_mean_sharpe": true,
+        "dsr": true,
+        "permutation_p": true
+      },
+      "wf_pass_rate": 1.0,
+      "wf_mean_sharpe": 7.653121024627823,
+      "dsr": 1.0,
+      "permutation_p": 0.0,
+      "stability_rating": "MODERATE",
+      "stability_mean_ratio": 0.8566639937442697
+    }
+  ]
+}
