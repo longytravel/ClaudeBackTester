@@ -1,3 +1,6 @@
+# Deploy marker (per-machine, not versioned)
+.installed
+
 # Python
 __pycache__/
 *.py[cod]

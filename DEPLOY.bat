@@ -18,7 +18,7 @@ echo ============================================================
 echo.
 
 REM 1. Pull latest from GitHub
-echo [1/3] Pulling from GitHub...
+echo [1/2] Pulling from GitHub...
 git pull origin master
 if %errorlevel% neq 0 (
     echo ERROR: git pull failed. Check your internet connection.
@@ -28,20 +28,23 @@ if %errorlevel% neq 0 (
 echo      Done.
 echo.
 
-REM 2. Install/update dependencies
-echo [2/3] Installing dependencies (first time is slow, be patient)...
-where uv >nul 2>&1
-if %errorlevel% equ 0 (
-    uv sync --quiet
-) else (
-    pip install -r requirements.txt
-    pip install -e .
+REM Install dependencies only on first run (creates .installed marker)
+if not exist .installed (
+    echo Installing dependencies (first time only, be patient)...
+    where uv >nul 2>&1
+    if %errorlevel% equ 0 (
+        uv sync --quiet
+    ) else (
+        pip install -r requirements.txt
+        pip install -e .
+    )
+    echo. > .installed
+    echo      Done.
+    echo.
 )
-echo      Done.
-echo.
 
-REM 3. Launch strategies (skips already-running ones)
-echo [3/3] Launching strategies...
+REM 2. Launch strategies (skips already-running ones)
+echo [2/2] Launching strategies...
 python scripts/start_all.py practice
 echo.
 pause
