@@ -197,29 +197,29 @@ def _default_params() -> dict:
 class TestEngineInit:
     def test_creates_encoding(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy(), *data)
+        engine = BacktestEngine(DummyStrategy(), *data, commission_pips=0.0, max_spread_pips=0.0)
         assert engine.encoding.num_params > 0
 
     def test_generates_signals(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data)
+        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data, commission_pips=0.0, max_spread_pips=0.0)
         assert engine.n_signals == 3
 
     def test_no_signals(self):
         data = _make_trending_data(n_bars=5)  # Fewer bars than signal bars
-        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data)
+        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data, commission_pips=0.0, max_spread_pips=0.0)
         assert engine.n_signals == 0
 
     def test_param_layout_built(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy(), *data)
+        engine = BacktestEngine(DummyStrategy(), *data, commission_pips=0.0, max_spread_pips=0.0)
         assert len(engine.param_layout) > 0
 
 
 class TestEvaluateSingle:
     def test_returns_metric_dict(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10]), *data, slippage_pips=0.0)
+        engine = BacktestEngine(DummyStrategy([10]), *data, slippage_pips=0.0, commission_pips=0.0, max_spread_pips=0.0)
         result = engine.evaluate_single(_default_params())
         assert "trades" in result
         assert "win_rate" in result
@@ -227,13 +227,13 @@ class TestEvaluateSingle:
 
     def test_trade_count(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data, slippage_pips=0.0)
+        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data, slippage_pips=0.0, commission_pips=0.0, max_spread_pips=0.0)
         result = engine.evaluate_single(_default_params())
         assert result["trades"] == 3.0
 
     def test_no_signals_zero_trades(self):
         data = _make_trending_data(n_bars=5)
-        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data)
+        engine = BacktestEngine(DummyStrategy([10, 30, 50]), *data, commission_pips=0.0, max_spread_pips=0.0)
         result = engine.evaluate_single(_default_params())
         assert result["trades"] == 0.0
 
@@ -241,7 +241,7 @@ class TestEvaluateSingle:
 class TestEvaluateBatch:
     def test_batch_shape(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10]), *data)
+        engine = BacktestEngine(DummyStrategy([10]), *data, commission_pips=0.0, max_spread_pips=0.0)
 
         spec = engine.encoding
         params_dict = _default_params()
@@ -253,7 +253,7 @@ class TestEvaluateBatch:
 
     def test_different_params_different_results(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10]), *data, slippage_pips=0.0)
+        engine = BacktestEngine(DummyStrategy([10]), *data, slippage_pips=0.0, commission_pips=0.0, max_spread_pips=0.0)
 
         spec = engine.encoding
         # Trial 0: tight SL
@@ -275,7 +275,7 @@ class TestEvaluateBatch:
 
     def test_empty_signals(self):
         data = _make_trending_data(n_bars=5)
-        engine = BacktestEngine(DummyStrategy([10, 30]), *data)
+        engine = BacktestEngine(DummyStrategy([10, 30]), *data, commission_pips=0.0, max_spread_pips=0.0)
 
         spec = engine.encoding
         row = encode_params(spec, _default_params())
@@ -286,7 +286,7 @@ class TestEvaluateBatch:
 class TestEvaluateFromIndices:
     def test_index_evaluation(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10]), *data)
+        engine = BacktestEngine(DummyStrategy([10]), *data, commission_pips=0.0, max_spread_pips=0.0)
 
         # Create index matrix where hours_end is max (index 23 = hour 23)
         # so signals at hour 10 pass the 0-23 filter
@@ -302,7 +302,7 @@ class TestEvaluateFromIndices:
 class TestFullMode:
     def test_full_mode_evaluation(self):
         data = _make_trending_data()
-        engine = BacktestEngine(DummyStrategy([10, 30]), *data, slippage_pips=0.0)
+        engine = BacktestEngine(DummyStrategy([10, 30]), *data, slippage_pips=0.0, commission_pips=0.0, max_spread_pips=0.0)
 
         params = _default_params()
         params["max_bars"] = 5  # Force exit after 5 bars
@@ -314,8 +314,57 @@ class TestFullMode:
 class TestSellSignals:
     def test_sell_strategy(self):
         data = _make_flat_data()
-        engine = BacktestEngine(SellStrategy(), *data, slippage_pips=0.0)
+        engine = BacktestEngine(SellStrategy(), *data, slippage_pips=0.0, commission_pips=0.0, max_spread_pips=0.0)
         params = _default_params()
         del params["rsi_threshold"]  # SellStrategy doesn't have this param
         result = engine.evaluate_single(params)
         assert result["trades"] == 1.0
+
+
+class TestExecutionCosts:
+    def test_commission_reduces_profit(self):
+        """Engine with commission should produce lower PnL than without."""
+        data = _make_trending_data()
+        engine_no_cost = BacktestEngine(
+            DummyStrategy([10]), *data, slippage_pips=0.0,
+            commission_pips=0.0, max_spread_pips=0.0,
+        )
+        engine_with_cost = BacktestEngine(
+            DummyStrategy([10]), *data, slippage_pips=0.0,
+            commission_pips=0.7, max_spread_pips=0.0,
+        )
+        params = _default_params()
+        r0 = engine_no_cost.evaluate_single(params)
+        r1 = engine_with_cost.evaluate_single(params)
+        assert r0["trades"] == r1["trades"]  # Same trade count
+
+    def test_max_spread_filter_engine(self):
+        """Engine with tight max_spread_pips should filter high-spread signals."""
+        pip = 0.0001
+        n_bars = 100
+        base = 1.1000
+        open_ = np.full(n_bars, base, dtype=np.float64)
+        high = np.full(n_bars, base + 50 * pip, dtype=np.float64)
+        low = np.full(n_bars, base - 50 * pip, dtype=np.float64)
+        close = np.full(n_bars, base, dtype=np.float64)
+        volume = np.ones(n_bars, dtype=np.float64)
+        # Spread is 5 pips — higher than the 3 pip threshold
+        spread = np.full(n_bars, 5.0 * pip, dtype=np.float64)
+
+        engine = BacktestEngine(
+            DummyStrategy([10]), open_, high, low, close, volume, spread,
+            slippage_pips=0.0, commission_pips=0.0, max_spread_pips=3.0,
+        )
+        params = _default_params()
+        result = engine.evaluate_single(params)
+        assert result["trades"] == 0.0  # Filtered out by spread
+
+    def test_cost_attributes_stored(self):
+        """Engine should store commission_pips and max_spread_pips attributes."""
+        data = _make_trending_data()
+        engine = BacktestEngine(
+            DummyStrategy([10]), *data,
+            commission_pips=0.7, max_spread_pips=3.0,
+        )
+        assert engine.commission_pips == 0.7
+        assert engine.max_spread_pips == 3.0

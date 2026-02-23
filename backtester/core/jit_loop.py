@@ -196,6 +196,7 @@ def _simulate_trade_basic(
     pip_value: float,
     slippage_pips: float,
     num_bars: int,
+    commission_pips: float,
 ) -> tuple[float, int]:
     """Simulate a single trade with SL/TP only (basic mode).
 
@@ -216,6 +217,10 @@ def _simulate_trade_basic(
         actual_entry = entry_price - slippage_price
         # SELL: no spread adjustment on entry (we sell at bid)
 
+    exit_reason = EXIT_NONE
+    exit_bar = num_bars - 1
+    pnl = 0.0
+
     # Walk forward bar by bar
     for bar in range(entry_bar + 1, num_bars):
         bar_high = high[bar]
@@ -225,27 +230,44 @@ def _simulate_trade_basic(
             # Check SL first (conservative tiebreak)
             if bar_low <= sl_price:
                 pnl = (sl_price - actual_entry) / pip_value
-                return pnl, EXIT_SL
+                exit_reason = EXIT_SL
+                exit_bar = bar
+                break
             if bar_high >= tp_price:
                 pnl = (tp_price - actual_entry) / pip_value
-                return pnl, EXIT_TP
+                exit_reason = EXIT_TP
+                exit_bar = bar
+                break
         else:
             # SELL: SL is above, TP is below
             if bar_high >= sl_price:
                 pnl = (actual_entry - sl_price) / pip_value
-                return pnl, EXIT_SL
+                exit_reason = EXIT_SL
+                exit_bar = bar
+                break
             if bar_low <= tp_price:
                 pnl = (actual_entry - tp_price) / pip_value
-                return pnl, EXIT_TP
+                exit_reason = EXIT_TP
+                exit_bar = bar
+                break
 
     # Trade still open at end of data — close at last bar close
-    last_bar = num_bars - 1
-    close_price = close[last_bar]
-    if is_buy:
-        pnl = (close_price - actual_entry) / pip_value
-    else:
-        pnl = (actual_entry - close_price) / pip_value
-    return pnl, EXIT_NONE
+    if exit_reason == EXIT_NONE:
+        close_price = close[exit_bar]
+        if is_buy:
+            pnl = (close_price - actual_entry) / pip_value
+        else:
+            pnl = (actual_entry - close_price) / pip_value
+
+    # Apply execution costs
+    # SELL: deduct exit bar spread (BUY already paid spread at entry)
+    if not is_buy:
+        sell_spread = spread_arr[exit_bar] if exit_bar < len(spread_arr) else 0.0
+        pnl -= sell_spread / pip_value
+    # Commission applied to all trades
+    pnl -= commission_pips
+
+    return pnl, exit_reason
 
 
 @njit(cache=True)
@@ -278,6 +300,7 @@ def _simulate_trade_full(
     stale_enabled: int,
     stale_bars: int,
     stale_atr_thresh: float,
+    commission_pips: float,
 ) -> tuple[float, int]:
     """Simulate a single trade with full management features.
 
@@ -303,6 +326,9 @@ def _simulate_trade_full(
     realized_pnl_pips = 0.0
 
     bars_held = 0
+    exit_reason = EXIT_NONE
+    exit_bar = num_bars - 1
+    final_pnl = 0.0
 
     for bar in range(entry_bar + 1, num_bars):
         bar_high = high[bar]
@@ -316,7 +342,10 @@ def _simulate_trade_full(
                 pnl = (bar_close - actual_entry) / pip_value * position_pct
             else:
                 pnl = (actual_entry - bar_close) / pip_value * position_pct
-            return realized_pnl_pips + pnl, EXIT_MAX_BARS
+            final_pnl = realized_pnl_pips + pnl
+            exit_reason = EXIT_MAX_BARS
+            exit_bar = bar
+            break
 
         # --- Stale exit: check if price hasn't moved enough ---
         if stale_enabled > 0 and bars_held >= stale_bars:
@@ -332,7 +361,10 @@ def _simulate_trade_full(
                     pnl = (bar_close - actual_entry) / pip_value * position_pct
                 else:
                     pnl = (actual_entry - bar_close) / pip_value * position_pct
-                return realized_pnl_pips + pnl, EXIT_STALE
+                final_pnl = realized_pnl_pips + pnl
+                exit_reason = EXIT_STALE
+                exit_bar = bar
+                break
 
         # Current floating PnL in pips
         if is_buy:
@@ -396,10 +428,16 @@ def _simulate_trade_full(
                     exit_code = EXIT_TRAILING
                 elif be_locked:
                     exit_code = EXIT_BREAKEVEN
-                return realized_pnl_pips + pnl, exit_code
+                final_pnl = realized_pnl_pips + pnl
+                exit_reason = exit_code
+                exit_bar = bar
+                break
             if bar_high >= tp_price:
                 pnl = (tp_price - actual_entry) / pip_value * position_pct
-                return realized_pnl_pips + pnl, EXIT_TP
+                final_pnl = realized_pnl_pips + pnl
+                exit_reason = EXIT_TP
+                exit_bar = bar
+                break
         else:
             if bar_high >= current_sl:
                 pnl = (actual_entry - current_sl) / pip_value * position_pct
@@ -408,19 +446,35 @@ def _simulate_trade_full(
                     exit_code = EXIT_TRAILING
                 elif be_locked:
                     exit_code = EXIT_BREAKEVEN
-                return realized_pnl_pips + pnl, exit_code
+                final_pnl = realized_pnl_pips + pnl
+                exit_reason = exit_code
+                exit_bar = bar
+                break
             if bar_low <= tp_price:
                 pnl = (actual_entry - tp_price) / pip_value * position_pct
-                return realized_pnl_pips + pnl, EXIT_TP
+                final_pnl = realized_pnl_pips + pnl
+                exit_reason = EXIT_TP
+                exit_bar = bar
+                break
 
     # End of data — close remaining position
-    last_bar = num_bars - 1
-    close_price = close[last_bar] if last_bar < len(close) else (high[last_bar] + low[last_bar]) / 2.0
-    if is_buy:
-        pnl = (close_price - actual_entry) / pip_value * position_pct
-    else:
-        pnl = (actual_entry - close_price) / pip_value * position_pct
-    return realized_pnl_pips + pnl, EXIT_NONE
+    if exit_reason == EXIT_NONE:
+        close_price = close[exit_bar] if exit_bar < len(close) else (high[exit_bar] + low[exit_bar]) / 2.0
+        if is_buy:
+            pnl = (close_price - actual_entry) / pip_value * position_pct
+        else:
+            pnl = (actual_entry - close_price) / pip_value * position_pct
+        final_pnl = realized_pnl_pips + pnl
+
+    # Apply execution costs
+    # SELL: deduct exit bar spread (BUY already paid spread at entry)
+    if not is_buy:
+        sell_spread = spread_arr[exit_bar] if exit_bar < len(spread_arr) else 0.0
+        final_pnl -= sell_spread / pip_value
+    # Commission applied to all trades
+    final_pnl -= commission_pips
+
+    return final_pnl, exit_reason
 
 
 @njit(cache=True)
@@ -629,6 +683,9 @@ def batch_evaluate(
     max_trades: int,
     # Annualization: estimated bars per year for this timeframe
     bars_per_year: float,
+    # Execution costs
+    commission_pips: float,
+    max_spread_pips: float,
 ) -> None:
     """Evaluate N parameter sets in parallel.
 
@@ -701,6 +758,12 @@ def batch_evaluate(
             atr_p = sig_atr_pips[si]
             swing_sl = sig_swing_sl[si]
 
+            # Max spread filter: skip signals where spread exceeds threshold
+            if max_spread_pips > 0.0:
+                spread_at_signal = spread[bar_idx] / pip_value  # convert to pips
+                if spread_at_signal > max_spread_pips:
+                    continue
+
             sl_p, tp_p, sl_pip, tp_pip = _compute_sl_tp(
                 direction, entry_p, atr_p, pip_value,
                 sl_mode, sl_fixed_pips, sl_atr_mult, swing_sl,
@@ -714,6 +777,7 @@ def batch_evaluate(
                 pnl, exit_reason = _simulate_trade_basic(
                     direction, bar_idx, entry_p, sl_p, tp_p,
                     high, low, close, spread, pip_value, slippage_pips, n_bars,
+                    commission_pips,
                 )
             else:
                 pnl, exit_reason = _simulate_trade_full(
@@ -723,6 +787,7 @@ def batch_evaluate(
                     be_enabled, be_trigger, be_offset,
                     partial_en, partial_pct, partial_trig,
                     max_bars_val, stale_en, stale_bars_val, stale_atr,
+                    commission_pips,
                 )
 
             if trade_count < max_trades:

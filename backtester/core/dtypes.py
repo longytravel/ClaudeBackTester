@@ -108,6 +108,8 @@ DAYS_ALL: int = 127       # 0b1111111
 DEFAULT_SPREAD_PIPS: float = 1.0
 DEFAULT_SLIPPAGE_PIPS: float = 0.5
 DEFAULT_PIP_VALUE: float = 0.0001  # Most pairs; JPY = 0.01
+DEFAULT_COMMISSION_PIPS: float = 0.7   # IC Markets Raw, ~$7/lot RT ≈ 0.7 pips EUR/USD
+DEFAULT_MAX_SPREAD_PIPS: float = 3.0   # REQ-R07: reject signals with spread > 3 pips
 
 # Annualization factor for Sharpe/Sortino (assuming ~252 trading days)
 TRADING_DAYS_PER_YEAR: int = 252

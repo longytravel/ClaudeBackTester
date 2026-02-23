@@ -143,6 +143,12 @@ def run_telemetry(
             if not (hour >= hours_start or hour <= hours_end):
                 continue
 
+        # Max spread filter
+        if engine.max_spread_pips > 0:
+            spread_at_signal = engine.spread[bar_idx] / pip if bar_idx < len(engine.spread) else 0.0
+            if spread_at_signal > engine.max_spread_pips:
+                continue
+
         result.n_signals_filtered += 1
 
         # Compute SL/TP
@@ -303,6 +309,14 @@ def run_telemetry(
             pnl = (exit_price - actual_entry) / pip
         else:
             pnl = (actual_entry - exit_price) / pip
+
+        # Apply execution costs
+        # SELL: deduct exit bar spread (BUY already paid spread at entry)
+        if not is_buy:
+            sell_spread = engine.spread[exit_bar] if exit_bar < len(engine.spread) else 0.0
+            pnl -= sell_spread / pip
+        # Commission applied to all trades
+        pnl -= engine.commission_pips
 
         pnl_list.append(pnl)
 

@@ -58,6 +58,7 @@ from backtester.core.jit_loop import (
     PL_TRAIL_DISTANCE,
     _compute_sl_tp,
     _simulate_trade_basic,
+    _simulate_trade_full,
     batch_evaluate,
 )
 
@@ -192,6 +193,7 @@ class TestSimulateTradeBasic:
             tp_price=1.1000 + 60 * pip,  # TP at +60 pips
             high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         assert exit_code == EXIT_SL
         assert pnl < 0
@@ -209,6 +211,7 @@ class TestSimulateTradeBasic:
             tp_price=1.1000 + 60 * pip,
             high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         assert exit_code == EXIT_TP
         assert pnl > 0
@@ -226,6 +229,7 @@ class TestSimulateTradeBasic:
             tp_price=1.1000 + 60 * pip,
             high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         assert exit_code == EXIT_SL  # Conservative tiebreak
 
@@ -242,6 +246,7 @@ class TestSimulateTradeBasic:
             tp_price=1.1000 - 60 * pip,  # TP below for sell
             high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         assert exit_code == EXIT_SL
         assert pnl < 0
@@ -259,6 +264,7 @@ class TestSimulateTradeBasic:
             tp_price=1.1000 - 60 * pip,
             high=high, low=low, close=close, spread_arr=spread,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         assert exit_code == EXIT_TP
         assert pnl > 0
@@ -276,6 +282,7 @@ class TestSimulateTradeBasic:
             sl_price=1.0970, tp_price=1.1060,
             high=high, low=low, close=close, spread_arr=np.zeros_like(spread),
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         # With 2 pip spread (in price units)
         spread_2 = np.full_like(spread, 2.0 * pip)
@@ -284,6 +291,7 @@ class TestSimulateTradeBasic:
             sl_price=1.0970, tp_price=1.1060,
             high=high, low=low, close=close, spread_arr=spread_2,
             pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
         )
         assert pnl_with_spread < pnl_no_spread
 
@@ -318,6 +326,7 @@ class TestBatchEvaluate:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
@@ -343,6 +352,7 @@ class TestBatchEvaluate:
             high, low, close, spread, 0.0001, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 0.0
@@ -373,6 +383,7 @@ class TestBatchEvaluate:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 0.0  # Filtered out
@@ -404,6 +415,7 @@ class TestBatchEvaluate:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 0.0
@@ -436,6 +448,7 @@ class TestBatchEvaluate:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         # Both should have 1 trade
@@ -477,6 +490,7 @@ class TestBatchEvaluate:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 2.0
@@ -516,6 +530,7 @@ class TestFullMode:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_FULL, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
@@ -553,6 +568,7 @@ class TestFullMode:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_FULL, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
@@ -591,6 +607,295 @@ class TestFullMode:
             high, low, close, spread, pip, 0.0,
             sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
             params, layout, EXEC_FULL, metrics, 1000, 6048.0,
+            0.0, 0.0,
         )
 
         assert metrics[0, M_TRADES] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# Execution cost tests
+# ---------------------------------------------------------------------------
+
+class TestExecutionCosts:
+    def test_sell_exit_spread_deducted(self):
+        """SELL trade PnL should be reduced by exit bar spread."""
+        pip = 0.0001
+        # SELL TP hit: price drops 70 pips
+        high, low, close, spread = _make_simple_prices(
+            [(-70, 5)],
+            base=1.1000,
+        )
+        # Zero spread
+        pnl_no_spread, _ = _simulate_trade_basic(
+            DIR_SELL, 0, 1.1000,
+            sl_price=1.1000 + 30 * pip,
+            tp_price=1.1000 - 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
+        )
+        # With 1.5 pip spread (in price units)
+        spread_15 = np.full_like(spread, 1.5 * pip)
+        pnl_with_spread, _ = _simulate_trade_basic(
+            DIR_SELL, 0, 1.1000,
+            sl_price=1.1000 + 30 * pip,
+            tp_price=1.1000 - 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=spread_15,
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
+        )
+        # SELL PnL reduced by 1.5 pips (exit spread)
+        assert abs((pnl_no_spread - pnl_with_spread) - 1.5) < 0.01
+
+    def test_buy_no_exit_spread(self):
+        """BUY trade PnL should NOT be affected by exit bar spread (only entry)."""
+        pip = 0.0001
+        # BUY TP hit: price rises 70 pips
+        high, low, close, spread = _make_simple_prices(
+            [(-5, 70)],
+            base=1.1000,
+        )
+        # Zero spread
+        pnl_no_spread, _ = _simulate_trade_basic(
+            DIR_BUY, 0, 1.1000,
+            sl_price=1.1000 - 30 * pip,
+            tp_price=1.1000 + 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
+        )
+        # With 1.5 pip spread — BUY pays at entry, not exit
+        spread_15 = np.full_like(spread, 1.5 * pip)
+        pnl_with_spread, _ = _simulate_trade_basic(
+            DIR_BUY, 0, 1.1000,
+            sl_price=1.1000 - 30 * pip,
+            tp_price=1.1000 + 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=spread_15,
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
+        )
+        # BUY spread cost = entry spread only (1.5 pips)
+        assert abs((pnl_no_spread - pnl_with_spread) - 1.5) < 0.01
+
+    def test_commission_deducted(self):
+        """Both BUY and SELL PnL should be reduced by commission."""
+        pip = 0.0001
+        # BUY TP hit
+        high, low, close, spread = _make_simple_prices(
+            [(-5, 70)],
+            base=1.1000,
+        )
+        pnl_no_comm, _ = _simulate_trade_basic(
+            DIR_BUY, 0, 1.1000,
+            sl_price=1.1000 - 30 * pip,
+            tp_price=1.1000 + 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
+        )
+        pnl_with_comm, _ = _simulate_trade_basic(
+            DIR_BUY, 0, 1.1000,
+            sl_price=1.1000 - 30 * pip,
+            tp_price=1.1000 + 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.7,
+        )
+        assert abs((pnl_no_comm - pnl_with_comm) - 0.7) < 0.01
+
+    def test_commission_deducted_sell(self):
+        """SELL trade commission also deducted."""
+        pip = 0.0001
+        high, low, close, spread = _make_simple_prices(
+            [(-70, 5)],
+            base=1.1000,
+        )
+        pnl_no_comm, _ = _simulate_trade_basic(
+            DIR_SELL, 0, 1.1000,
+            sl_price=1.1000 + 30 * pip,
+            tp_price=1.1000 - 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.0,
+        )
+        pnl_with_comm, _ = _simulate_trade_basic(
+            DIR_SELL, 0, 1.1000,
+            sl_price=1.1000 + 30 * pip,
+            tp_price=1.1000 - 60 * pip,
+            high=high, low=low, close=close,
+            spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            commission_pips=0.7,
+        )
+        assert abs((pnl_no_comm - pnl_with_comm) - 0.7) < 0.01
+
+    def test_max_spread_filter(self):
+        """Signal with spread > max_spread_pips should be skipped."""
+        pip = 0.0001
+        high, low, close, spread = _make_simple_prices(
+            [(-5, 70)] * 3,
+            base=1.1000,
+        )
+        # Set spread to 5 pips (in price units)
+        spread[:] = 5.0 * pip
+
+        sig_bar = np.array([0], dtype=np.int64)
+        sig_dir = np.array([DIR_BUY], dtype=np.int64)
+        sig_entry = np.array([1.1000], dtype=np.float64)
+        sig_hour = np.array([10], dtype=np.int64)
+        sig_day = np.array([1], dtype=np.int64)
+        sig_atr = np.array([20.0], dtype=np.float64)
+        sig_swing = np.array([np.nan], dtype=np.float64)
+
+        params = _basic_params().reshape(1, -1)
+        layout = _default_param_layout()
+        metrics = np.zeros((1, NUM_METRICS), dtype=np.float64)
+
+        # max_spread_pips=3.0 — signal spread is 5 pips, should be filtered
+        batch_evaluate(
+            high, low, close, spread, pip, 0.0,
+            sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 3.0,
+        )
+        assert metrics[0, M_TRADES] == 0.0  # Filtered out
+
+    def test_max_spread_filter_passes(self):
+        """Signal with spread <= max_spread_pips should NOT be skipped."""
+        pip = 0.0001
+        high, low, close, spread = _make_simple_prices(
+            [(-5, 70)] * 3,
+            base=1.1000,
+        )
+        # Set spread to 1 pip (in price units) — below threshold
+        spread[:] = 1.0 * pip
+
+        sig_bar = np.array([0], dtype=np.int64)
+        sig_dir = np.array([DIR_BUY], dtype=np.int64)
+        sig_entry = np.array([1.1000], dtype=np.float64)
+        sig_hour = np.array([10], dtype=np.int64)
+        sig_day = np.array([1], dtype=np.int64)
+        sig_atr = np.array([20.0], dtype=np.float64)
+        sig_swing = np.array([np.nan], dtype=np.float64)
+
+        params = _basic_params().reshape(1, -1)
+        layout = _default_param_layout()
+        metrics = np.zeros((1, NUM_METRICS), dtype=np.float64)
+
+        # max_spread_pips=3.0 — signal spread is 1 pip, should pass
+        batch_evaluate(
+            high, low, close, spread, pip, 0.0,
+            sig_bar, sig_dir, sig_entry, sig_hour, sig_day, sig_atr, sig_swing,
+            params, layout, EXEC_BASIC, metrics, 1000, 6048.0,
+            0.0, 3.0,
+        )
+        assert metrics[0, M_TRADES] == 1.0  # Not filtered
+
+    def test_sell_vs_buy_symmetric_costs(self):
+        """BUY and SELL should have approximately equal total execution costs."""
+        pip = 0.0001
+        spread_val = 1.2 * pip  # 1.2 pip spread
+        commission = 0.7        # 0.7 pip commission
+
+        # BUY TP hit
+        high_b, low_b, close_b, spread_b = _make_simple_prices(
+            [(-5, 70)], base=1.1000,
+        )
+        spread_b[:] = spread_val
+        pnl_buy, _ = _simulate_trade_basic(
+            DIR_BUY, 0, 1.1000,
+            sl_price=1.1000 - 30 * pip,
+            tp_price=1.1000 + 60 * pip,
+            high=high_b, low=low_b, close=close_b, spread_arr=spread_b,
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high_b),
+            commission_pips=commission,
+        )
+        pnl_buy_nocost, _ = _simulate_trade_basic(
+            DIR_BUY, 0, 1.1000,
+            sl_price=1.1000 - 30 * pip,
+            tp_price=1.1000 + 60 * pip,
+            high=high_b, low=low_b, close=close_b,
+            spread_arr=np.zeros_like(spread_b),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high_b),
+            commission_pips=0.0,
+        )
+        buy_total_cost = pnl_buy_nocost - pnl_buy  # spread_entry + commission
+
+        # SELL TP hit
+        high_s, low_s, close_s, spread_s = _make_simple_prices(
+            [(-70, 5)], base=1.1000,
+        )
+        spread_s[:] = spread_val
+        pnl_sell, _ = _simulate_trade_basic(
+            DIR_SELL, 0, 1.1000,
+            sl_price=1.1000 + 30 * pip,
+            tp_price=1.1000 - 60 * pip,
+            high=high_s, low=low_s, close=close_s, spread_arr=spread_s,
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high_s),
+            commission_pips=commission,
+        )
+        pnl_sell_nocost, _ = _simulate_trade_basic(
+            DIR_SELL, 0, 1.1000,
+            sl_price=1.1000 + 30 * pip,
+            tp_price=1.1000 - 60 * pip,
+            high=high_s, low=low_s, close=close_s,
+            spread_arr=np.zeros_like(spread_s),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high_s),
+            commission_pips=0.0,
+        )
+        sell_total_cost = pnl_sell_nocost - pnl_sell  # spread_exit + commission
+
+        # Both should have total cost = spread (1.2) + commission (0.7) = 1.9 pips
+        expected_total = 1.2 + 0.7
+        assert abs(buy_total_cost - expected_total) < 0.01
+        assert abs(sell_total_cost - expected_total) < 0.01
+        # BUY and SELL costs should be approximately equal
+        assert abs(buy_total_cost - sell_total_cost) < 0.1
+
+    def test_full_mode_commission(self):
+        """Full mode should also apply commission and SELL spread."""
+        pip = 0.0001
+        base = 1.1000
+        # SELL trade: price drops 70 pips (hits TP at -60)
+        moves = [(-70, 5)]
+        high, low, close, spread = _make_simple_prices(moves, base=base)
+        spread[:] = 1.0 * pip  # 1 pip spread
+
+        pnl_no_cost, _ = _simulate_trade_full(
+            DIR_SELL, 0, base,
+            sl_price=base + 30 * pip,
+            tp_price=base - 60 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=np.zeros_like(spread),
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=10.0, trail_atr_mult=2.0,
+            breakeven_enabled=0, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=0, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.0,
+        )
+        pnl_with_cost, _ = _simulate_trade_full(
+            DIR_SELL, 0, base,
+            sl_price=base + 30 * pip,
+            tp_price=base - 60 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=len(high),
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=10.0, trail_atr_mult=2.0,
+            breakeven_enabled=0, breakeven_trigger_pips=20.0, breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=50.0, partial_trigger_pips=30.0,
+            max_bars=0, stale_enabled=0, stale_bars=50, stale_atr_thresh=0.5,
+            commission_pips=0.7,
+        )
+        # Total cost = spread (1.0) + commission (0.7) = 1.7 pips
+        assert abs((pnl_no_cost - pnl_with_cost) - 1.7) < 0.01

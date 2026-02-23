@@ -140,6 +140,13 @@
 - [x] REQ-B14: Management uses intra-bar highs/lows
 - [x] REQ-B15: Fixed lot sizing only
 
+### Execution Cost Modeling
+- [x] SELL exit spread: SELL trades deduct exit bar's spread from PnL (BUY already pays at entry)
+- [x] Round-trip commission: configurable `commission_pips` (default 0.7, IC Markets Raw) deducted from all trades
+- [x] Max spread filter: `max_spread_pips` (default 3.0) rejects signals on high-spread bars
+- [x] JIT + Telemetry parity: both paths apply identical cost deductions
+- [x] 233 tests passing (11 new execution cost tests)
+
 ---
 
 ## Phase 4: Parameter Optimization (FR-4)
