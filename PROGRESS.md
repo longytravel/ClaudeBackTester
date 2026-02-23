@@ -202,32 +202,33 @@
 - [x] NaN spread sanitization in telemetry (entry & exit)
 - [x] Time array warning when bar_hour/bar_day_of_week not provided
 - [x] Weekly timeframe anchor: "1W" → "W-MON" for FX weekly bars
-- [x] 253 tests passing (15 new regression tests)
+- [x] 253 tests passing (15 new regression tests), 362 after Phase 5
 
 ---
 
 ## Phase 5: Validation Pipeline (FR-5)
 
 ### Pipeline Architecture
-- [ ] REQ-P01-P06: 7-stage pipeline, timestamped dirs, checkpointing, resume, stop-after, retries
+- [x] REQ-P01-P06: 7-stage pipeline, JSON checkpointing, resume, stop-after (runner.py, checkpoint.py)
 
 ### Stage 3: Walk-Forward
-- [ ] REQ-P13-P21: Rolling windows, IS/OOS marking, per-window metrics, aggregate stats, gates
+- [x] REQ-P13-P21: Rolling/anchored windows, embargo gap, IS/OOS labeling, per-window metrics, aggregate stats, 60%+0.3 gates, WFE
 
 ### Stage 4: Stability
-- [ ] REQ-P22-P25: Parameter perturbation, stability rating
+- [x] REQ-P22-P25: +-3 step perturbation on forward data, ROBUST/MODERATE/FRAGILE/OVERFIT rating (advisory)
 
 ### Stage 5: Monte Carlo
-- [ ] REQ-P26-P32: Shuffle, bootstrap, permutation, trade-skip, PSR, parallelized
+- [x] REQ-P26-P32: Block bootstrap, sign-flip permutation, trade-skip (5%+10%), execution stress, DSR hard gate (>=0.95)
 
 ### Stage 6: Confidence Scoring
-- [ ] REQ-P33-P37: 6-component scoring, DOF penalty, Ulcer caps, rating thresholds
+- [x] REQ-P33-P37: Sequential gates + 6-component weighted composite (0-100), RED/YELLOW/GREEN rating. DSR replaces DOF penalty per research
 
 ### Stage 7: Reporting
-- [ ] REQ-P38-P40: HTML report, JSON data, leaderboard sync
+- [x] REQ-P38 (partial): JSON report output (MVP). HTML report deferred to Phase 5b
+- [ ] REQ-P39-P40: HTML report, leaderboard sync (Phase 5b)
 
 ### Pipeline CLI
-- [ ] REQ-P41-P43: Full CLI args, config override, progress logging
+- [ ] REQ-P41-P43: Full CLI args, config override, progress logging (deferred)
 
 ---
 

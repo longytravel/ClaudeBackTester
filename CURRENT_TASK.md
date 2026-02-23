@@ -1,6 +1,6 @@
 # Current Task
 
-## Status: Code Review Round 2 Complete — Ready for Phase 5
+## Status: Phase 5 — Validation Pipeline Complete (MVP)
 
 ## What's Built
 - **Phase 1**: Data pipeline (Dukascopy downloader, timeframes, validation, splitting, MT5 broker)
@@ -8,42 +8,41 @@
 - **Phase 3**: Backtest engine (JIT batch evaluator, metrics, encoding, telemetry, orchestrator)
 - **Phase 4**: Parameter optimizer (Sobol/EDA samplers, staged optimization, ranking, diversity archive)
 - **Execution Cost Modeling**: SELL exit spread, round-trip commission, max spread filter
-- **Live Data Validation**: RSI mean reversion strategy tested on 96K bars EUR/USD H1 (2007-2026)
-- **Code Review Round 1**: 7 critical bugs fixed across 10 files (commit 8adae74)
-- **Code Review Round 2**: 9 issues fixed from external reviewer feedback
-- **253 tests passing**
+- **Phase 5**: Validation pipeline (walk-forward, stability, Monte Carlo, confidence scoring, checkpoint/resume, JSON reports)
+- **362 tests passing**
 
-## Code Review Round 2 Fixes (Feb 2026)
-External developer review found additional issues, all fixed:
+## Phase 5 Summary (Feb 2026)
+Research-informed design with improvements over the original PRD:
 
-1. **RSI threshold crossover (CRITICAL)** — Strategy only generated signals at 35/65, making rsi_oversold and rsi_overbought params dead. Fixed: now generates at EACH threshold (20/25/30/35, 65/70/75/80) with filter_value = threshold value.
-2. **JIT filter range→exact match (CRITICAL)** — Filter used `>` / `<` (range), but with threshold-as-filter-value design needs `!=` (exact match). Fixed in both JIT and telemetry.
-3. **Dead params removed** — `atr_period` and `sma_filter_period` had no effect. Removed from RSI strategy.
-4. **Staged optimizer best-stage** — `max(stages, key=quality)` could pick an early stage with partial params. Fixed: always use refinement result.
-5. **Zero-passing stage guard** — If a stage finds no passing candidates (quality=-inf), don't lock zeros as "best". Fixed: skip locking, warn, let refinement explore.
-6. **NaN spread sanitization** — NaN spreads from Dukascopy bid-only downloads could poison PnL. Added NaN→0 guards in JIT (basic + full), telemetry, and max_spread_filter.
-7. **Time array warning** — Default-zero bar_hour/bar_day_of_week silently makes time filters ineffective. Added warning log.
-8. **Weekly timeframe anchor** — `"1W"` defaults to Sunday. Changed to `"W-MON"` for FX weekly bars.
+1. **Types + Config** (`pipeline/types.py`, `pipeline/config.py`) — All dataclasses, configurable thresholds
+2. **Walk-Forward** (`pipeline/walk_forward.py`) — Rolling/anchored windows with embargo gap, IS/OOS labeling, per-window engine instantiation, 60% pass rate + 0.3 Sharpe gates, WFE metric
+3. **Monte Carlo** (`pipeline/monte_carlo.py`) — Block bootstrap (preserves autocorrelation), sign-flip permutation test, trade-skip resilience (5%/10%), execution stress (+50% slippage, +30% commission), DSR hard gate (>= 0.95)
+4. **Stability** (`pipeline/stability.py`) — +-3 step perturbation on forward data, ROBUST/MODERATE/FRAGILE/OVERFIT rating (advisory only)
+5. **Confidence** (`pipeline/confidence.py`) — Sequential hard gates then 6-component weighted composite (0-100), RED/YELLOW/GREEN rating
+6. **Checkpoint + Runner** (`pipeline/checkpoint.py`, `pipeline/runner.py`) — JSON checkpoint/resume, stage orchestration, JSON report output
+
+Key PRD deviations:
+- **DSR as hard gate** (not just scoring component) — research recommendation
+- **Block bootstrap** instead of naive shuffle — preserves autocorrelation
+- **+-3 steps** perturbation (not +-1) on forward data — catches fragile optima
+- **Removed DOF penalty** — redundant with DSR
+- **JSON report only** for MVP — HTML deferred to Phase 5b
 
 ## Deferred / Post-MVP
-- Increment 11: CLI integration (`bt optimize` command) — not blocking Phase 5
+- Phase 5b: HTML report generation (REQ-P38-P40)
+- Phase 5b: CPCV (Combinatorial Purged Cross-Validation)
+- Pipeline CLI integration (`bt validate` command)
+- Increment 11: CLI integration (`bt optimize` command)
 - Increment 12: Cross-Entropy exploitation upgrade
 - Increment 13: Throughput benchmarking, batch size tuning
-- REQ-B03: Grid mode (multiple concurrent positions) — fundamentally different simulation model
-- REQ-O05: Real-data throughput benchmark
-- Variable slippage by volatility (currently fixed 0.5 pips)
-- Swap/financing costs (negligible for <24h hold time)
-- Phase 4 optimizer `run.py`: ranking/diversity/gating integration is minimal, refinement EDA not seeded
-- Phase 4 archive: coarse grid (12 cells max) — fine for MVP
+- REQ-B03: Grid mode (multiple concurrent positions)
+- Regime-aware validation (HMM, ADX/ATR)
+- GT-Score as optimizer objective
 
-## Next Steps: Phase 5 — Validation Pipeline (FR-5)
-1. **Pipeline Architecture** (REQ-P01-P06): 7-stage pipeline, timestamped dirs, checkpointing
-2. **Walk-Forward** (REQ-P13-P21): Rolling windows, IS/OOS, per-window metrics
-3. **Stability** (REQ-P22-P25): Parameter perturbation testing
-4. **Monte Carlo** (REQ-P26-P32): Shuffle, bootstrap, permutation tests
-5. **Confidence Scoring** (REQ-P33-P37): 6-component scoring, DOF penalty
-6. **Reporting** (REQ-P38-P40): HTML report, JSON data
-7. **Pipeline CLI** (REQ-P41-P43): Full CLI args, config override
+## Next Steps: Phase 6 — Live Trading (FR-6)
+1. **Live Trading Engine** (REQ-L01-L15): Trading loop, order execution, position management
+2. **Risk Management** (REQ-R01-R13): Pre-trade checks, position sizing, circuit breaker
+3. **Broker Integration** (REQ-L16-L30): MT5 order management, state sync
 
 ## Blockers
 - None
