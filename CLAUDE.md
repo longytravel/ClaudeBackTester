@@ -138,6 +138,12 @@ Before context gets long or session ends:
 - Treat every PRD requirement as a starting point, not gospel. Challenge anything that doesn't make sense in context
 - This applies to everything: scoring formulas, thresholds, architectural decisions, data assumptions, test results
 
+## System Correctness First
+- NEVER optimize for positive backtest results. Focus on system correctness and long-term robustness
+- Negative results are fine — they represent truth. A system that correctly reports "no edge" is better than one that fabricates green lights
+- When investigating poor results, fix the SYSTEM not the RESULTS
+- Always question whether backtesting behavior matches live trading reality
+
 ## Phase 5b: Validation & Optimizer Enhancements (Safe to Build Now)
 
 Research papers in `Research/` identified improvements deferred from Phase 5 MVP. These don't conflict with Phase 6 (live trading, being built by another agent). Full details in PROGRESS.md.
