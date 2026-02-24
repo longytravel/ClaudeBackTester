@@ -19,6 +19,8 @@ class OptimizationConfig:
     # --- Sampler settings ---
     exploration_pct: float = 0.4   # First 40% of budget uses Sobol/random
     eda_learning_rate: float = 0.3
+    eda_lr_decay: float = 0.95     # LR decay per update (effective_lr decays toward floor)
+    eda_lr_floor: float = 0.05     # Minimum LR after decay
     eda_min_prob: float = 0.01
     elite_pct: float = 0.1        # Top 10% used as elites for EDA update
 

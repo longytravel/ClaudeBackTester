@@ -252,6 +252,134 @@ class TestEDASampler:
         for prob in eda.prob_tables[0]:
             assert abs(prob - 1.0 / 3.0) < 0.01
 
+    def test_adaptive_lr_decays(self):
+        """Learning rate should decay over successive updates."""
+        ps = ParamSpace([ParamDef("a", [1, 2, 3, 4, 5])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, learning_rate=0.3, lr_decay=0.9, lr_floor=0.05, seed=42)
+
+        assert eda.effective_lr == pytest.approx(0.3)  # Before any updates
+
+        elites = np.full((10, 1), 2, dtype=np.int64)
+        eda.update(elites)
+        lr_after_1 = eda.effective_lr
+        assert lr_after_1 < 0.3  # Should have decayed
+        assert lr_after_1 == pytest.approx(0.05 + 0.25 * 0.9)
+
+        for _ in range(9):
+            eda.update(elites)
+        lr_after_10 = eda.effective_lr
+        assert lr_after_10 < lr_after_1
+        assert lr_after_10 >= 0.05  # Should not go below floor
+
+    def test_adaptive_lr_respects_floor(self):
+        """After many updates, LR should converge to floor."""
+        ps = ParamSpace([ParamDef("a", [1, 2, 3])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, learning_rate=0.3, lr_decay=0.5, lr_floor=0.05, seed=42)
+
+        elites = np.full((10, 1), 0, dtype=np.int64)
+        for _ in range(100):
+            eda.update(elites)
+
+        assert eda.effective_lr == pytest.approx(0.05, abs=1e-10)
+
+    def test_reset_restarts_lr_decay(self):
+        """Reset should restart the LR decay from initial."""
+        ps = ParamSpace([ParamDef("a", [1, 2, 3])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, learning_rate=0.3, lr_decay=0.9, lr_floor=0.05, seed=42)
+
+        elites = np.full((10, 1), 0, dtype=np.int64)
+        for _ in range(10):
+            eda.update(elites)
+        assert eda.effective_lr < 0.3
+
+        eda.reset()
+        assert eda.effective_lr == pytest.approx(0.3)
+        assert eda.update_count == 0
+
+    def test_entropy_uniform_is_one(self):
+        """Uniform distribution should have normalized entropy of 1.0."""
+        ps = ParamSpace([
+            ParamDef("a", [1, 2, 3, 4]),
+            ParamDef("b", [10, 20, 30]),
+        ])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, seed=42)
+
+        assert eda.entropy() == pytest.approx(1.0)
+        per_param = eda.entropy_per_param()
+        assert len(per_param) == 2
+        assert all(e == pytest.approx(1.0) for e in per_param)
+
+    def test_entropy_decreases_with_updates(self):
+        """Entropy should decrease as distribution converges."""
+        ps = ParamSpace([ParamDef("a", [1, 2, 3, 4, 5])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, learning_rate=0.5, seed=42)
+
+        initial_entropy = eda.entropy()
+        assert initial_entropy == pytest.approx(1.0)
+
+        elites = np.full((50, 1), 2, dtype=np.int64)
+        for _ in range(10):
+            eda.update(elites)
+
+        assert eda.entropy() < initial_entropy
+
+    def test_entropy_with_mask(self):
+        """Entropy with mask should only include active params."""
+        ps = ParamSpace([
+            ParamDef("a", [1, 2, 3]),
+            ParamDef("b", [10, 20, 30]),
+        ])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, learning_rate=0.5, seed=42)
+
+        # Update only param 'a' to converge
+        mask = np.array([True, False], dtype=bool)
+        elites = np.array([[0, 0]], dtype=np.int64)
+        for _ in range(20):
+            eda.update(elites, mask=mask)
+
+        # Full entropy includes both (a=converged, b=uniform)
+        full = eda.entropy()
+        # Masked entropy only includes a (converged)
+        masked = eda.entropy(mask=mask)
+        assert masked < full
+
+    def test_entropy_single_value_param(self):
+        """Single-value param should have entropy 0."""
+        ps = ParamSpace([ParamDef("a", [42])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, seed=42)
+        assert eda.entropy() == pytest.approx(0.0)
+
+    def test_update_count_tracks(self):
+        """Update count should increment on each update call."""
+        ps = ParamSpace([ParamDef("a", [1, 2, 3])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, seed=42)
+        assert eda.update_count == 0
+
+        elites = np.full((5, 1), 1, dtype=np.int64)
+        eda.update(elites)
+        assert eda.update_count == 1
+        eda.update(elites)
+        assert eda.update_count == 2
+
+    def test_empty_elite_no_update(self):
+        """Empty elite set should not change anything."""
+        ps = ParamSpace([ParamDef("a", [1, 2, 3])])
+        spec = build_encoding_spec(ps)
+        eda = EDASampler(spec, seed=42)
+
+        elites = np.zeros((0, 1), dtype=np.int64)
+        eda.update(elites)
+        assert eda.update_count == 0  # No actual update
+        assert eda.entropy() == pytest.approx(1.0)
+
 
 # ---------------------------------------------------------------------------
 # Pre-filter tests

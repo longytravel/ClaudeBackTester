@@ -202,7 +202,7 @@
 - [x] NaN spread sanitization in telemetry (entry & exit)
 - [x] Time array warning when bar_hour/bar_day_of_week not provided
 - [x] Weekly timeframe anchor: "1W" → "W-MON" for FX weekly bars
-- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b
+- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b VP-1/VP-2, 451 after OPT-1
 
 ---
 
@@ -266,14 +266,15 @@ Research papers (paper1.txt, paper2.txt, report_a.txt, validation_pipeline.txt) 
 
 ### Optimizer Enhancements
 
-#### OPT-1: Cross-Entropy Exploitation Upgrade — MEDIUM PRIORITY
-- [ ] Track pairwise parameter dependencies (not just marginals)
-- [ ] Adaptive learning rate (decay as convergence detected)
-- [ ] Temperature/entropy monitoring to detect premature collapse
-- [ ] Optional: bivariate distributions for top correlated param pairs
-- **Source**: paper2.txt (CE/EDA with probabilistic graphical models)
-- **Impact**: Medium — current EDA works but treats params independently
-- **Location**: `optimizer/sampler.py` (EDASampler enhancements)
+#### OPT-1: Cross-Entropy Exploitation Upgrade — DESCOPED & COMPLETE ✓
+- [x] Adaptive learning rate (exponential decay: lr_initial → lr_floor over updates)
+- [x] Entropy monitoring (normalized Shannon entropy per param, logged per batch in exploitation phase)
+- [x] Config: `eda_lr_decay` (0.95), `eda_lr_floor` (0.05) in OptimizationConfig
+- [x] Reset restarts LR decay (fresh distribution per stage)
+- [x] 9 new tests (adaptive LR decay, floor, reset, entropy uniform/decrease/mask/single-value, update count, empty elites)
+- **Skipped**: Pairwise dependencies — no experimental evidence on FX, MAP-Elites already covers diversity
+- **Skipped**: Bivariate distributions — same rationale
+- **Location**: `optimizer/sampler.py`, `optimizer/config.py`, `optimizer/staged.py`
 
 #### OPT-2: GT-Score as Alternative Objective — MEDIUM PRIORITY
 - [ ] Implement GT-Score: performance × significance × consistency × downside risk

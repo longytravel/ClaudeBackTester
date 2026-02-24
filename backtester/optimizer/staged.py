@@ -180,6 +180,8 @@ class StagedOptimizer:
         eda = EDASampler(
             self.spec,
             learning_rate=self.config.eda_learning_rate,
+            lr_decay=self.config.eda_lr_decay,
+            lr_floor=self.config.eda_lr_floor,
             min_prob=self.config.eda_min_prob,
             seed=self.config.seed,
         )
@@ -257,6 +259,14 @@ class StagedOptimizer:
                 elite_order = np.argsort(-qualities)[:n_elite]
                 elite_indices = valid_batch[passing[elite_order]]
                 eda.update(elite_indices, mask=active_mask)
+
+                # Log entropy diagnostics during exploitation phase
+                if total_evaluated >= exploration_budget:
+                    ent = eda.entropy(mask=active_mask)
+                    logger.debug(
+                        f"Stage '{stage_name}' EDA update #{eda.update_count}: "
+                        f"lr={eda.effective_lr:.3f}, entropy={ent:.3f}"
+                    )
 
         # Build collected arrays
         all_passing_indices = None

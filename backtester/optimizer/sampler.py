@@ -125,6 +125,11 @@ class EDASampler:
     Maintains per-parameter probability tables. Samples from the current
     distribution, then updates toward the elite subset.
 
+    Features:
+    - Adaptive learning rate: decays from lr_initial toward lr_floor over
+      successive updates. Early exploitation is aggressive, late is conservative.
+    - Entropy monitoring: Shannon entropy per parameter for convergence diagnostics.
+
     Natively discrete, trivially batchable, ~microseconds per batch.
     """
 
@@ -132,19 +137,35 @@ class EDASampler:
         self,
         spec: EncodingSpec,
         learning_rate: float = 0.3,
+        lr_decay: float = 0.95,
+        lr_floor: float = 0.05,
         min_prob: float = 0.01,
         seed: int | None = None,
     ):
         self.spec = spec
-        self.lr = learning_rate
+        self.lr_initial = learning_rate
+        self.lr_decay = lr_decay
+        self.lr_floor = lr_floor
         self.min_prob = min_prob
         self.rng = np.random.default_rng(seed)
+        self._update_count = 0
 
         # Initialize uniform probability tables
         self.prob_tables: list[np.ndarray] = []
         for col in spec.columns:
             n_vals = len(col.values)
             self.prob_tables.append(np.full(n_vals, 1.0 / n_vals))
+
+    @property
+    def effective_lr(self) -> float:
+        """Current learning rate after decay."""
+        return self.lr_floor + (self.lr_initial - self.lr_floor) * (
+            self.lr_decay ** self._update_count
+        )
+
+    @property
+    def update_count(self) -> int:
+        return self._update_count
 
     def sample(
         self,
@@ -178,6 +199,8 @@ class EDASampler:
     ) -> None:
         """Update probability tables toward elite distribution.
 
+        Uses adaptive learning rate that decays over successive updates.
+
         Args:
             elite_indices: (K, P) int64 — elite parameter index sets.
             mask: (P,) bool — only update True columns.
@@ -185,6 +208,8 @@ class EDASampler:
         k = elite_indices.shape[0]
         if k == 0:
             return
+
+        lr = self.effective_lr
 
         for col in self.spec.columns:
             if mask is not None and not mask[col.index]:
@@ -199,9 +224,9 @@ class EDASampler:
                     counts[idx] += 1.0
             elite_dist = counts / k
 
-            # Blend toward elite distribution
+            # Blend toward elite distribution with adaptive LR
             old_prob = self.prob_tables[col.index]
-            new_prob = (1.0 - self.lr) * old_prob + self.lr * elite_dist
+            new_prob = (1.0 - lr) * old_prob + lr * elite_dist
 
             # Apply probability floor
             new_prob = np.maximum(new_prob, self.min_prob)
@@ -209,8 +234,47 @@ class EDASampler:
 
             self.prob_tables[col.index] = new_prob
 
+        self._update_count += 1
+
+    def entropy(self, mask: np.ndarray | None = None) -> float:
+        """Mean normalized entropy across active parameters.
+
+        Returns a value in [0, 1]:
+        - 1.0 = all parameters uniformly distributed (max exploration)
+        - 0.0 = all parameters fully converged to a single value
+
+        Args:
+            mask: (P,) bool — only include True columns. None = all.
+        """
+        entropies = self.entropy_per_param(mask)
+        if len(entropies) == 0:
+            return 1.0
+        return float(np.mean(entropies))
+
+    def entropy_per_param(self, mask: np.ndarray | None = None) -> np.ndarray:
+        """Normalized Shannon entropy for each active parameter.
+
+        Returns (K,) array where K = number of active params, values in [0, 1].
+        """
+        result = []
+        for col in self.spec.columns:
+            if mask is not None and not mask[col.index]:
+                continue
+            probs = self.prob_tables[col.index]
+            n_vals = len(probs)
+            if n_vals <= 1:
+                result.append(0.0)
+                continue
+            # Shannon entropy: H = -sum(p * log2(p)), skip zero probs
+            nonzero = probs[probs > 0]
+            h = -np.sum(nonzero * np.log2(nonzero))
+            h_max = np.log2(n_vals)
+            result.append(h / h_max)
+        return np.array(result, dtype=np.float64)
+
     def reset(self) -> None:
-        """Reset to uniform distribution."""
+        """Reset to uniform distribution and restart LR decay."""
         for col in self.spec.columns:
             n_vals = len(col.values)
             self.prob_tables[col.index] = np.full(n_vals, 1.0 / n_vals)
+        self._update_count = 0
