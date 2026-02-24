@@ -27,11 +27,11 @@ from backtester.strategies.sl_tp import calc_sl_tp
 
 
 # RSI period values — used as variant identifiers in signal filtering
-RSI_PERIODS = [7, 9, 14, 21]
+RSI_PERIODS = [5, 7, 9, 11, 14, 18, 21, 28]
 
 # Threshold values — signals generated at each crossing, filtered by exact match
-OVERSOLD_THRESHOLDS = [20, 25, 30, 35]
-OVERBOUGHT_THRESHOLDS = [65, 70, 75, 80]
+OVERSOLD_THRESHOLDS = [15, 20, 25, 30, 35, 40]
+OVERBOUGHT_THRESHOLDS = [60, 65, 70, 75, 80, 85]
 
 
 @register

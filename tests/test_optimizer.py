@@ -19,8 +19,7 @@ from backtester.core.encoding import build_encoding_spec
 from backtester.core.engine import BacktestEngine
 from backtester.optimizer.archive import DiversityArchive, select_top_n_diverse
 from backtester.optimizer.config import (
-    DEFAULT,
-    FAST,
+    STANDARD,
     TURBO,
     OptimizationConfig,
     get_preset,
@@ -631,10 +630,12 @@ class TestDiversityArchive:
 class TestConfig:
     def test_presets_exist(self):
         turbo = get_preset("turbo")
-        fast = get_preset("fast")
-        default = get_preset("default")
-        assert turbo.trials_per_stage < fast.trials_per_stage
-        assert fast.trials_per_stage < default.trials_per_stage
+        standard = get_preset("standard")
+        deep = get_preset("deep")
+        max_preset = get_preset("max")
+        assert turbo.trials_per_stage < standard.trials_per_stage
+        assert standard.trials_per_stage < deep.trials_per_stage
+        assert deep.trials_per_stage < max_preset.trials_per_stage
 
     def test_unknown_preset_raises(self):
         with pytest.raises(ValueError):

@@ -10,11 +10,11 @@ class OptimizationConfig:
     """Configuration for optimization runs."""
 
     # --- Trial counts per stage ---
-    trials_per_stage: int = 5000
-    refinement_trials: int = 10000
+    trials_per_stage: int = 200_000
+    refinement_trials: int = 400_000
 
     # --- Batch size ---
-    batch_size: int = 512
+    batch_size: int = 4096
 
     # --- Sampler settings ---
     exploration_pct: float = 0.4   # First 40% of budget uses Sobol/random
@@ -42,31 +42,42 @@ class OptimizationConfig:
     seed: int | None = None
 
 
-# Speed presets
+# Presets scaled for i9-14900HX (24 cores, 64GB RAM)
+# Batch sizes tuned for cache efficiency on 24-core systems
+
 TURBO = OptimizationConfig(
-    trials_per_stage=1000,
-    refinement_trials=2000,
-    batch_size=256,
-    exploration_pct=0.5,
-    min_trades=10,
+    trials_per_stage=50_000,
+    refinement_trials=100_000,
+    batch_size=2048,
+    exploration_pct=0.35,
 )
 
-FAST = OptimizationConfig(
-    trials_per_stage=4000,
-    refinement_trials=8000,
-    batch_size=512,
+STANDARD = OptimizationConfig(
+    trials_per_stage=200_000,
+    refinement_trials=400_000,
+    batch_size=4096,
+    exploration_pct=0.30,
 )
 
-DEFAULT = OptimizationConfig(
-    trials_per_stage=10000,
-    refinement_trials=20000,
-    batch_size=512,
+DEEP = OptimizationConfig(
+    trials_per_stage=500_000,
+    refinement_trials=1_000_000,
+    batch_size=4096,
+    exploration_pct=0.25,
+)
+
+MAX = OptimizationConfig(
+    trials_per_stage=1_000_000,
+    refinement_trials=2_000_000,
+    batch_size=8192,
+    exploration_pct=0.20,
 )
 
 PRESETS: dict[str, OptimizationConfig] = {
     "turbo": TURBO,
-    "fast": FAST,
-    "default": DEFAULT,
+    "standard": STANDARD,
+    "deep": DEEP,
+    "max": MAX,
 }
 
 

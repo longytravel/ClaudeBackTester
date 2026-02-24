@@ -11,7 +11,7 @@ Examples: `/run-backtest EUR/USD H1 turbo`, `/run-backtest GBP/USD H4 fast`
 **Arguments:**
 - `PAIR`: Currency pair with slash (EUR/USD, GBP/USD, USD/JPY, XAU/USD)
 - `TIMEFRAME`: H1, H4, D, M15, M30 (built from M1 data)
-- `PRESET`: turbo (1K trials/stage), fast (4K), default (10K)
+- `PRESET`: turbo (50K/stage), standard (200K), deep (500K), max (1M)
 
 ## Step 1: Pre-Flight Data Checks
 

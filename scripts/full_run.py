@@ -42,8 +42,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Full backtest pipeline run")
     parser.add_argument("--pair", default="EUR/USD", help="Currency pair (e.g. EUR/USD)")
     parser.add_argument("--timeframe", default="H1", help="Timeframe (e.g. H1, H4, D)")
-    parser.add_argument("--preset", default="turbo", choices=["turbo", "fast", "default"],
-                        help="Optimization preset")
+    parser.add_argument("--preset", default="turbo",
+                        choices=["turbo", "standard", "deep", "max"],
+                        help="Optimization preset (turbo=50K, standard=200K, deep=500K, max=1M per stage)")
     parser.add_argument("--output", default=None, help="Output directory (default: results/<pair>_<tf>)")
     parser.add_argument("--no-m1", action="store_true",
                         help="Disable M1 sub-bar simulation (use H1-only identity mapping)")
