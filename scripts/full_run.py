@@ -45,6 +45,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preset", default="turbo",
                         choices=["turbo", "standard", "deep", "max"],
                         help="Optimization preset (turbo=50K, standard=200K, deep=500K, max=1M per stage)")
+    parser.add_argument("--strategy", default="rsi_mean_reversion",
+                        help="Strategy name from registry (e.g. rsi_mean_reversion)")
     parser.add_argument("--output", default=None, help="Output directory (default: results/<pair>_<tf>)")
     parser.add_argument("--no-m1", action="store_true",
                         help="Disable M1 sub-bar simulation (use H1-only identity mapping)")
@@ -751,8 +753,8 @@ def main():
         print(f"\n  M1 sub-bar:     DISABLED (--no-m1 flag)")
 
     # ---- Section 2: Optimization ----
-    from backtester.strategies.rsi_mean_reversion import RSIMeanReversion
-    strategy = RSIMeanReversion()
+    from backtester.strategies import registry as strat_reg
+    strategy = strat_reg.create(args.strategy)
     opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
 
     # ---- Sections 3-6: Validation Pipeline ----
