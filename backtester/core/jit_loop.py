@@ -251,7 +251,7 @@ def _simulate_trade_basic(
             if is_buy:
                 # Check SL first (conservative tiebreak)
                 if sb_low <= sl_price:
-                    pnl = (sl_price - actual_entry) / pip_value
+                    pnl = (sl_price - slippage_price - actual_entry) / pip_value
                     exit_reason = EXIT_SL
                     exit_sub_idx = sb
                     break
@@ -263,7 +263,7 @@ def _simulate_trade_basic(
             else:
                 # SELL: SL is above, TP is below
                 if sb_high >= sl_price:
-                    pnl = (actual_entry - sl_price) / pip_value
+                    pnl = (actual_entry - sl_price - slippage_price) / pip_value
                     exit_reason = EXIT_SL
                     exit_sub_idx = sb
                     break
@@ -277,13 +277,13 @@ def _simulate_trade_basic(
             exit_bar = bar
             break
 
-    # Trade still open at end of data — close at last bar close
+    # Trade still open at end of data — close at last bar close (market order)
     if exit_reason == EXIT_NONE:
         close_price = close[exit_bar]
         if is_buy:
-            pnl = (close_price - actual_entry) / pip_value
+            pnl = (close_price - slippage_price - actual_entry) / pip_value
         else:
-            pnl = (actual_entry - close_price) / pip_value
+            pnl = (actual_entry - close_price - slippage_price) / pip_value
 
     # Apply execution costs
     # SELL: deduct exit spread (use sub-bar spread if we have an exit sub-bar)
@@ -394,12 +394,12 @@ def _simulate_trade_full(
         bar_close = close[bar]
         bars_held += 1
 
-        # --- H1-level checks (max_bars, stale) — unchanged ---
+        # --- H1-level checks (max_bars, stale) — market close orders get slippage ---
         if max_bars > 0 and bars_held >= max_bars:
             if is_buy:
-                pnl = (bar_close - actual_entry) / pip_value * position_pct
+                pnl = (bar_close - slippage_price - actual_entry) / pip_value * position_pct
             else:
-                pnl = (actual_entry - bar_close) / pip_value * position_pct
+                pnl = (actual_entry - bar_close - slippage_price) / pip_value * position_pct
             final_pnl = realized_pnl_pips + pnl
             exit_reason = EXIT_MAX_BARS
             exit_bar = bar
@@ -414,9 +414,9 @@ def _simulate_trade_full(
                     max_range = r
             if max_range < stale_atr_thresh * atr_pips:
                 if is_buy:
-                    pnl = (bar_close - actual_entry) / pip_value * position_pct
+                    pnl = (bar_close - slippage_price - actual_entry) / pip_value * position_pct
                 else:
-                    pnl = (actual_entry - bar_close) / pip_value * position_pct
+                    pnl = (actual_entry - bar_close - slippage_price) / pip_value * position_pct
                 final_pnl = realized_pnl_pips + pnl
                 exit_reason = EXIT_STALE
                 exit_bar = bar
@@ -525,7 +525,7 @@ def _simulate_trade_full(
             # --- Check SL (uses current_sl — reflects PREVIOUS bar's state) ---
             if is_buy:
                 if sb_low <= current_sl:
-                    pnl = (current_sl - actual_entry) / pip_value * position_pct
+                    pnl = (current_sl - slippage_price - actual_entry) / pip_value * position_pct
                     exit_code = EXIT_SL
                     if trailing_active:
                         exit_code = EXIT_TRAILING
@@ -543,7 +543,7 @@ def _simulate_trade_full(
                     break
             else:
                 if sb_high >= current_sl:
-                    pnl = (actual_entry - current_sl) / pip_value * position_pct
+                    pnl = (actual_entry - current_sl - slippage_price) / pip_value * position_pct
                     exit_code = EXIT_SL
                     if trailing_active:
                         exit_code = EXIT_TRAILING
@@ -564,13 +564,13 @@ def _simulate_trade_full(
             exit_bar = bar
             break
 
-    # End of data — close remaining position
+    # End of data — close remaining position (market order, gets slippage)
     if exit_reason == EXIT_NONE:
         close_price = close[exit_bar] if exit_bar < len(close) else (high[exit_bar] + low[exit_bar]) / 2.0
         if is_buy:
-            pnl = (close_price - actual_entry) / pip_value * position_pct
+            pnl = (close_price - slippage_price - actual_entry) / pip_value * position_pct
         else:
-            pnl = (actual_entry - close_price) / pip_value * position_pct
+            pnl = (actual_entry - close_price - slippage_price) / pip_value * position_pct
         final_pnl = realized_pnl_pips + pnl
 
     # Apply execution costs

@@ -1538,3 +1538,224 @@ class TestDeferredSLApplication:
         assert exit_reason == EXIT_BREAKEVEN
         expected_pnl = 2.0  # profit of offset_pips for sell
         assert abs(pnl - expected_pnl) < 0.01
+
+
+class TestAdverseExitSlippage:
+    """Verify adverse exit slippage on stop/market exits, but NOT on TP exits."""
+
+    def _make_arrays(self, n, base, pip, highs, lows, closes):
+        """Helper to build OHLC + identity sub-bar mapping."""
+        h = np.array(highs, dtype=np.float64)
+        lo = np.array(lows, dtype=np.float64)
+        c = np.array(closes, dtype=np.float64)
+        sp = np.zeros(n, dtype=np.float64)
+        return h, lo, c, sp
+
+    def test_buy_sl_gets_slippage(self):
+        """BUY SL exit is worse by slippage_pips."""
+        pip = 0.0001
+        base = 1.1000
+        slip = 0.5  # 0.5 pips slippage
+        sl = base - 20 * pip  # SL at -20 pips
+        n = 3
+        # Bar 2 low hits SL
+        high = np.array([base, base + 5 * pip, base], dtype=np.float64)
+        low = np.array([base, base - 1 * pip, sl - 1 * pip], dtype=np.float64)
+        close = np.array([base, base, base - 15 * pip], dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl_no_slip, reason1 = _simulate_trade_basic(
+            DIR_BUY, 0, base, sl, base + 60 * pip,
+            high, low, close, spread, pip, 0.0, n, 0.0,
+        )
+        pnl_with_slip, reason2 = _simulate_trade_basic(
+            DIR_BUY, 0, base, sl, base + 60 * pip,
+            high, low, close, spread, pip, slip, n, 0.0,
+        )
+        assert reason1 == EXIT_SL
+        assert reason2 == EXIT_SL
+        # With slippage: entry slippage + exit slippage = 2 * slip worse
+        assert abs(pnl_no_slip - pnl_with_slip - 2 * slip) < 0.001
+
+    def test_sell_sl_gets_slippage(self):
+        """SELL SL exit is worse by slippage_pips."""
+        pip = 0.0001
+        base = 1.1000
+        slip = 0.5
+        sl = base + 20 * pip  # SELL SL is above entry
+        n = 3
+        high = np.array([base, base + 1 * pip, sl + 1 * pip], dtype=np.float64)
+        low = np.array([base, base - 5 * pip, base], dtype=np.float64)
+        close = np.array([base, base, base + 15 * pip], dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl_no_slip, _ = _simulate_trade_basic(
+            DIR_SELL, 0, base, sl, base - 60 * pip,
+            high, low, close, spread, pip, 0.0, n, 0.0,
+        )
+        pnl_with_slip, reason = _simulate_trade_basic(
+            DIR_SELL, 0, base, sl, base - 60 * pip,
+            high, low, close, spread, pip, slip, n, 0.0,
+        )
+        assert reason == EXIT_SL
+        # SELL: entry slippage + exit slippage = 2 * slip worse
+        assert abs(pnl_no_slip - pnl_with_slip - 2 * slip) < 0.001
+
+    def test_tp_exit_no_exit_slippage(self):
+        """TP exit (limit order) is NOT affected by exit slippage."""
+        pip = 0.0001
+        base = 1.1000
+        slip = 0.5
+        tp = base + 20 * pip
+        n = 3
+        high = np.array([base, base + 5 * pip, tp + 1 * pip], dtype=np.float64)
+        low = np.array([base, base, base + 10 * pip], dtype=np.float64)
+        close = np.array([base, base + 3 * pip, tp], dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl_no_slip, r1 = _simulate_trade_basic(
+            DIR_BUY, 0, base, base - 30 * pip, tp,
+            high, low, close, spread, pip, 0.0, n, 0.0,
+        )
+        pnl_with_slip, r2 = _simulate_trade_basic(
+            DIR_BUY, 0, base, base - 30 * pip, tp,
+            high, low, close, spread, pip, slip, n, 0.0,
+        )
+        assert r1 == EXIT_TP
+        assert r2 == EXIT_TP
+        # Only entry slippage difference, NOT exit slippage
+        assert abs(pnl_no_slip - pnl_with_slip - slip) < 0.001
+
+    def test_max_bars_exit_gets_slippage(self):
+        """Max bars exit (market order) gets adverse slippage."""
+        pip = 0.0001
+        base = 1.1000
+        slip = 0.5
+        n = 4
+        high = np.array([base, base + 3 * pip, base + 2 * pip, base + 1 * pip], dtype=np.float64)
+        low = np.array([base, base - 1 * pip, base - 1 * pip, base - 1 * pip], dtype=np.float64)
+        close = np.array([base, base + 1 * pip, base + 1 * pip, base + 1 * pip], dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl_no_slip, r1 = _simulate_trade_full(
+            direction=DIR_BUY, entry_bar=0, entry_price=base,
+            sl_price=base - 50 * pip, tp_price=base + 50 * pip,
+            atr_pips=10.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF, trail_activate_pips=0.0,
+            trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=0, breakeven_trigger_pips=0.0,
+            breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=2, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        pnl_with_slip, r2 = _simulate_trade_full(
+            direction=DIR_BUY, entry_bar=0, entry_price=base,
+            sl_price=base - 50 * pip, tp_price=base + 50 * pip,
+            atr_pips=10.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=slip, num_bars=n,
+            trailing_mode=TRAIL_OFF, trail_activate_pips=0.0,
+            trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=0, breakeven_trigger_pips=0.0,
+            breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=2, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        assert r1 == EXIT_MAX_BARS
+        assert r2 == EXIT_MAX_BARS
+        # With slippage: entry slippage + exit slippage = 2 * slip worse
+        assert abs(pnl_no_slip - pnl_with_slip - 2 * slip) < 0.001
+
+    def test_full_mode_sl_gets_slippage(self):
+        """Full-mode SL exit gets adverse slippage (stop order)."""
+        pip = 0.0001
+        base = 1.1000
+        slip = 0.5
+        sl = base - 20 * pip
+        n = 3
+        high = np.array([base, base + 5 * pip, base], dtype=np.float64)
+        low = np.array([base, base, sl - 1 * pip], dtype=np.float64)
+        close = np.array([base, base, base - 15 * pip], dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl_no_slip, r1 = _simulate_trade_full(
+            direction=DIR_BUY, entry_bar=0, entry_price=base,
+            sl_price=sl, tp_price=base + 60 * pip,
+            atr_pips=10.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF, trail_activate_pips=0.0,
+            trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=0, breakeven_trigger_pips=0.0,
+            breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        pnl_with_slip, r2 = _simulate_trade_full(
+            direction=DIR_BUY, entry_bar=0, entry_price=base,
+            sl_price=sl, tp_price=base + 60 * pip,
+            atr_pips=10.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=slip, num_bars=n,
+            trailing_mode=TRAIL_OFF, trail_activate_pips=0.0,
+            trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=0, breakeven_trigger_pips=0.0,
+            breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        assert r1 == EXIT_SL
+        assert r2 == EXIT_SL
+        # Entry slippage + exit slippage = 2 * slip worse
+        assert abs(pnl_no_slip - pnl_with_slip - 2 * slip) < 0.001
+
+    def test_full_mode_tp_no_exit_slippage(self):
+        """Full-mode TP exit does NOT get exit slippage (limit order)."""
+        pip = 0.0001
+        base = 1.1000
+        slip = 0.5
+        tp = base + 20 * pip
+        n = 3
+        high = np.array([base, base + 5 * pip, tp + 1 * pip], dtype=np.float64)
+        low = np.array([base, base, base + 10 * pip], dtype=np.float64)
+        close = np.array([base, base + 3 * pip, tp], dtype=np.float64)
+        spread = np.zeros(n, dtype=np.float64)
+
+        pnl_no_slip, r1 = _simulate_trade_full(
+            direction=DIR_BUY, entry_bar=0, entry_price=base,
+            sl_price=base - 50 * pip, tp_price=tp,
+            atr_pips=10.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF, trail_activate_pips=0.0,
+            trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=0, breakeven_trigger_pips=0.0,
+            breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        pnl_with_slip, r2 = _simulate_trade_full(
+            direction=DIR_BUY, entry_bar=0, entry_price=base,
+            sl_price=base - 50 * pip, tp_price=tp,
+            atr_pips=10.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=slip, num_bars=n,
+            trailing_mode=TRAIL_OFF, trail_activate_pips=0.0,
+            trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=0, breakeven_trigger_pips=0.0,
+            breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        assert r1 == EXIT_TP
+        assert r2 == EXIT_TP
+        # Only entry slippage difference, NOT exit slippage
+        assert abs(pnl_no_slip - pnl_with_slip - slip) < 0.001
