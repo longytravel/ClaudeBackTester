@@ -9,6 +9,7 @@ Reference: Bailey, Borwein, Lopez de Prado & Zhu (2017).
 
 from __future__ import annotations
 
+import gc
 import logging
 import math
 from itertools import combinations
@@ -284,6 +285,11 @@ def cpcv_validate(
                 slippage_pips=slippage_pips,
             )
             fold_results.append(fr)
+            if (fold_idx + 1) % 10 == 0:
+                gc.collect()
+
+        # Final cleanup after all folds for this candidate
+        gc.collect()
 
         # Compute distribution statistics
         sharpes = np.array([f.sharpe for f in fold_results])

@@ -189,6 +189,10 @@ class StagedOptimizer:
         best_quality = -np.inf
         best_indices = np.zeros(self.spec.num_params, dtype=np.int64)
         best_metrics = np.zeros(NUM_METRICS, dtype=np.float64)
+        # Track best trial regardless of gates (for "best of bad bunch" fallback)
+        ungated_best_quality = -np.inf
+        ungated_best_indices = np.zeros(self.spec.num_params, dtype=np.int64)
+        ungated_best_metrics = np.zeros(NUM_METRICS, dtype=np.float64)
         total_evaluated = 0
         total_valid = 0
 
@@ -227,6 +231,14 @@ class StagedOptimizer:
             # Convert to value space and evaluate
             value_matrix = indices_to_values(self.spec, valid_batch)
             metrics = self.engine.evaluate_batch(value_matrix, exec_mode)
+
+            # Track ungated best (before post-filter) for fallback
+            batch_qualities = metrics[:, M_QUALITY]
+            batch_best_idx = int(np.argmax(batch_qualities))
+            if batch_qualities[batch_best_idx] > ungated_best_quality:
+                ungated_best_quality = float(batch_qualities[batch_best_idx])
+                ungated_best_indices = valid_batch[batch_best_idx].copy()
+                ungated_best_metrics = metrics[batch_best_idx].copy()
 
             # Post-filter
             valid_post = postfilter_results(
@@ -274,6 +286,17 @@ class StagedOptimizer:
         if collect_all and all_indices_list:
             all_passing_indices = np.vstack(all_indices_list)
             all_passing_metrics = np.vstack(all_metrics_list)
+
+        # Fallback: if no gated trials passed, use ungated best ("best of bad bunch")
+        if best_quality == -np.inf and ungated_best_quality > -np.inf:
+            best_quality = ungated_best_quality
+            best_indices = ungated_best_indices
+            best_metrics = ungated_best_metrics
+            logger.info(
+                f"Stage '{stage_name}': using ungated best "
+                f"(quality={ungated_best_quality:.4f}, "
+                f"trades={int(ungated_best_metrics[M_TRADES])})"
+            )
 
         return StageResult(
             stage_name=stage_name,

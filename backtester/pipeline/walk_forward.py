@@ -13,6 +13,7 @@ Functions:
 
 from __future__ import annotations
 
+import gc
 import logging
 import math
 from typing import Any
@@ -195,7 +196,10 @@ def evaluate_candidate_on_window(
     param_matrix = param_row.reshape(1, -1)
 
     metrics = engine.evaluate_batch(param_matrix, exec_mode=EXEC_FULL)
-    row = metrics[0]
+    row = metrics[0].copy()  # copy before engine cleanup
+
+    # Eagerly free engine and its large arrays (signals, M1 sub-bars)
+    del engine
 
     n_trades = int(row[M_TRADES])
     sharpe = float(row[M_SHARPE])
@@ -297,7 +301,7 @@ def walk_forward_validate(
         window_results: list[WindowResult] = []
 
         # Evaluate on OOS windows
-        for win_idx, (w_start, w_end) in oos_windows:
+        for i, (win_idx, (w_start, w_end)) in enumerate(oos_windows):
             wr = evaluate_candidate_on_window(
                 strategy=strategy,
                 params_dict=params_dict,
@@ -312,10 +316,12 @@ def walk_forward_validate(
                 slippage_pips=slippage_pips,
             )
             window_results.append(wr)
+            if (i + 1) % 10 == 0:
+                gc.collect()
 
         # Also evaluate on IS windows (needed for WFE calculation)
         is_results: list[WindowResult] = []
-        for win_idx, (w_start, w_end) in is_windows:
+        for i, (win_idx, (w_start, w_end)) in enumerate(is_windows):
             wr = evaluate_candidate_on_window(
                 strategy=strategy,
                 params_dict=params_dict,
@@ -330,6 +336,11 @@ def walk_forward_validate(
                 slippage_pips=slippage_pips,
             )
             is_results.append(wr)
+            if (i + 1) % 10 == 0:
+                gc.collect()
+
+        # Final cleanup after all windows for this candidate
+        gc.collect()
 
         # Compute aggregate OOS stats
         n_oos = len(window_results)
