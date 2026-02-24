@@ -838,3 +838,42 @@ class TestMultiCandidate:
             # Combined rank: lower is better. Candidates ordered 0, 1, 2, ...
             for i in range(len(result.candidates) - 1):
                 assert result.candidates[i].combined_rank <= result.candidates[i + 1].combined_rank
+
+
+class TestOptimizeCleanup:
+    def test_handles_no_best_indices_without_unbound_error(self, monkeypatch):
+        """Cleanup path should work even when staged optimization has no best trial."""
+        from backtester.optimizer import run as run_module
+
+        class DummyStagedOptimizer:
+            def __init__(self, engine, config):
+                pass
+
+            def optimize(self):
+                return run_module.StagedResult(
+                    stages=[],
+                    best_indices=None,
+                    best_quality=float("-inf"),
+                    best_metrics=None,
+                    total_trials=1,
+                    refinement_indices=None,
+                    refinement_metrics=None,
+                )
+
+        monkeypatch.setattr(run_module, "StagedOptimizer", DummyStagedOptimizer)
+
+        data = _make_data(200)
+        strategy = OptimizerTestStrategy()
+        result = run_module.optimize(
+            strategy,
+            *data,
+            config=OptimizationConfig(
+                trials_per_stage=10,
+                refinement_trials=10,
+                batch_size=16,
+            ),
+            slippage_pips=0.0,
+        )
+
+        assert result.total_trials == 1
+        assert len(result.candidates) == 0

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import time
+import gc
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -346,9 +347,9 @@ def optimize(
     result.total_trials = staged_result.total_trials
     spec = engine_back.encoding
 
+    engine_fwd: BacktestEngine | None = None
     if staged_result.best_indices is not None:
         # Build forward engine if data provided
-        engine_fwd = None
         if high_fwd is not None:
             m1_fwd_kwargs: dict = {}
             if m1_fwd is not None:
@@ -375,6 +376,14 @@ def optimize(
             _add_single_best_candidate(
                 result, staged_result, spec, engine_fwd, config,
             )
+
+    # Eagerly free engines + Numba-allocated buffers before returning.
+    # The PnL buffer inside batch_evaluate can be >1GB; Numba's NRT may
+    # hold onto it without an explicit gc pass.
+    del engine_back
+    if engine_fwd is not None:
+        del engine_fwd
+    gc.collect()
 
     elapsed = time.time() - t0
     result.elapsed_seconds = elapsed

@@ -765,6 +765,11 @@ def main():
     strategy = strat_reg.create(args.strategy)
     opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
 
+    # Free optimizer data before validation (reduce peak memory)
+    import gc
+    del data_back, data_fwd
+    gc.collect()
+
     # ---- Sections 3-6: Validation Pipeline ----
     state, pipe_elapsed = run_validation(
         strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,

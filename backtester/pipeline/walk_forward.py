@@ -302,6 +302,9 @@ def walk_forward_validate(
 
         # Evaluate on OOS windows
         for i, (win_idx, (w_start, w_end)) in enumerate(oos_windows):
+            logger.debug(
+                "OOS window %d/%d [%d:%d]", i + 1, len(oos_windows), w_start, w_end,
+            )
             wr = evaluate_candidate_on_window(
                 strategy=strategy,
                 params_dict=params_dict,
@@ -316,12 +319,15 @@ def walk_forward_validate(
                 slippage_pips=slippage_pips,
             )
             window_results.append(wr)
-            if (i + 1) % 10 == 0:
+            if (i + 1) % 5 == 0:
                 gc.collect()
 
         # Also evaluate on IS windows (needed for WFE calculation)
         is_results: list[WindowResult] = []
         for i, (win_idx, (w_start, w_end)) in enumerate(is_windows):
+            logger.debug(
+                "IS window %d/%d [%d:%d]", i + 1, len(is_windows), w_start, w_end,
+            )
             wr = evaluate_candidate_on_window(
                 strategy=strategy,
                 params_dict=params_dict,
@@ -336,7 +342,7 @@ def walk_forward_validate(
                 slippage_pips=slippage_pips,
             )
             is_results.append(wr)
-            if (i + 1) % 10 == 0:
+            if (i + 1) % 5 == 0:
                 gc.collect()
 
         # Final cleanup after all windows for this candidate
