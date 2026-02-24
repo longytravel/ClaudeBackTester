@@ -35,6 +35,8 @@ PIP_VALUES = {
 }
 
 SLIPPAGE_PIPS = 0.5
+COMMISSION_PIPS = 0.7    # IC Markets Raw, ~$7/lot RT
+MAX_SPREAD_PIPS = 3.0    # Reject signals with spread > 3 pips
 DATA_DIR = Path("G:/My Drive/BackTestData")
 
 
@@ -209,6 +211,8 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
         bar_hour_fwd=data_fwd["bar_hour"], bar_day_fwd=data_fwd["bar_day_of_week"],
         m1_back=m1_back,
         m1_fwd=m1_fwd,
+        commission_pips=COMMISSION_PIPS,
+        max_spread_pips=MAX_SPREAD_PIPS,
     )
     elapsed = time.time() - t0
 
@@ -269,7 +273,10 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         )
         candidate_results.append(cr)
 
-    pipeline_config = PipelineConfig()
+    pipeline_config = PipelineConfig(
+        commission_pips=COMMISSION_PIPS,
+        max_spread_pips=MAX_SPREAD_PIPS,
+    )
     runner = PipelineRunner(
         strategy=strategy,
         data_arrays=data_full,
@@ -492,6 +499,7 @@ def run_trade_stats(strategy, data_full, state, pip_value):
         data_full["low"], data_full["close"],
         data_full["volume"], data_full["spread"],
         pip_value=pip_value, slippage_pips=SLIPPAGE_PIPS,
+        commission_pips=COMMISSION_PIPS, max_spread_pips=MAX_SPREAD_PIPS,
         bar_hour=data_full.get("bar_hour"),
         bar_day_of_week=data_full.get("bar_day_of_week"),
         **m1_kwargs,

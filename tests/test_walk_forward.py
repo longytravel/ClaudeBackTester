@@ -366,7 +366,7 @@ class TestEvaluateCandidateOnWindow:
         strategy = DummyStrategy(signal_bars=signal_bars)
         params = _default_params()
 
-        config = PipelineConfig(wf_min_trades_per_window=1)
+        config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
         result = evaluate_candidate_on_window(
             strategy=strategy,
@@ -396,7 +396,7 @@ class TestEvaluateCandidateOnWindow:
         strategy = DummyStrategy(signal_bars=signal_bars)
         params = _default_params()
 
-        config = PipelineConfig(wf_min_trades_per_window=1)
+        config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
         result = evaluate_candidate_on_window(
             strategy=strategy,
@@ -422,7 +422,7 @@ class TestEvaluateCandidateOnWindow:
         signal_bars = [210]
         strategy = DummyStrategy(signal_bars=signal_bars)
         params = _default_params()
-        config = PipelineConfig(wf_min_trades_per_window=1)
+        config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
         # Window is [200, 400), with 50-bar lookback => slice is [150, 400)
         # Signal at bar 210 in full data maps to bar 210-150=60 in the slice
@@ -469,6 +469,8 @@ class TestWalkForwardGatePass:
             wf_min_trades_per_window=1,
             wf_pass_rate_gate=0.5,
             wf_mean_sharpe_gate=0.0,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         # Optimization covers first half; second half is OOS
@@ -510,6 +512,8 @@ class TestWalkForwardGatePass:
             wf_min_trades_per_window=1,
             wf_pass_rate_gate=0.5,
             wf_mean_sharpe_gate=0.0,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         results = walk_forward_validate(
@@ -549,6 +553,8 @@ class TestWalkForwardGateFail:
             wf_min_trades_per_window=1,
             wf_pass_rate_gate=0.6,
             wf_mean_sharpe_gate=0.3,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         results = walk_forward_validate(
@@ -583,6 +589,8 @@ class TestWalkForwardGateFail:
             wf_min_trades_per_window=1,
             wf_pass_rate_gate=1.0,  # Every single window must pass
             wf_mean_sharpe_gate=1.0,  # High bar for flat data
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         results = walk_forward_validate(
@@ -620,6 +628,8 @@ class TestWalkForwardEmptySignals:
             wf_min_trades_per_window=10,
             wf_pass_rate_gate=0.6,
             wf_mean_sharpe_gate=0.3,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         results = walk_forward_validate(
@@ -649,7 +659,7 @@ class TestWalkForwardEmptySignals:
         data_arrays = _make_data_arrays(n_bars=n_bars, trending=True)
         strategy = EmptyStrategy()
         params = _default_params()
-        config = PipelineConfig(wf_min_trades_per_window=10)
+        config = PipelineConfig(wf_min_trades_per_window=10, commission_pips=0.0, max_spread_pips=0.0)
 
         result = evaluate_candidate_on_window(
             strategy=strategy,
@@ -685,6 +695,8 @@ class TestWalkForwardEdgeCases:
             wf_step_bars=100,
             wf_embargo_bars=0,
             wf_lookback_prefix=20,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         results = walk_forward_validate(
@@ -715,6 +727,8 @@ class TestWalkForwardEdgeCases:
             wf_min_trades_per_window=1,
             wf_pass_rate_gate=0.0,
             wf_mean_sharpe_gate=-999.0,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         # Optimization covers the middle; windows at start and end are OOS

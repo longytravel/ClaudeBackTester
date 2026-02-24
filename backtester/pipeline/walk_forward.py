@@ -182,8 +182,8 @@ def evaluate_candidate_on_window(
         spread=spread_s,
         pip_value=pip_value,
         slippage_pips=slippage_pips,
-        commission_pips=0.0,  # Walk-forward uses raw metrics; costs applied elsewhere
-        max_spread_pips=0.0,
+        commission_pips=config.commission_pips,
+        max_spread_pips=config.max_spread_pips,
         bar_hour=bar_hour_s,
         bar_day_of_week=bar_dow_s,
         **m1_kwargs,

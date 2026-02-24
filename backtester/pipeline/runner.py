@@ -270,6 +270,8 @@ class PipelineRunner:
             self.data["low"], self.data["close"],
             self.data["volume"], self.data["spread"],
             pip_value=self.pip_value, slippage_pips=self.slippage_pips,
+            commission_pips=self.config.commission_pips,
+            max_spread_pips=self.config.max_spread_pips,
             bar_hour=self.data.get("bar_hour"),
             bar_day_of_week=self.data.get("bar_day_of_week"),
             **m1_kwargs,
@@ -304,9 +306,7 @@ class PipelineRunner:
                 n_trades=len(pnl),
                 config=self.config,
                 original_slippage=self.slippage_pips,
-                original_commission=self.config.__dict__.get(
-                    "commission_pips", 0.7
-                ),
+                original_commission=self.config.commission_pips,
             )
             candidate.monte_carlo = mc_result
 

@@ -15,6 +15,8 @@ from typing import Any
 import numpy as np
 
 from backtester.core.dtypes import (
+    DEFAULT_COMMISSION_PIPS,
+    DEFAULT_MAX_SPREAD_PIPS,
     EXEC_BASIC,
     EXEC_FULL,
     M_QUALITY,
@@ -276,6 +278,9 @@ def optimize(
     # M1 sub-bar arrays (optional)
     m1_back: dict[str, np.ndarray] | None = None,
     m1_fwd: dict[str, np.ndarray] | None = None,
+    # Execution cost overrides (default to engine defaults)
+    commission_pips: float | None = None,
+    max_spread_pips: float | None = None,
 ) -> OptimizationResult:
     """Run full optimization pipeline.
 
@@ -298,6 +303,10 @@ def optimize(
     config = config or OptimizationConfig()
     t0 = time.time()
 
+    # Resolve cost params: explicit overrides > defaults from dtypes
+    eff_commission = commission_pips if commission_pips is not None else DEFAULT_COMMISSION_PIPS
+    eff_max_spread = max_spread_pips if max_spread_pips is not None else DEFAULT_MAX_SPREAD_PIPS
+
     # Memory check
     mem_mb = _estimate_memory_mb(
         len(high_back), 0, config.batch_size,
@@ -317,6 +326,7 @@ def optimize(
         strategy, open_back, high_back, low_back, close_back,
         volume_back, spread_back, pip_value, slippage_pips,
         config.max_trades_per_trial,
+        commission_pips=eff_commission, max_spread_pips=eff_max_spread,
         bar_hour=bar_hour_back, bar_day_of_week=bar_day_back,
         **m1_back_kwargs,
     )
@@ -350,6 +360,7 @@ def optimize(
                 strategy, open_fwd, high_fwd, low_fwd, close_fwd,
                 volume_fwd, spread_fwd, pip_value, slippage_pips,
                 config.max_trades_per_trial,
+                commission_pips=eff_commission, max_spread_pips=eff_max_spread,
                 bar_hour=bar_hour_fwd, bar_day_of_week=bar_day_fwd,
                 **m1_fwd_kwargs,
             )

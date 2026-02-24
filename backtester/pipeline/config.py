@@ -13,6 +13,10 @@ class PipelineConfig:
     research recommendations.
     """
 
+    # --- Execution costs (must match optimizer defaults) ---
+    commission_pips: float = 0.7    # IC Markets Raw, ~$7/lot RT ≈ 0.7 pips EUR/USD
+    max_spread_pips: float = 3.0    # Reject signals with spread > 3 pips
+
     # --- General ---
     output_dir: str = "pipeline_output"
     n_candidates: int = 20  # Number of candidates to validate from optimizer

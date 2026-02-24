@@ -281,7 +281,7 @@ class TestEvaluateStability:
         """DummyStrategy on trending data returns valid stability result."""
         strategy = DummyStrategy()
         data = _make_data_arrays(n_bars=100)
-        config = PipelineConfig()
+        config = PipelineConfig(commission_pips=0.0, max_spread_pips=0.0)
 
         perturbations = generate_perturbations(
             DEFAULT_PARAMS, strategy.param_space(), n_steps=config.stab_perturbation_steps,
@@ -312,6 +312,8 @@ class TestEvaluateStability:
         config = PipelineConfig(
             stab_robust_mean=0.8,
             stab_robust_min=0.5,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
         )
 
         # Create fake perturbations that all return the same params (ratio ~1.0)
@@ -335,7 +337,7 @@ class TestEvaluateStability:
         """When all ratios < 0.4, rating is OVERFIT."""
         strategy = DummyStrategy()
         data = _make_data_arrays(n_bars=100)
-        config = PipelineConfig()
+        config = PipelineConfig(commission_pips=0.0, max_spread_pips=0.0)
 
         # Create perturbations that will produce 0 quality
         # Use signals at bar indices that are out of range for the data
@@ -393,7 +395,7 @@ class TestEvaluateStability:
         # Use a strategy with no signals so quality will be 0
         strategy = DummyStrategy(signal_bars=[999])
         data = _make_data_arrays(n_bars=100)
-        config = PipelineConfig()
+        config = PipelineConfig(commission_pips=0.0, max_spread_pips=0.0)
 
         # Create perturbations manually (they don't matter since no signals)
         perturbations = [
@@ -416,7 +418,7 @@ class TestEvaluateStability:
         """No perturbations returns ROBUST with ratio 1.0."""
         strategy = DummyStrategy()
         data = _make_data_arrays(n_bars=100)
-        config = PipelineConfig()
+        config = PipelineConfig(commission_pips=0.0, max_spread_pips=0.0)
 
         result = evaluate_stability(strategy, DEFAULT_PARAMS, [], data, config)
 
@@ -435,7 +437,7 @@ class TestRunStability:
         """Run stability on 2+ candidates returns one result per candidate."""
         strategy = DummyStrategy()
         data = _make_data_arrays(n_bars=100)
-        config = PipelineConfig(stab_perturbation_steps=1)
+        config = PipelineConfig(stab_perturbation_steps=1, commission_pips=0.0, max_spread_pips=0.0)
 
         candidate1 = dict(DEFAULT_PARAMS)
         candidate2 = dict(DEFAULT_PARAMS, rsi_threshold=40)

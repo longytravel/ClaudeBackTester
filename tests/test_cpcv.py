@@ -318,7 +318,7 @@ class TestEvaluateCandidateOnFold:
         strategy = CPCVTestStrategy()
         data = _make_trending_data(2000)
         blocks = generate_blocks(2000, 5)
-        config = PipelineConfig(wf_min_trades_per_window=1)
+        config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
         params = _cpcv_default_params()
 
@@ -342,7 +342,7 @@ class TestEvaluateCandidateOnFold:
         strategy = CPCVTestStrategy()
         data = _make_trending_data(2000)
         blocks = generate_blocks(2000, 5)
-        config = PipelineConfig(wf_min_trades_per_window=1)
+        config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
         params = _cpcv_default_params()
 
@@ -379,6 +379,7 @@ class TestCPCVValidate:
             cpcv_pct_positive_sharpe_gate=0.0,
             cpcv_mean_sharpe_gate=-999.0,
             wf_min_trades_per_window=1,
+            commission_pips=0.0, max_spread_pips=0.0,
         )
 
         results = cpcv_validate(
@@ -402,6 +403,7 @@ class TestCPCVValidate:
         config = PipelineConfig(
             cpcv_n_blocks=10, cpcv_k_test=2,
             cpcv_min_block_bars=200,  # 500/10 = 50 < 200
+            commission_pips=0.0, max_spread_pips=0.0,
         )
 
         results = cpcv_validate(
@@ -423,6 +425,7 @@ class TestCPCVValidate:
             cpcv_pct_positive_sharpe_gate=0.0,
             cpcv_mean_sharpe_gate=-999.0,
             wf_min_trades_per_window=1,
+            commission_pips=0.0, max_spread_pips=0.0,
         )
 
         params = self._default_params()
@@ -446,6 +449,7 @@ class TestCPCVValidate:
             cpcv_pct_positive_sharpe_gate=1.0,  # 100% — very strict
             cpcv_mean_sharpe_gate=10.0,          # Very strict
             wf_min_trades_per_window=1,
+            commission_pips=0.0, max_spread_pips=0.0,
         )
 
         results = cpcv_validate(
@@ -467,6 +471,7 @@ class TestCPCVValidate:
             cpcv_pct_positive_sharpe_gate=0.0,
             cpcv_mean_sharpe_gate=-999.0,
             wf_min_trades_per_window=1,
+            commission_pips=0.0, max_spread_pips=0.0,
         )
 
         results = cpcv_validate(
