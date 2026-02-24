@@ -35,32 +35,46 @@ def connect(
 ) -> bool:
     """Connect to MT5 terminal.
 
-    If terminal is already running and logged in, connects without credentials.
-    Otherwise reads credentials from params or env vars.
+    Always verifies the account matches expected credentials.
+    If the wrong account is connected, forces re-login.
     """
     mt5 = _get_mt5()
 
-    # First try connecting to already-running terminal
+    # Resolve credentials from args or env vars
+    path = path or os.environ.get("MT5_PATH", DEFAULT_MT5_PATH)
+    expected_login = login or int(os.environ.get("MT5_LOGIN", 0))
+    password = password or os.environ.get("MT5_PASSWORD", "")
+    server = server or os.environ.get("MT5_SERVER", "ICMarketsSC-Demo")
+
+    # Try connecting to already-running terminal
     ok = mt5.initialize()
     if ok:
         acct = mt5.account_info()
         if acct and acct.login > 0:
-            log.info(
-                "mt5_connected",
-                server=acct.server,
-                login=acct.login,
-                broker=acct.company,
-                balance=acct.balance,
-            )
-            return True
+            # Verify it's the RIGHT account
+            if expected_login and acct.login != expected_login:
+                log.warning(
+                    "wrong_account_connected",
+                    expected=expected_login,
+                    actual=acct.login,
+                )
+                mt5.shutdown()
+            else:
+                log.info(
+                    "mt5_connected",
+                    server=acct.server,
+                    login=acct.login,
+                    broker=acct.company,
+                    balance=acct.balance,
+                )
+                return True
 
-    # Terminal not running or not logged in — try with credentials
-    path = path or os.environ.get("MT5_PATH", DEFAULT_MT5_PATH)
-    login = login or int(os.environ.get("MT5_LOGIN", 0))
-    password = password or os.environ.get("MT5_PASSWORD", "")
-    server = server or os.environ.get("MT5_SERVER", "ICMarketsSC-Demo")
+    # Force login with explicit credentials
+    if not expected_login:
+        log.error("mt5_no_credentials", msg="Set MT5_LOGIN in .env")
+        return False
 
-    ok = mt5.initialize(path, login=login, password=password, server=server)
+    ok = mt5.initialize(path, login=expected_login, password=password, server=server)
     if not ok:
         error = mt5.last_error()
         log.error("mt5_connect_failed", error=error)

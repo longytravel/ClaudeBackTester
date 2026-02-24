@@ -31,7 +31,8 @@ logs/
 
 # Environment and secrets
 .env
-.env.*
+.env.local
+.env.production
 credentials.json
 *.key
 
