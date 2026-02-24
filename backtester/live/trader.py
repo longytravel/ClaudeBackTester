@@ -501,8 +501,8 @@ class LiveTrader:
             hour=0, minute=0, second=0, microsecond=0,
         ) + timedelta(minutes=next_bar_minutes)
 
-        # Add a small buffer (5 seconds) to ensure the bar is fully closed
-        wait = (next_bar - now).total_seconds() + 5
+        # Add a small buffer (2 seconds) to ensure the bar is fully closed
+        wait = (next_bar - now).total_seconds() + 2
 
         if wait <= 0:
             wait = minutes * 60  # full bar period
