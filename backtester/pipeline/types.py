@@ -205,6 +205,9 @@ class CandidateResult:
     # Stage 5
     monte_carlo: MonteCarloResult | None = None
 
+    # Stage 5b (Regime analysis — advisory)
+    regime: Any | None = None  # RegimeResult from pipeline/regime.py
+
     # Stage 6
     confidence: ConfidenceResult | None = None
 

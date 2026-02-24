@@ -1,6 +1,7 @@
 """Validation pipeline — stages 3-7 of the optimization pipeline."""
 
 from backtester.pipeline.config import PipelineConfig
+from backtester.pipeline.regime import RegimeResult, RegimeStats
 from backtester.pipeline.runner import PipelineRunner
 from backtester.pipeline.types import (
     CPCVFoldResult,
@@ -26,6 +27,8 @@ __all__ = [
     "MonteCarloResult",
     "PipelineState",
     "Rating",
+    "RegimeResult",
+    "RegimeStats",
     "StabilityRating",
     "StabilityResult",
     "WalkForwardResult",

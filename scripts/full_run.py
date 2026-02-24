@@ -354,6 +354,66 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
             print(f"      {p.param_name:30s}  ratio={p.ratio:.3f}  "
                   f"({p.original_value} -> {p.perturbed_value})")
 
+    # --- Print Regime Analysis (Section 5b) ---
+    has_regime = any(c.regime is not None for c in state.candidates)
+    if has_regime:
+        print_header("SECTION 5b: REGIME ANALYSIS")
+        for c in state.candidates:
+            regime = c.regime
+            if regime is None:
+                if c.eliminated:
+                    print(f"  Candidate {c.candidate_index}: SKIPPED (eliminated at {c.eliminated_at_stage})")
+                continue
+
+            print(f"\n  Candidate {c.candidate_index}:")
+
+            # Bar distribution
+            print(f"\n    Bar Distribution:")
+            for name, pct in sorted(regime.regime_distribution.items()):
+                bar_count = 0
+                for s in regime.per_regime:
+                    if s.regime_name == name:
+                        bar_count = s.n_bars
+                        break
+                bar_len = int(pct / 3)  # ~33 chars max
+                bar_str = "\u2588" * bar_len
+                print(f"      {name:22s} {bar_count:>7,} bars ({pct:5.1f}%)  {bar_str}")
+
+            # Per-regime performance table
+            print(f"\n    Per-Regime Performance:")
+            print(f"      {'Regime':22s} {'Trades':>7s} {'Win%':>6s} {'Sharpe':>8s} "
+                  f"{'PF':>7s} {'MaxDD%':>8s}  Status")
+            print(f"      {'-' * 72}")
+            for s in regime.per_regime:
+                if not s.sufficient_data:
+                    print(f"      {s.regime_name:22s} {s.n_trades:>7d}     --       --"
+                          f"      --       --  Insufficient (<{state.candidates[0].regime.per_regime[0].n_trades if False else 30})")
+                else:
+                    # Status label
+                    if s.sharpe >= 1.0:
+                        status = "Strong"
+                    elif s.sharpe >= 0.3:
+                        status = "Acceptable"
+                    elif s.sharpe >= 0:
+                        status = "Marginal"
+                    else:
+                        status = "Weak"
+                    print(f"      {s.regime_name:22s} {s.n_trades:>7d} {s.win_rate:>5.0f}% "
+                          f"{s.sharpe:>8.2f} {s.profit_factor:>7.2f} {s.max_dd_pct:>7.1f}%  {status}")
+
+            # Summary metrics
+            print(f"\n    Regime-Weighted Sharpe: {regime.regime_weighted_sharpe:.2f}")
+            # Find worst regime name
+            worst_name = ""
+            for s in regime.per_regime:
+                if s.sufficient_data and s.max_dd_pct == regime.worst_regime_max_dd:
+                    worst_name = f" ({s.regime_name})"
+                    break
+            print(f"    Worst Regime MaxDD:    {regime.worst_regime_max_dd:.1f}%{worst_name}")
+            print(f"    Profitable Regimes:    {regime.n_profitable_regimes} / {regime.n_scored_regimes} scored")
+            print(f"    Robustness Score:      {regime.robustness_score:.1f} / 100")
+            print(f"    Advisory: {regime.advisory}")
+
     # --- Print Monte Carlo (Section 5) ---
     print_header("SECTION 5: MONTE CARLO ANALYSIS")
     for c in state.candidates:
@@ -583,6 +643,20 @@ def print_verdict(state):
             strengths.append(f"Strong CPCV distribution ({conf.cpcv_score:.0f})")
         elif conf.cpcv_score > 0 and conf.cpcv_score < 30:
             weaknesses.append(f"Weak CPCV distribution ({conf.cpcv_score:.0f})")
+
+        # Regime robustness (advisory)
+        if c.regime:
+            if c.regime.robustness_score >= 60:
+                strengths.append(f"Good regime robustness ({c.regime.robustness_score:.0f})")
+            if c.regime.worst_regime_max_dd > 40:
+                worst_name = ""
+                for s in c.regime.per_regime:
+                    if s.sufficient_data and s.max_dd_pct == c.regime.worst_regime_max_dd:
+                        worst_name = f" in {s.regime_name}"
+                        break
+                weaknesses.append(f"Catastrophic regime MaxDD ({c.regime.worst_regime_max_dd:.0f}%{worst_name})")
+            if c.regime.n_profitable_regimes < 2 and c.regime.n_scored_regimes >= 2:
+                weaknesses.append(f"Only {c.regime.n_profitable_regimes}/{c.regime.n_scored_regimes} regimes profitable")
 
         if conf.dsr_score >= 80:
             strengths.append(f"High DSR ({conf.dsr_score:.0f})")

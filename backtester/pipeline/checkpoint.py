@@ -199,6 +199,11 @@ def _reconstruct_candidate(cd: dict) -> CandidateResult:
             folds=folds,
         )
 
+    # Regime
+    regime_data = cd.get("regime")
+    if regime_data is not None:
+        c.regime = _reconstruct_regime(regime_data)
+
     # Confidence
     conf_data = cd.get("confidence")
     if conf_data is not None:
@@ -218,3 +223,35 @@ def _reconstruct_candidate(cd: dict) -> CandidateResult:
         )
 
     return c
+
+
+def _reconstruct_regime(data: dict) -> Any:
+    """Reconstruct a RegimeResult from a dict."""
+    from backtester.pipeline.regime import RegimeResult, RegimeStats
+
+    per_regime = []
+    for rs in data.get("per_regime", []):
+        per_regime.append(RegimeStats(
+            regime=rs.get("regime", 0),
+            regime_name=rs.get("regime_name", ""),
+            n_bars=rs.get("n_bars", 0),
+            bar_pct=rs.get("bar_pct", 0.0),
+            n_trades=rs.get("n_trades", 0),
+            sharpe=rs.get("sharpe", 0.0),
+            profit_factor=rs.get("profit_factor", 0.0),
+            max_dd_pct=rs.get("max_dd_pct", 0.0),
+            win_rate=rs.get("win_rate", 0.0),
+            mean_pnl_pips=rs.get("mean_pnl_pips", 0.0),
+            sufficient_data=rs.get("sufficient_data", False),
+        ))
+
+    return RegimeResult(
+        regime_distribution=data.get("regime_distribution", {}),
+        per_regime=per_regime,
+        regime_weighted_sharpe=data.get("regime_weighted_sharpe", 0.0),
+        worst_regime_max_dd=data.get("worst_regime_max_dd", 0.0),
+        n_profitable_regimes=data.get("n_profitable_regimes", 0),
+        n_scored_regimes=data.get("n_scored_regimes", 0),
+        advisory=data.get("advisory", ""),
+        robustness_score=data.get("robustness_score", 0.0),
+    )

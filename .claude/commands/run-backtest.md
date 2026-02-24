@@ -71,9 +71,9 @@ The script will:
 1. Load data + check for NaN bars (auto-rebuild if needed)
 2. Split 80/20 back/forward
 3. Run staged optimization
-4. Run validation pipeline (walk-forward, CPCV, stability, Monte Carlo, confidence)
+4. Run validation pipeline (walk-forward, CPCV, stability, Monte Carlo + regime, confidence)
 5. Run telemetry for trade statistics
-6. Print comprehensive 8-section report (with 3b: CPCV when enabled)
+6. Print comprehensive report (with 3b: CPCV, 5b: Regime when enabled)
 
 ## Step 3: Interpret Results
 
@@ -115,6 +115,15 @@ After the script completes, read and present the output to the user. Key things 
 - **95% CI width**: Narrow CI (< 1.0) means consistent performance. Wide CI (> 2.0) means high variance across folds.
 - **mean vs median Sharpe**: Large gap suggests outlier folds skewing the mean. Prefer median for robustness.
 - **CPCV blending**: When CPCV is available, the walk-forward confidence weight blends 60% WF + 40% CPCV. When disabled, 100% WF (backward compatible).
+
+### Regime Analysis Interpretation
+- **4 Regimes**: Trend+Quiet, Trend+Volatile, Range+Quiet, Range+Volatile
+- **Classified by**: ADX(14) with hysteresis (25 enter/20 exit) + NATR percentile (75th = high vol)
+- **Minimum 30 trades** per regime for stats (below = "Insufficient")
+- **Advisory only** — does NOT eliminate candidates or affect confidence score
+- **Key insight**: Range+Volatile is dangerous for nearly all strategies
+- **Robust strategy**: profitable in 2+ regimes, no regime with MaxDD > 40%
+- **Weak strategy**: only profitable in 1 regime, or catastrophic loss in any regime
 
 ## Step 4: Present Results to User
 

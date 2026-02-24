@@ -247,7 +247,7 @@ class PipelineRunner:
             # Stability is advisory only — no elimination
 
     def _run_monte_carlo(self) -> None:
-        """Stage 5: Monte Carlo simulation."""
+        """Stage 5: Monte Carlo simulation + regime analysis."""
         from backtester.pipeline.monte_carlo import run_monte_carlo
         from backtester.core.telemetry import run_telemetry
         from backtester.core.engine import BacktestEngine
@@ -275,6 +275,22 @@ class PipelineRunner:
             **m1_kwargs,
         )
 
+        # Pre-compute regime labels once if enabled
+        regime_labels = None
+        if self.config.regime_enabled:
+            from backtester.pipeline.regime import classify_bars
+            regime_labels = classify_bars(
+                self.data["high"], self.data["low"], self.data["close"],
+                adx_period=self.config.regime_adx_period,
+                atr_period=self.config.regime_atr_period,
+                adx_trending_threshold=self.config.regime_adx_trending,
+                adx_ranging_threshold=self.config.regime_adx_ranging,
+                natr_percentile_lookback=self.config.regime_natr_lookback,
+                natr_high_percentile=self.config.regime_natr_high_pctile,
+                min_regime_bars=self.config.regime_min_bars,
+            )
+            logger.info("Regime labels computed for %d bars", len(regime_labels))
+
         for candidate in active:
             # Get per-trade PnL via telemetry
             telemetry = run_telemetry(engine, candidate.params, EXEC_FULL)
@@ -300,6 +316,14 @@ class PipelineRunner:
                 candidate.elimination_reason = (
                     f"dsr={mc_result.dsr:.3f}, "
                     f"p={mc_result.permutation_p_value:.3f}"
+                )
+
+            # Regime analysis (advisory, runs on all candidates including eliminated)
+            if regime_labels is not None:
+                from backtester.pipeline.regime import compute_regime_stats
+                candidate.regime = compute_regime_stats(
+                    regime_labels, telemetry.trades,
+                    min_trades_per_regime=self.config.regime_min_trades,
                 )
 
     def _run_confidence(self) -> None:
@@ -366,6 +390,11 @@ class PipelineRunner:
             if c.stability:
                 entry["stability_rating"] = c.stability.rating.value
                 entry["stability_mean_ratio"] = c.stability.mean_ratio
+            if c.regime:
+                entry["regime_distribution"] = c.regime.regime_distribution
+                entry["regime_robustness_score"] = c.regime.robustness_score
+                entry["regime_advisory"] = c.regime.advisory
+                entry["per_regime_stats"] = [asdict(rs) for rs in c.regime.per_regime]
 
             report["candidates"].append(entry)
 

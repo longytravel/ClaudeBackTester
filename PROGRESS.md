@@ -202,7 +202,7 @@
 - [x] NaN spread sanitization in telemetry (entry & exit)
 - [x] Time array warning when bar_hour/bar_day_of_week not provided
 - [x] Weekly timeframe anchor: "1W" → "W-MON" for FX weekly bars
-- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b VP-1/VP-2, 451 after OPT-1
+- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b VP-1/VP-2, 451 after OPT-1, 472 after VP-3
 
 ---
 
@@ -256,13 +256,17 @@ Research papers (paper1.txt, paper2.txt, report_a.txt, validation_pipeline.txt) 
 - [x] Fallback to single-best when refinement data unavailable
 - [x] 5 tests in test_optimizer.py for multi-candidate logic
 
-#### VP-3: Regime-Aware Validation (Simple) — MEDIUM PRIORITY
-- [ ] Label historical periods using ADX + normalized ATR (2x2 quadrant: trend strength × volatility)
-- [ ] Per-regime performance breakdown in walk-forward results
-- [ ] Advisory flag if strategy only works in one regime
-- **Source**: validation_pipeline.txt (HMM deferred, but simple ADX/ATR version is tractable)
-- **Impact**: Medium — catches strategies that only work in one market condition
-- **Location**: New `pipeline/regime.py`, updates to `pipeline/walk_forward.py`
+#### VP-3: Regime-Aware Validation — MEDIUM PRIORITY ✓
+- [x] Label historical bars using ADX(14) + NATR percentile (2x2 quadrant: trend/range × quiet/volatile)
+- [x] Hysteresis on ADX (25 enter trending / 20 exit) + min-duration cooldown (8 bars)
+- [x] Per-regime performance breakdown (Sharpe, PF, MaxDD%, win rate per regime)
+- [x] Advisory robustness score (0-100): profitable regimes, catastrophic DD, cross-regime variance
+- [x] Integrated into pipeline runner (computed alongside Monte Carlo, reuses telemetry)
+- [x] Checkpoint save/load for regime data
+- [x] JSON report includes regime distribution + per-regime stats
+- [x] Section 5b in full_run.py output with bar distribution + performance table
+- [x] 21 tests in test_regime.py (classification, stats, scoring, serialization)
+- **Location**: `pipeline/regime.py`, integrated via `pipeline/runner.py`
 
 ### Optimizer Enhancements
 

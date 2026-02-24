@@ -71,6 +71,17 @@ class PipelineConfig:
     conf_yellow_threshold: float = 40.0
     # Below yellow = RED
 
+    # --- Regime Analysis (after Monte Carlo, advisory) ---
+    regime_enabled: bool = True
+    regime_adx_period: int = 14
+    regime_atr_period: int = 14
+    regime_adx_trending: float = 25.0
+    regime_adx_ranging: float = 20.0
+    regime_natr_lookback: int = 100
+    regime_natr_high_pctile: float = 75.0
+    regime_min_bars: int = 8
+    regime_min_trades: int = 30
+
     # --- Pipeline execution ---
     checkpoint_enabled: bool = True
     seed: int = 42
