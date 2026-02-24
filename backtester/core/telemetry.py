@@ -132,6 +132,8 @@ def run_telemetry(
         trial_variant = int(params["signal_variant"])
     elif "rsi_period" in params:
         trial_variant = int(params["rsi_period"])
+    elif "ema_combo" in params:
+        trial_variant = int(params["ema_combo"])
     if "buy_filter_max" in params:
         buy_filter_max_val = float(params["buy_filter_max"])
     elif "rsi_oversold" in params:

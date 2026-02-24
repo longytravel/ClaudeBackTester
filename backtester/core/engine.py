@@ -105,6 +105,8 @@ _PARAM_TO_PL: dict[str, int] = {
     "rsi_period": PL_SIGNAL_VARIANT,       # variant = RSI period value
     "rsi_oversold": PL_BUY_FILTER_MAX,     # BUY if RSI <= oversold
     "rsi_overbought": PL_SELL_FILTER_MIN,  # SELL if RSI >= overbought
+    # EMA crossover: composite variant = fast*1000 + slow
+    "ema_combo": PL_SIGNAL_VARIANT,
 }
 
 
