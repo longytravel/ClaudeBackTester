@@ -78,6 +78,15 @@ class LiveTrader:
             if not ok:
                 raise RuntimeError("Failed to connect to MT5")
 
+            # Verify AutoTrading is enabled (MT5 toolbar button must be green)
+            import MetaTrader5 as _mt5
+            term_info = _mt5.terminal_info()
+            if term_info and not term_info.trade_allowed:
+                raise RuntimeError(
+                    "AutoTrading is DISABLED in MT5. "
+                    "Click the AutoTrading button in the MT5 toolbar (must be green)."
+                )
+
         # Load strategy params from pipeline checkpoint
         self.params = self._load_params()
         log.info("params_loaded", params=self.params)
@@ -93,6 +102,12 @@ class LiveTrader:
                 positions=len(saved.positions),
                 last_bar=saved.last_bar_time,
             )
+
+            # Verify saved positions still exist in MT5 (clean up stale state)
+            if self.config.mode != TradingMode.DRY_RUN and self.state.positions:
+                self._sync_with_broker()
+                if len(self.state.positions) == 0:
+                    log.info("stale_positions_cleared")
 
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._handle_shutdown)
