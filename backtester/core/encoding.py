@@ -81,9 +81,13 @@ def _is_categorical(values: list[Any]) -> bool:
 
 def _days_list_to_bitmask(days: list[int]) -> float:
     """Convert a list of day numbers to bitmask float."""
+    if not isinstance(days, (list, tuple)):
+        raise TypeError(
+            f"_days_list_to_bitmask expected list, got {type(days).__name__}: {days!r}"
+        )
     mask = 0
     for d in days:
-        mask |= DAYS_BITMASK.get(d, 0)
+        mask |= DAYS_BITMASK[int(d)]
     return float(mask)
 
 

@@ -34,19 +34,20 @@ class RandomSampler:
 
         Args:
             n: Number of parameter sets to generate.
-            mask: (P,) bool — only sample True columns; False columns get 0.
+            mask: (P,) bool — active columns use this sampler's strategy;
+                inactive+unlocked columns get uniform random (noise averaging).
             locked: (P,) int64 — locked column values override sampling.
-                Set to -1 for unlocked columns.
+                Set to -1 for unlocked columns. Checked BEFORE mask.
         """
         p = self.spec.num_params
         matrix = np.zeros((n, p), dtype=np.int64)
 
         for col in self.spec.columns:
-            if mask is not None and not mask[col.index]:
-                continue
+            # Locked always wins — preserves results from earlier stages
             if locked is not None and locked[col.index] >= 0:
                 matrix[:, col.index] = locked[col.index]
                 continue
+            # Both active and inactive+unlocked get random samples
             num_vals = len(col.values)
             matrix[:, col.index] = self.rng.integers(0, num_vals, size=n)
 
@@ -79,25 +80,27 @@ class SobolSampler:
         mask: np.ndarray | None = None,
         locked: np.ndarray | None = None,
     ) -> np.ndarray:
-        """Generate (N, P) index matrix using Sobol sequence."""
+        """Generate (N, P) index matrix using Sobol sequence.
+
+        Locked params always use locked value (checked before mask).
+        Inactive+unlocked params get Sobol coverage for noise averaging.
+        """
         p = self.spec.num_params
 
         if self._sobol is not None and p > 0:
             # Sobol generates [0,1)^P — map to indices
-            # Round up to power of 2 for Sobol
             n_sobol = max(n, 1)
-            # Sobol requires powers of 2
             n_pow2 = 1
             while n_pow2 < n_sobol:
                 n_pow2 *= 2
             raw = self._sobol.random(n_pow2)[:n]  # Take first n
             matrix = np.zeros((n, p), dtype=np.int64)
             for col in self.spec.columns:
-                if mask is not None and not mask[col.index]:
-                    continue
+                # Locked always wins — preserves earlier stage results
                 if locked is not None and locked[col.index] >= 0:
                     matrix[:, col.index] = locked[col.index]
                     continue
+                # Both active and inactive+unlocked get Sobol coverage
                 num_vals = len(col.values)
                 matrix[:, col.index] = np.clip(
                     (raw[:, col.index] * num_vals).astype(np.int64),
@@ -108,8 +111,6 @@ class SobolSampler:
             rng = np.random.default_rng(self.seed)
             matrix = np.zeros((n, p), dtype=np.int64)
             for col in self.spec.columns:
-                if mask is not None and not mask[col.index]:
-                    continue
                 if locked is not None and locked[col.index] >= 0:
                     matrix[:, col.index] = locked[col.index]
                     continue
@@ -173,19 +174,29 @@ class EDASampler:
         mask: np.ndarray | None = None,
         locked: np.ndarray | None = None,
     ) -> np.ndarray:
-        """Sample from current probability distribution."""
+        """Sample from current probability distribution.
+
+        Locked params always use locked value (checked before mask).
+        Active params use EDA probabilities. Inactive+unlocked params
+        get uniform random for noise averaging.
+        """
         p = self.spec.num_params
         matrix = np.zeros((n, p), dtype=np.int64)
 
         for col in self.spec.columns:
-            if mask is not None and not mask[col.index]:
-                continue
+            # Locked always wins — preserves earlier stage results
             if locked is not None and locked[col.index] >= 0:
                 matrix[:, col.index] = locked[col.index]
                 continue
 
+            if mask is not None and not mask[col.index]:
+                # Inactive + unlocked: uniform random for noise averaging
+                num_vals = len(col.values)
+                matrix[:, col.index] = self.rng.integers(0, num_vals, size=n)
+                continue
+
+            # Active + unlocked: sample from EDA probability distribution
             probs = self.prob_tables[col.index]
-            # Sample from categorical distribution
             matrix[:, col.index] = self.rng.choice(
                 len(probs), size=n, p=probs,
             )

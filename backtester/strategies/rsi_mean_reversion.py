@@ -6,6 +6,7 @@ Uses ATR for volatility-aware SL/TP sizing.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -114,16 +115,16 @@ class RSIMeanReversion(Strategy):
         variants = []         # RSI period value (7, 9, 14, 21) matching rsi_period param
 
         for i in range(max(RSI_PERIODS) + 1, n - 1):
-            atr_val = atr_14[i]
-            if np.isnan(atr_val) or atr_val <= 0:
+            atr_val = float(atr_14[i])
+            if math.isnan(atr_val) or atr_val <= 0:
                 continue
 
             atr_p = atr_val / pip_value
 
             for rp in RSI_PERIODS:
-                r_cur = rsi_arrays[rp][i]
-                r_prev = rsi_arrays[rp][i - 1]
-                if np.isnan(r_cur) or np.isnan(r_prev):
+                r_cur = float(rsi_arrays[rp][i])
+                r_prev = float(rsi_arrays[rp][i - 1])
+                if math.isnan(r_cur) or math.isnan(r_prev):
                     continue
 
                 # Buy signals: generate at EACH oversold threshold crossing

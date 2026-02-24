@@ -160,7 +160,8 @@ class TestRandomSampler:
         assert np.all(matrix[:, 0] == 1)
         assert not np.all(matrix[:, 1] == matrix[0, 1])  # b should vary
 
-    def test_mask(self):
+    def test_mask_inactive_unlocked_gets_random(self):
+        """Inactive + unlocked params get random samples (noise averaging)."""
         ps = ParamSpace([
             ParamDef("a", [1, 2, 3]),
             ParamDef("b", [10, 20, 30]),
@@ -169,7 +170,29 @@ class TestRandomSampler:
         sampler = RandomSampler(spec, seed=42)
         mask = np.array([True, False], dtype=bool)
         matrix = sampler.sample(100, mask=mask)
-        assert np.all(matrix[:, 1] == 0)  # Masked param stays at 0
+        # Active param is varied
+        assert len(np.unique(matrix[:, 0])) > 1
+        # Inactive + unlocked param is ALSO varied (noise averaging)
+        assert len(np.unique(matrix[:, 1])) > 1
+        # All values in valid range
+        assert np.all(matrix[:, 1] >= 0)
+        assert np.all(matrix[:, 1] < 3)
+
+    def test_mask_inactive_locked_uses_locked_value(self):
+        """Inactive + locked params use locked value (not 0)."""
+        ps = ParamSpace([
+            ParamDef("a", [1, 2, 3]),
+            ParamDef("b", [10, 20, 30]),
+        ])
+        spec = build_encoding_spec(ps)
+        sampler = RandomSampler(spec, seed=42)
+        mask = np.array([True, False], dtype=bool)
+        locked = np.array([-1, 2], dtype=np.int64)  # b locked to index 2
+        matrix = sampler.sample(100, mask=mask, locked=locked)
+        # Active param is varied
+        assert len(np.unique(matrix[:, 0])) > 1
+        # Inactive + locked param uses locked value
+        assert np.all(matrix[:, 1] == 2)
 
 
 class TestSobolSampler:

@@ -7,6 +7,7 @@ RSI mean reversion, making it suitable for walk-forward validation.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -28,8 +29,8 @@ from backtester.strategies.sl_tp import calc_sl_tp
 
 
 # EMA period options
-EMA_FAST_PERIODS = [5, 8, 10, 13, 20, 25, 30]
-EMA_SLOW_PERIODS = [30, 50, 75, 100, 150, 200]
+EMA_FAST_PERIODS = [3, 5, 8, 10, 13, 15, 20, 25, 30, 40, 50]
+EMA_SLOW_PERIODS = [30, 50, 75, 100, 150, 200, 250, 300]
 
 # Build all valid (fast < slow) combos encoded as fast * 1000 + slow
 EMA_COMBOS = sorted(
@@ -126,18 +127,18 @@ class EMACrossover(Strategy):
             # Start after the slowest indicator is valid
             warmup = slow_p + 1
             for i in range(warmup, n - 1):
-                atr_val = atr_14[i]
-                if np.isnan(atr_val) or atr_val <= 0:
+                atr_val = float(atr_14[i])
+                if math.isnan(atr_val) or atr_val <= 0:
                     continue
 
-                fast_cur = ema_fast[i]
-                fast_prev = ema_fast[i - 1]
-                slow_cur = ema_slow[i]
-                slow_prev = ema_slow[i - 1]
+                fast_cur = float(ema_fast[i])
+                fast_prev = float(ema_fast[i - 1])
+                slow_cur = float(ema_slow[i])
+                slow_prev = float(ema_slow[i - 1])
 
-                if np.isnan(fast_cur) or np.isnan(fast_prev):
+                if math.isnan(fast_cur) or math.isnan(fast_prev):
                     continue
-                if np.isnan(slow_cur) or np.isnan(slow_prev):
+                if math.isnan(slow_cur) or math.isnan(slow_prev):
                     continue
 
                 atr_p = atr_val / pip_value
