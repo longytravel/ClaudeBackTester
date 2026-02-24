@@ -95,7 +95,7 @@ def win_rate(pnl: np.ndarray) -> float:
 
 
 def profit_factor(pnl: np.ndarray) -> float:
-    """Gross profit / gross loss. Returns 0 if no losses, inf-safe."""
+    """Gross profit / gross loss. Returns 10.0 when no losses (zero-denominator guard)."""
     gross_profit = float(np.sum(pnl[pnl > 0]))
     gross_loss = float(np.abs(np.sum(pnl[pnl < 0])))
     if gross_loss == 0:

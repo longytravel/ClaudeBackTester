@@ -629,8 +629,6 @@ def _compute_metrics_inline(
         pf = 10.0 if gross_profit > 0 else 0.0
     else:
         pf = gross_profit / gross_loss
-        if pf > 10.0:
-            pf = 10.0
     metrics_row[M_PROFIT_FACTOR] = pf
 
     # Mean and standard deviations
@@ -663,13 +661,13 @@ def _compute_metrics_inline(
     else:
         metrics_row[M_SHARPE] = 0.0
 
-    # Sortino (annualized) — capped at 10.0 to prevent quality score explosion
-    # when M1 sub-bar produces near-zero losses
+    # Sortino (annualized) — root causes of explosion fixed (deferred SL,
+    # adverse exit slippage, raised BE floors). No artificial cap needed.
     if down_count > 0:
         downside_std = np.sqrt(down_sq_sum / down_count)
         if downside_std > 0:
             raw_sortino = (mean / downside_std) * np.sqrt(ann_factor)
-            metrics_row[M_SORTINO] = min(raw_sortino, 10.0)
+            metrics_row[M_SORTINO] = raw_sortino
         else:
             metrics_row[M_SORTINO] = 0.0
     else:
