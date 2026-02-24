@@ -153,8 +153,8 @@ def management_params() -> list[ParamDef]:
         ParamDef("trail_atr_mult", [1.0, 1.5, 2.0, 2.5, 3.0], group="management"),
         # Breakeven (REQ-S19)
         ParamDef("breakeven_enabled", [False, True], group="management"),
-        ParamDef("breakeven_trigger_pips", [5, 10, 15, 20, 30], group="management"),
-        ParamDef("breakeven_offset_pips", [0, 1, 2, 3, 5], group="management"),
+        ParamDef("breakeven_trigger_pips", [7, 10, 15, 20, 30], group="management"),
+        ParamDef("breakeven_offset_pips", [2, 3, 5, 7, 10], group="management"),
         # Partial close (REQ-S20)
         ParamDef("partial_close_enabled", [False, True], group="management"),
         ParamDef("partial_close_pct", [30, 40, 50, 60, 70], group="management"),
