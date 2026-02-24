@@ -155,6 +155,22 @@ def evaluate_candidate_on_window(
     if data_arrays.get("bar_day_of_week") is not None:
         bar_dow_s = data_arrays["bar_day_of_week"][slice_start:slice_end]
 
+    # Slice + rebase M1 sub-bar arrays if present
+    m1_kwargs: dict[str, np.ndarray] = {}
+    if "m1_high" in data_arrays and data_arrays.get("h1_to_m1_start") is not None:
+        h1_starts = data_arrays["h1_to_m1_start"]
+        h1_ends = data_arrays["h1_to_m1_end"]
+        # Find M1 range corresponding to H1 slice
+        m1_start = int(h1_starts[slice_start])
+        m1_end = int(h1_ends[slice_end - 1]) if slice_end > slice_start else m1_start
+        m1_kwargs["m1_high"] = data_arrays["m1_high"][m1_start:m1_end]
+        m1_kwargs["m1_low"] = data_arrays["m1_low"][m1_start:m1_end]
+        m1_kwargs["m1_close"] = data_arrays["m1_close"][m1_start:m1_end]
+        m1_kwargs["m1_spread"] = data_arrays["m1_spread"][m1_start:m1_end]
+        # Rebase mapping: subtract m1_start from all indices
+        m1_kwargs["h1_to_m1_start"] = h1_starts[slice_start:slice_end] - m1_start
+        m1_kwargs["h1_to_m1_end"] = h1_ends[slice_start:slice_end] - m1_start
+
     # Create a fresh BacktestEngine on the sliced data
     engine = BacktestEngine(
         strategy=strategy,
@@ -170,6 +186,7 @@ def evaluate_candidate_on_window(
         max_spread_pips=0.0,
         bar_hour=bar_hour_s,
         bar_day_of_week=bar_dow_s,
+        **m1_kwargs,
     )
 
     # Encode params and evaluate

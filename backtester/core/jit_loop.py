@@ -200,21 +200,33 @@ def _simulate_trade_basic(
     slippage_pips: float,
     num_bars: int,
     commission_pips: float,
+    # Sub-bar arrays (M1 or identity)
+    sub_high: np.ndarray,
+    sub_low: np.ndarray,
+    sub_close: np.ndarray,
+    sub_spread: np.ndarray,
+    h1_to_sub_start: np.ndarray,
+    h1_to_sub_end: np.ndarray,
 ) -> tuple[float, int]:
     """Simulate a single trade with SL/TP only (basic mode).
 
     Returns (pnl_pips, exit_reason).
-    Conservative tiebreak: if both SL and TP hit on the same bar, SL wins.
+    Conservative tiebreak: if both SL and TP hit on the same sub-bar, SL wins.
+    Uses sub-bar (M1) data for SL/TP checks when available.
     """
     is_buy = direction == DIR_BUY
     slippage_price = slippage_pips * pip_value
 
-    # Apply entry slippage + spread
+    # Apply entry slippage + spread (using sub-bar spread at entry)
     # spread_arr values are in price units (ask - bid), NOT in pips
     if is_buy:
         actual_entry = entry_price + slippage_price
-        # BUY: pay the spread on entry
-        spread_at_entry = spread_arr[entry_bar] if entry_bar < len(spread_arr) else 0.0
+        # BUY: pay the spread on entry — use sub-bar spread at first M1 of entry bar
+        sub_entry_start = h1_to_sub_start[entry_bar]
+        if sub_entry_start < len(sub_spread):
+            spread_at_entry = sub_spread[sub_entry_start]
+        else:
+            spread_at_entry = 0.0
         if np.isnan(spread_at_entry):
             spread_at_entry = 0.0
         actual_entry += spread_at_entry
@@ -225,36 +237,45 @@ def _simulate_trade_basic(
     exit_reason = EXIT_NONE
     exit_bar = num_bars - 1
     pnl = 0.0
+    exit_sub_idx = -1
 
-    # Walk forward bar by bar
+    # Walk forward bar by bar, checking sub-bars within each H1 bar
     for bar in range(entry_bar + 1, num_bars):
-        bar_high = high[bar]
-        bar_low = low[bar]
+        sub_start = h1_to_sub_start[bar]
+        sub_end = h1_to_sub_end[bar]
 
-        if is_buy:
-            # Check SL first (conservative tiebreak)
-            if bar_low <= sl_price:
-                pnl = (sl_price - actual_entry) / pip_value
-                exit_reason = EXIT_SL
-                exit_bar = bar
-                break
-            if bar_high >= tp_price:
-                pnl = (tp_price - actual_entry) / pip_value
-                exit_reason = EXIT_TP
-                exit_bar = bar
-                break
-        else:
-            # SELL: SL is above, TP is below
-            if bar_high >= sl_price:
-                pnl = (actual_entry - sl_price) / pip_value
-                exit_reason = EXIT_SL
-                exit_bar = bar
-                break
-            if bar_low <= tp_price:
-                pnl = (actual_entry - tp_price) / pip_value
-                exit_reason = EXIT_TP
-                exit_bar = bar
-                break
+        for sb in range(sub_start, sub_end):
+            sb_high = sub_high[sb]
+            sb_low = sub_low[sb]
+
+            if is_buy:
+                # Check SL first (conservative tiebreak)
+                if sb_low <= sl_price:
+                    pnl = (sl_price - actual_entry) / pip_value
+                    exit_reason = EXIT_SL
+                    exit_sub_idx = sb
+                    break
+                if sb_high >= tp_price:
+                    pnl = (tp_price - actual_entry) / pip_value
+                    exit_reason = EXIT_TP
+                    exit_sub_idx = sb
+                    break
+            else:
+                # SELL: SL is above, TP is below
+                if sb_high >= sl_price:
+                    pnl = (actual_entry - sl_price) / pip_value
+                    exit_reason = EXIT_SL
+                    exit_sub_idx = sb
+                    break
+                if sb_low <= tp_price:
+                    pnl = (actual_entry - tp_price) / pip_value
+                    exit_reason = EXIT_TP
+                    exit_sub_idx = sb
+                    break
+
+        if exit_reason != EXIT_NONE:
+            exit_bar = bar
+            break
 
     # Trade still open at end of data — close at last bar close
     if exit_reason == EXIT_NONE:
@@ -265,9 +286,14 @@ def _simulate_trade_basic(
             pnl = (actual_entry - close_price) / pip_value
 
     # Apply execution costs
-    # SELL: deduct exit bar spread (BUY already paid spread at entry)
+    # SELL: deduct exit spread (use sub-bar spread if we have an exit sub-bar)
     if not is_buy:
-        sell_spread = spread_arr[exit_bar] if exit_bar < len(spread_arr) else 0.0
+        if exit_sub_idx >= 0 and exit_sub_idx < len(sub_spread):
+            sell_spread = sub_spread[exit_sub_idx]
+        elif exit_bar < len(spread_arr):
+            sell_spread = spread_arr[exit_bar]
+        else:
+            sell_spread = 0.0
         if np.isnan(sell_spread):
             sell_spread = 0.0
         pnl -= sell_spread / pip_value
@@ -308,19 +334,33 @@ def _simulate_trade_full(
     stale_bars: int,
     stale_atr_thresh: float,
     commission_pips: float,
+    # Sub-bar arrays (M1 or identity)
+    sub_high: np.ndarray,
+    sub_low: np.ndarray,
+    sub_close: np.ndarray,
+    sub_spread: np.ndarray,
+    h1_to_sub_start: np.ndarray,
+    h1_to_sub_end: np.ndarray,
 ) -> tuple[float, int]:
     """Simulate a single trade with full management features.
 
     Returns (pnl_pips, exit_reason).
+    Uses sub-bar (M1) data for all price-sensitive management checks
+    (SL, TP, trailing, breakeven, partial close).
+    H1-level checks (max_bars, stale exit) remain at H1 bar resolution.
     """
     is_buy = direction == DIR_BUY
     slippage_price = slippage_pips * pip_value
 
-    # Apply entry costs
+    # Apply entry costs (using sub-bar spread at first M1 of entry bar)
     # spread_arr values are in price units (ask - bid), NOT in pips
     if is_buy:
         actual_entry = entry_price + slippage_price
-        spread_at_entry = spread_arr[entry_bar] if entry_bar < len(spread_arr) else 0.0
+        sub_entry_start = h1_to_sub_start[entry_bar]
+        if sub_entry_start < len(sub_spread):
+            spread_at_entry = sub_spread[sub_entry_start]
+        else:
+            spread_at_entry = 0.0
         if np.isnan(spread_at_entry):
             spread_at_entry = 0.0
         actual_entry += spread_at_entry
@@ -337,6 +377,7 @@ def _simulate_trade_full(
     bars_held = 0
     exit_reason = EXIT_NONE
     exit_bar = num_bars - 1
+    exit_sub_idx = -1
     final_pnl = 0.0
 
     for bar in range(entry_bar + 1, num_bars):
@@ -345,7 +386,7 @@ def _simulate_trade_full(
         bar_close = close[bar]
         bars_held += 1
 
-        # --- Max bars exit ---
+        # --- H1-level checks (max_bars, stale) — unchanged ---
         if max_bars > 0 and bars_held >= max_bars:
             if is_buy:
                 pnl = (bar_close - actual_entry) / pip_value * position_pct
@@ -356,9 +397,7 @@ def _simulate_trade_full(
             exit_bar = bar
             break
 
-        # --- Stale exit: check if price hasn't moved enough ---
         if stale_enabled > 0 and bars_held >= stale_bars:
-            # Check if recent range is below threshold
             lookback_start = max(entry_bar + 1, bar - stale_bars + 1)
             max_range = 0.0
             for b in range(lookback_start, bar + 1):
@@ -375,96 +414,108 @@ def _simulate_trade_full(
                 exit_bar = bar
                 break
 
-        # Current floating PnL in pips
-        if is_buy:
-            float_pnl_pips = (bar_high - actual_entry) / pip_value  # Best case this bar
-            worst_pnl_pips = (bar_low - actual_entry) / pip_value
-        else:
-            float_pnl_pips = (actual_entry - bar_low) / pip_value
-            worst_pnl_pips = (actual_entry - bar_high) / pip_value
+        # --- Sub-bar trade management ---
+        sub_start = h1_to_sub_start[bar]
+        sub_end = h1_to_sub_end[bar]
 
-        # --- Breakeven lock ---
-        if breakeven_enabled > 0 and not be_locked:
-            if float_pnl_pips >= breakeven_trigger_pips:
-                be_locked = True
-                be_price = actual_entry + breakeven_offset_pips * pip_value if is_buy \
-                    else actual_entry - breakeven_offset_pips * pip_value
-                # Only tighten SL, never widen it
-                if is_buy and be_price > current_sl:
-                    current_sl = be_price
-                elif not is_buy and be_price < current_sl:
-                    current_sl = be_price
+        for sb in range(sub_start, sub_end):
+            sb_high = sub_high[sb]
+            sb_low = sub_low[sb]
+            sb_close = sub_close[sb]
 
-        # --- Trailing stop ---
-        if trailing_mode != TRAIL_OFF:
-            if not trailing_active:
-                if float_pnl_pips >= trail_activate_pips:
-                    trailing_active = True
+            # Current floating PnL on this sub-bar
+            if is_buy:
+                float_pnl_pips = (sb_high - actual_entry) / pip_value
+                worst_pnl_pips = (sb_low - actual_entry) / pip_value
+            else:
+                float_pnl_pips = (actual_entry - sb_low) / pip_value
+                worst_pnl_pips = (actual_entry - sb_high) / pip_value
 
-            if trailing_active:
-                if trailing_mode == TRAIL_FIXED_PIP:
-                    trail_dist = trail_distance_pips * pip_value
-                else:  # TRAIL_ATR_CHANDELIER
-                    trail_dist = trail_atr_mult * atr_pips * pip_value
+            # --- Breakeven lock ---
+            if breakeven_enabled > 0 and not be_locked:
+                if float_pnl_pips >= breakeven_trigger_pips:
+                    be_locked = True
+                    be_price = actual_entry + breakeven_offset_pips * pip_value if is_buy \
+                        else actual_entry - breakeven_offset_pips * pip_value
+                    if is_buy and be_price > current_sl:
+                        current_sl = be_price
+                    elif not is_buy and be_price < current_sl:
+                        current_sl = be_price
 
-                if is_buy:
-                    new_sl = bar_high - trail_dist
-                    if new_sl > current_sl:
-                        current_sl = new_sl
-                else:
-                    new_sl = bar_low + trail_dist
-                    if new_sl < current_sl:
-                        current_sl = new_sl
+            # --- Trailing stop ---
+            if trailing_mode != TRAIL_OFF:
+                if not trailing_active:
+                    if float_pnl_pips >= trail_activate_pips:
+                        trailing_active = True
 
-        # --- Partial close ---
-        if partial_enabled > 0 and not partial_done:
-            if float_pnl_pips >= partial_trigger_pips:
-                partial_done = True
-                close_pct = partial_pct / 100.0
-                if is_buy:
-                    partial_pnl = (bar_close - actual_entry) / pip_value * close_pct
-                else:
-                    partial_pnl = (actual_entry - bar_close) / pip_value * close_pct
-                realized_pnl_pips += partial_pnl
-                position_pct -= close_pct
-
-        # --- Check SL (with possible trailing/BE adjustments) ---
-        if is_buy:
-            if bar_low <= current_sl:
-                pnl = (current_sl - actual_entry) / pip_value * position_pct
-                exit_code = EXIT_SL
                 if trailing_active:
-                    exit_code = EXIT_TRAILING
-                elif be_locked:
-                    exit_code = EXIT_BREAKEVEN
-                final_pnl = realized_pnl_pips + pnl
-                exit_reason = exit_code
-                exit_bar = bar
-                break
-            if bar_high >= tp_price:
-                pnl = (tp_price - actual_entry) / pip_value * position_pct
-                final_pnl = realized_pnl_pips + pnl
-                exit_reason = EXIT_TP
-                exit_bar = bar
-                break
-        else:
-            if bar_high >= current_sl:
-                pnl = (actual_entry - current_sl) / pip_value * position_pct
-                exit_code = EXIT_SL
-                if trailing_active:
-                    exit_code = EXIT_TRAILING
-                elif be_locked:
-                    exit_code = EXIT_BREAKEVEN
-                final_pnl = realized_pnl_pips + pnl
-                exit_reason = exit_code
-                exit_bar = bar
-                break
-            if bar_low <= tp_price:
-                pnl = (actual_entry - tp_price) / pip_value * position_pct
-                final_pnl = realized_pnl_pips + pnl
-                exit_reason = EXIT_TP
-                exit_bar = bar
-                break
+                    if trailing_mode == TRAIL_FIXED_PIP:
+                        trail_dist = trail_distance_pips * pip_value
+                    else:  # TRAIL_ATR_CHANDELIER
+                        trail_dist = trail_atr_mult * atr_pips * pip_value
+
+                    if is_buy:
+                        new_sl = sb_high - trail_dist
+                        if new_sl > current_sl:
+                            current_sl = new_sl
+                    else:
+                        new_sl = sb_low + trail_dist
+                        if new_sl < current_sl:
+                            current_sl = new_sl
+
+            # --- Partial close ---
+            if partial_enabled > 0 and not partial_done:
+                if float_pnl_pips >= partial_trigger_pips:
+                    partial_done = True
+                    close_pct = partial_pct / 100.0
+                    if is_buy:
+                        partial_pnl = (sb_close - actual_entry) / pip_value * close_pct
+                    else:
+                        partial_pnl = (actual_entry - sb_close) / pip_value * close_pct
+                    realized_pnl_pips += partial_pnl
+                    position_pct -= close_pct
+
+            # --- Check SL (with possible trailing/BE adjustments) ---
+            if is_buy:
+                if sb_low <= current_sl:
+                    pnl = (current_sl - actual_entry) / pip_value * position_pct
+                    exit_code = EXIT_SL
+                    if trailing_active:
+                        exit_code = EXIT_TRAILING
+                    elif be_locked:
+                        exit_code = EXIT_BREAKEVEN
+                    final_pnl = realized_pnl_pips + pnl
+                    exit_reason = exit_code
+                    exit_sub_idx = sb
+                    break
+                if sb_high >= tp_price:
+                    pnl = (tp_price - actual_entry) / pip_value * position_pct
+                    final_pnl = realized_pnl_pips + pnl
+                    exit_reason = EXIT_TP
+                    exit_sub_idx = sb
+                    break
+            else:
+                if sb_high >= current_sl:
+                    pnl = (actual_entry - current_sl) / pip_value * position_pct
+                    exit_code = EXIT_SL
+                    if trailing_active:
+                        exit_code = EXIT_TRAILING
+                    elif be_locked:
+                        exit_code = EXIT_BREAKEVEN
+                    final_pnl = realized_pnl_pips + pnl
+                    exit_reason = exit_code
+                    exit_sub_idx = sb
+                    break
+                if sb_low <= tp_price:
+                    pnl = (actual_entry - tp_price) / pip_value * position_pct
+                    final_pnl = realized_pnl_pips + pnl
+                    exit_reason = EXIT_TP
+                    exit_sub_idx = sb
+                    break
+
+        if exit_reason != EXIT_NONE:
+            exit_bar = bar
+            break
 
     # End of data — close remaining position
     if exit_reason == EXIT_NONE:
@@ -476,9 +527,14 @@ def _simulate_trade_full(
         final_pnl = realized_pnl_pips + pnl
 
     # Apply execution costs
-    # SELL: deduct exit bar spread (BUY already paid spread at entry)
+    # SELL: deduct exit spread (use sub-bar spread if available)
     if not is_buy:
-        sell_spread = spread_arr[exit_bar] if exit_bar < len(spread_arr) else 0.0
+        if exit_sub_idx >= 0 and exit_sub_idx < len(sub_spread):
+            sell_spread = sub_spread[exit_sub_idx]
+        elif exit_bar < len(spread_arr):
+            sell_spread = spread_arr[exit_bar]
+        else:
+            sell_spread = 0.0
         if np.isnan(sell_spread):
             sell_spread = 0.0
         final_pnl -= sell_spread / pip_value
@@ -699,6 +755,13 @@ def batch_evaluate(
     # Execution costs
     commission_pips: float,
     max_spread_pips: float,
+    # Sub-bar arrays for M1 trade simulation (or identity)
+    sub_high: np.ndarray,       # (M,) float64 — M1 or identity high
+    sub_low: np.ndarray,        # (M,) float64 — M1 or identity low
+    sub_close: np.ndarray,      # (M,) float64 — M1 or identity close
+    sub_spread: np.ndarray,     # (M,) float64 — M1 or identity spread
+    h1_to_sub_start: np.ndarray,  # (B,) int64 — H1 bar → sub-bar start index
+    h1_to_sub_end: np.ndarray,    # (B,) int64 — H1 bar → sub-bar end index
 ) -> None:
     """Evaluate N parameter sets in parallel.
 
@@ -820,6 +883,8 @@ def batch_evaluate(
                     direction, bar_idx, entry_p, sl_p, tp_p,
                     high, low, close, spread, pip_value, slippage_pips, n_bars,
                     commission_pips,
+                    sub_high, sub_low, sub_close, sub_spread,
+                    h1_to_sub_start, h1_to_sub_end,
                 )
             else:
                 pnl, exit_reason = _simulate_trade_full(
@@ -830,6 +895,8 @@ def batch_evaluate(
                     partial_en, partial_pct, partial_trig,
                     max_bars_val, stale_en, stale_bars_val, stale_atr,
                     commission_pips,
+                    sub_high, sub_low, sub_close, sub_spread,
+                    h1_to_sub_start, h1_to_sub_end,
                 )
 
             if trade_count < max_trades:

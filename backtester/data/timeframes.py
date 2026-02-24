@@ -7,6 +7,7 @@ last close, sum volume.
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import structlog
 
@@ -102,3 +103,42 @@ def convert_timeframes(
 
     log.info("convert_timeframes_complete", pair=pair, timeframes=list(results.keys()))
     return results
+
+
+def build_h1_to_m1_mapping(
+    h1_timestamps: np.ndarray,
+    m1_timestamps: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Map each H1 bar to its range of M1 sub-bars.
+
+    For each H1 bar at index i, finds all M1 bars whose timestamp falls
+    within [h1_timestamps[i], h1_timestamps[i] + 1 hour). Uses
+    np.searchsorted for O(n log n) performance.
+
+    Args:
+        h1_timestamps: (N,) int64 array of H1 bar timestamps (Unix nanoseconds).
+        m1_timestamps: (M,) int64 array of M1 bar timestamps (Unix nanoseconds).
+
+    Returns:
+        (start_idx, end_idx): Two int64 arrays of length N.
+        start_idx[i] = first M1 bar index in H1 bar i.
+        end_idx[i] = one past the last M1 bar index in H1 bar i.
+        If an H1 bar has no M1 bars, start_idx[i] == end_idx[i].
+    """
+    n_h1 = len(h1_timestamps)
+    start_idx = np.empty(n_h1, dtype=np.int64)
+    end_idx = np.empty(n_h1, dtype=np.int64)
+
+    for i in range(n_h1):
+        h1_start = h1_timestamps[i]
+        # H1 bar covers [h1_start, h1_start + 1 hour)
+        if i + 1 < n_h1:
+            h1_end = h1_timestamps[i + 1]
+        else:
+            # Last H1 bar: assume 1 hour duration (3600 seconds in nanoseconds)
+            h1_end = h1_start + np.int64(3600_000_000_000)
+
+        start_idx[i] = np.searchsorted(m1_timestamps, h1_start, side="left")
+        end_idx[i] = np.searchsorted(m1_timestamps, h1_end, side="left")
+
+    return start_idx, end_idx

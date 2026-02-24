@@ -226,13 +226,21 @@ def run_telemetry(
         else:
             tp_price = entry_price - tp_dist
 
-        # Simulate trade
+        # Simulate trade — use sub-bar arrays from engine
+        sub_high = engine.sub_high
+        sub_low = engine.sub_low
+        sub_close = engine.sub_close
+        sub_spread = engine.sub_spread
+        h1_to_sub_start = engine.h1_to_sub_start
+        h1_to_sub_end = engine.h1_to_sub_end
+
         actual_entry = entry_price
         if is_buy:
             actual_entry += slippage * pip
-            # spread is already in price units (ask - bid)
-            if bar_idx < len(engine.spread):
-                spread_val = engine.spread[bar_idx]
+            # BUY: pay spread at first sub-bar of entry bar
+            sub_entry_start = int(h1_to_sub_start[bar_idx])
+            if sub_entry_start < len(sub_spread):
+                spread_val = sub_spread[sub_entry_start]
                 if not np.isnan(spread_val):
                     actual_entry += spread_val
         else:
@@ -244,6 +252,7 @@ def run_telemetry(
         mae = 0.0
         exit_reason = EXIT_NONE
         exit_bar = engine.n_bars - 1
+        exit_sub_idx = -1
         exit_price = 0.0
         bars_held = 0
         position_pct = 1.0
@@ -259,7 +268,7 @@ def run_telemetry(
             bar_close = engine.close[bar]
             bars_held += 1
 
-            # Track MFE/MAE
+            # Track MFE/MAE at H1 level (aggregate view)
             if is_buy:
                 fav = (bar_high - actual_entry) / pip
                 adv = (actual_entry - bar_low) / pip
@@ -271,13 +280,13 @@ def run_telemetry(
 
             # Full mode management checks
             if exec_mode == EXEC_FULL:
+                # --- H1-level checks (max_bars, stale) ---
                 if max_bars > 0 and bars_held >= max_bars:
                     exit_reason = EXIT_MAX_BARS
                     exit_price = bar_close
                     exit_bar = bar
                     break
 
-                # Stale exit: check if price hasn't moved enough
                 if stale_en and bars_held >= stale_bars:
                     lookback_start = max(bar_idx + 1, bar - stale_bars + 1)
                     max_range = 0.0
@@ -291,78 +300,127 @@ def run_telemetry(
                         exit_bar = bar
                         break
 
-                # Floating PnL for management
-                float_pnl = fav
+                # --- Sub-bar trade management ---
+                sb_start = int(h1_to_sub_start[bar])
+                sb_end = int(h1_to_sub_end[bar])
+                for sb in range(sb_start, sb_end):
+                    sb_h = sub_high[sb]
+                    sb_l = sub_low[sb]
+                    sb_c = sub_close[sb]
 
-                # Breakeven
-                if be_enabled and not be_locked and float_pnl >= be_trigger:
-                    be_locked = True
-                    be_price = actual_entry + be_offset * pip if is_buy \
-                        else actual_entry - be_offset * pip
-                    if is_buy and be_price > current_sl:
-                        current_sl = be_price
-                    elif not is_buy and be_price < current_sl:
-                        current_sl = be_price
+                    # Floating PnL on this sub-bar
+                    if is_buy:
+                        float_pnl = (sb_h - actual_entry) / pip
+                    else:
+                        float_pnl = (actual_entry - sb_l) / pip
 
-                # Trailing
-                if trailing_mode != "off":
-                    if not trailing_active and float_pnl >= trail_activate:
-                        trailing_active = True
-                    if trailing_active:
-                        if trailing_mode == "fixed_pip":
-                            t_dist = trail_distance * pip
-                        else:
-                            t_dist = trail_atr_m * atr_pips * pip
-                        if is_buy:
-                            new_sl = bar_high - t_dist
-                            if new_sl > current_sl:
-                                current_sl = new_sl
-                        else:
-                            new_sl = bar_low + t_dist
-                            if new_sl < current_sl:
-                                current_sl = new_sl
+                    # Breakeven
+                    if be_enabled and not be_locked and float_pnl >= be_trigger:
+                        be_locked = True
+                        be_price = actual_entry + be_offset * pip if is_buy \
+                            else actual_entry - be_offset * pip
+                        if is_buy and be_price > current_sl:
+                            current_sl = be_price
+                        elif not is_buy and be_price < current_sl:
+                            current_sl = be_price
 
-                # Partial close
-                if partial_en and not partial_done:
-                    if float_pnl >= partial_trig:
-                        partial_done = True
-                        close_pct = partial_pct / 100.0
-                        if is_buy:
-                            partial_pnl = (bar_close - actual_entry) / pip * close_pct
-                        else:
-                            partial_pnl = (actual_entry - bar_close) / pip * close_pct
-                        realized_pnl_pips += partial_pnl
-                        position_pct -= close_pct
+                    # Trailing
+                    if trailing_mode != "off":
+                        if not trailing_active and float_pnl >= trail_activate:
+                            trailing_active = True
+                        if trailing_active:
+                            if trailing_mode == "fixed_pip":
+                                t_dist = trail_distance * pip
+                            else:
+                                t_dist = trail_atr_m * atr_pips * pip
+                            if is_buy:
+                                new_sl = sb_h - t_dist
+                                if new_sl > current_sl:
+                                    current_sl = new_sl
+                            else:
+                                new_sl = sb_l + t_dist
+                                if new_sl < current_sl:
+                                    current_sl = new_sl
 
-            # Check SL/TP
-            if is_buy:
-                if bar_low <= current_sl:
-                    exit_reason = EXIT_SL
-                    if trailing_active:
-                        exit_reason = EXIT_TRAILING
-                    elif be_locked:
-                        exit_reason = EXIT_BREAKEVEN
-                    exit_price = current_sl
-                    exit_bar = bar
-                    break
-                if bar_high >= tp_price:
-                    exit_reason = EXIT_TP
-                    exit_price = tp_price
+                    # Partial close
+                    if partial_en and not partial_done:
+                        if float_pnl >= partial_trig:
+                            partial_done = True
+                            close_pct = partial_pct / 100.0
+                            if is_buy:
+                                partial_pnl = (sb_c - actual_entry) / pip * close_pct
+                            else:
+                                partial_pnl = (actual_entry - sb_c) / pip * close_pct
+                            realized_pnl_pips += partial_pnl
+                            position_pct -= close_pct
+
+                    # Check SL/TP on sub-bar
+                    if is_buy:
+                        if sb_l <= current_sl:
+                            exit_reason = EXIT_SL
+                            if trailing_active:
+                                exit_reason = EXIT_TRAILING
+                            elif be_locked:
+                                exit_reason = EXIT_BREAKEVEN
+                            exit_price = current_sl
+                            exit_sub_idx = sb
+                            break
+                        if sb_h >= tp_price:
+                            exit_reason = EXIT_TP
+                            exit_price = tp_price
+                            exit_sub_idx = sb
+                            break
+                    else:
+                        if sb_h >= current_sl:
+                            exit_reason = EXIT_SL
+                            if trailing_active:
+                                exit_reason = EXIT_TRAILING
+                            elif be_locked:
+                                exit_reason = EXIT_BREAKEVEN
+                            exit_price = current_sl
+                            exit_sub_idx = sb
+                            break
+                        if sb_l <= tp_price:
+                            exit_reason = EXIT_TP
+                            exit_price = tp_price
+                            exit_sub_idx = sb
+                            break
+
+                if exit_reason != EXIT_NONE:
                     exit_bar = bar
                     break
             else:
-                if bar_high >= current_sl:
-                    exit_reason = EXIT_SL
-                    if trailing_active:
-                        exit_reason = EXIT_TRAILING
-                    elif be_locked:
-                        exit_reason = EXIT_BREAKEVEN
-                    exit_price = current_sl
-                    exit_bar = bar
-                    break
-                if bar_low <= tp_price:
-                    exit_reason = EXIT_TP
-                    exit_price = tp_price
+                # Basic mode — sub-bar SL/TP only
+                sb_start = int(h1_to_sub_start[bar])
+                sb_end = int(h1_to_sub_end[bar])
+                for sb in range(sb_start, sb_end):
+                    sb_h = sub_high[sb]
+                    sb_l = sub_low[sb]
+
+                    if is_buy:
+                        if sb_l <= current_sl:
+                            exit_reason = EXIT_SL
+                            exit_price = current_sl
+                            exit_sub_idx = sb
+                            break
+                        if sb_h >= tp_price:
+                            exit_reason = EXIT_TP
+                            exit_price = tp_price
+                            exit_sub_idx = sb
+                            break
+                    else:
+                        if sb_h >= current_sl:
+                            exit_reason = EXIT_SL
+                            exit_price = current_sl
+                            exit_sub_idx = sb
+                            break
+                        if sb_l <= tp_price:
+                            exit_reason = EXIT_TP
+                            exit_price = tp_price
+                            exit_sub_idx = sb
+                            break
+
+                if exit_reason != EXIT_NONE:
                     exit_bar = bar
                     break
 
@@ -378,9 +436,14 @@ def run_telemetry(
         pnl += realized_pnl_pips
 
         # Apply execution costs
-        # SELL: deduct exit bar spread (BUY already paid spread at entry)
+        # SELL: deduct exit spread (use sub-bar spread if available)
         if not is_buy:
-            sell_spread = engine.spread[exit_bar] if exit_bar < len(engine.spread) else 0.0
+            if exit_sub_idx >= 0 and exit_sub_idx < len(sub_spread):
+                sell_spread = sub_spread[exit_sub_idx]
+            elif exit_bar < len(engine.spread):
+                sell_spread = engine.spread[exit_bar]
+            else:
+                sell_spread = 0.0
             if np.isnan(sell_spread):
                 sell_spread = 0.0
             pnl -= sell_spread / pip

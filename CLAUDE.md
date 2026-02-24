@@ -138,6 +138,23 @@ Before context gets long or session ends:
 - Treat every PRD requirement as a starting point, not gospel. Challenge anything that doesn't make sense in context
 - This applies to everything: scoring formulas, thresholds, architectural decisions, data assumptions, test results
 
+## Phase 5b: Validation & Optimizer Enhancements (Safe to Build Now)
+
+Research papers in `Research/` identified improvements deferred from Phase 5 MVP. These don't conflict with Phase 6 (live trading, being built by another agent). Full details in PROGRESS.md.
+
+### Validation Pipeline
+- **VP-1: CPCV** — Combinatorial Purged Cross-Validation (HIGH). Distribution of OOS metrics instead of one path. New `pipeline/cpcv.py`
+- **VP-2: Multi-Candidate Pipeline** — Optimizer returns top N via diversity archive, pipeline validates all (HIGH). `optimizer/run.py` + `pipeline/runner.py`
+- **VP-3: Regime-Aware Validation** — Simple ADX/ATR quadrant classification, per-regime stats (MEDIUM). New `pipeline/regime.py`
+
+### Optimizer
+- **OPT-1: CE Exploitation Upgrade** — Pairwise dependencies, adaptive LR, entropy monitoring (MEDIUM). `optimizer/sampler.py`
+- **OPT-2: GT-Score Objective** — A/B test vs Quality Score on FX data (MEDIUM). `core/metrics.py` or `optimizer/ranking.py`
+- **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select optimal batch size (LOW). `optimizer/config.py`
+
+### NOT building now
+- NSGA-II/GA rewrite, island model, White's RC/Hansen SPA, full HMM, multi-fidelity, factor attribution, HTML reports — all correctly deferred to later phases
+
 ## Development Workflow
 - Work in small, testable increments (one FR sub-section at a time)
 - Run tests after each increment

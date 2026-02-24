@@ -45,6 +45,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--preset", default="turbo", choices=["turbo", "fast", "default"],
                         help="Optimization preset")
     parser.add_argument("--output", default=None, help="Output directory (default: results/<pair>_<tf>)")
+    parser.add_argument("--no-m1", action="store_true",
+                        help="Disable M1 sub-bar simulation (use H1-only identity mapping)")
     return parser.parse_args()
 
 
@@ -59,6 +61,44 @@ def df_to_arrays(frame: pd.DataFrame) -> dict[str, np.ndarray]:
         "spread": frame["spread"].to_numpy(dtype=np.float64),
         "bar_hour": frame.index.hour.to_numpy(dtype=np.int64),
         "bar_day_of_week": frame.index.dayofweek.to_numpy(dtype=np.int64),
+    }
+
+
+def load_m1_arrays(
+    pair: str, h1_timestamps: np.ndarray,
+) -> dict[str, np.ndarray] | None:
+    """Load M1 data and build H1→M1 mapping arrays.
+
+    Returns dict with m1_high, m1_low, m1_close, m1_spread,
+    h1_to_m1_start, h1_to_m1_end, or None if M1 data unavailable.
+    """
+    from backtester.data.timeframes import build_h1_to_m1_mapping
+
+    pair_file = pair.replace("/", "_")
+    m1_path = DATA_DIR / f"{pair_file}_M1.parquet"
+
+    if not m1_path.exists():
+        logger.warning(f"M1 data not found at {m1_path} — sub-bar simulation disabled")
+        return None
+
+    m1_df = pd.read_parquet(m1_path)
+    logger.info(f"Loaded M1 data: {len(m1_df):,} bars")
+
+    m1_timestamps = m1_df.index.astype(np.int64).to_numpy()
+    start_idx, end_idx = build_h1_to_m1_mapping(h1_timestamps, m1_timestamps)
+
+    # Verify mapping coverage
+    total_mapped = int(np.sum(end_idx - start_idx))
+    coverage_pct = total_mapped / len(m1_df) * 100 if len(m1_df) > 0 else 0
+    logger.info(f"M1 mapping: {total_mapped:,}/{len(m1_df):,} M1 bars mapped ({coverage_pct:.1f}%)")
+
+    return {
+        "m1_high": m1_df["high"].to_numpy(dtype=np.float64),
+        "m1_low": m1_df["low"].to_numpy(dtype=np.float64),
+        "m1_close": m1_df["close"].to_numpy(dtype=np.float64),
+        "m1_spread": m1_df["spread"].to_numpy(dtype=np.float64),
+        "h1_to_m1_start": start_idx,
+        "h1_to_m1_end": end_idx,
     }
 
 
@@ -140,6 +180,16 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
     print(f"  Param space:    {len(strategy.param_space())} parameters")
     print(f"  Preset:         {preset_name} ({opt_config.trials_per_stage} trials/stage)")
 
+    # Build M1 sub-dicts for optimizer if present
+    m1_back = None
+    m1_fwd = None
+    m1_keys = ("m1_high", "m1_low", "m1_close", "m1_spread",
+               "h1_to_m1_start", "h1_to_m1_end")
+    if "m1_high" in data_back:
+        m1_back = {k: data_back[k] for k in m1_keys if k in data_back}
+    if "m1_high" in data_fwd:
+        m1_fwd = {k: data_fwd[k] for k in m1_keys if k in data_fwd}
+
     t0 = time.time()
     opt_result = optimize(
         strategy=strategy,
@@ -154,6 +204,8 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
         slippage_pips=SLIPPAGE_PIPS,
         bar_hour_back=data_back["bar_hour"], bar_day_back=data_back["bar_day_of_week"],
         bar_hour_fwd=data_fwd["bar_hour"], bar_day_fwd=data_fwd["bar_day_of_week"],
+        m1_back=m1_back,
+        m1_fwd=m1_fwd,
     )
     elapsed = time.time() - t0
 
@@ -366,6 +418,11 @@ def run_trade_stats(strategy, data_full, state, pip_value):
     if not active:
         return
 
+    m1_kwargs = {}
+    for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                "h1_to_m1_start", "h1_to_m1_end"):
+        if key in data_full:
+            m1_kwargs[key] = data_full[key]
     engine = BacktestEngine(
         strategy,
         data_full["open"], data_full["high"],
@@ -374,6 +431,7 @@ def run_trade_stats(strategy, data_full, state, pip_value):
         pip_value=pip_value, slippage_pips=SLIPPAGE_PIPS,
         bar_hour=data_full.get("bar_hour"),
         bar_day_of_week=data_full.get("bar_day_of_week"),
+        **m1_kwargs,
     )
 
     print_header("SECTION 7: TRADE STATISTICS")
@@ -568,6 +626,7 @@ def main():
     preset = args.preset
 
     pip_value = PIP_VALUES.get(pair, 0.0001)
+    use_m1 = not getattr(args, 'no_m1', False)
     output_dir = Path(args.output) if args.output else Path(f"./results/{pair.replace('/', '_').lower()}_{timeframe.lower()}")
 
     t_start = time.time()
@@ -584,6 +643,37 @@ def main():
     data_back = df_to_arrays(back_df)
     data_fwd = df_to_arrays(fwd_df)
     data_full = df_to_arrays(df)
+
+    # ---- Load M1 sub-bar data ----
+    if use_m1:
+        h1_timestamps = df.index.astype(np.int64).to_numpy()
+        m1_arrays = load_m1_arrays(pair, h1_timestamps)
+        if m1_arrays is not None:
+            data_full.update(m1_arrays)
+            # Also build M1 mappings for back/fwd splits
+            back_h1_ts = back_df.index.astype(np.int64).to_numpy()
+            fwd_h1_ts = fwd_df.index.astype(np.int64).to_numpy()
+            from backtester.data.timeframes import build_h1_to_m1_mapping
+            m1_ts = pd.read_parquet(
+                DATA_DIR / f"{pair.replace('/', '_')}_M1.parquet"
+            ).index.astype(np.int64).to_numpy()
+            back_start, back_end = build_h1_to_m1_mapping(back_h1_ts, m1_ts)
+            fwd_start, fwd_end = build_h1_to_m1_mapping(fwd_h1_ts, m1_ts)
+            data_back.update({
+                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
+                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
+                "h1_to_m1_start": back_start, "h1_to_m1_end": back_end,
+            })
+            data_fwd.update({
+                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
+                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
+                "h1_to_m1_start": fwd_start, "h1_to_m1_end": fwd_end,
+            })
+            print(f"\n  M1 sub-bar:     ACTIVE ({len(m1_arrays['m1_high']):,} M1 bars)")
+        else:
+            print(f"\n  M1 sub-bar:     DISABLED (M1 data not found)")
+    else:
+        print(f"\n  M1 sub-bar:     DISABLED (--no-m1 flag)")
 
     # ---- Section 2: Optimization ----
     from backtester.strategies.rsi_mean_reversion import RSIMeanReversion

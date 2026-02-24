@@ -273,6 +273,9 @@ def optimize(
     bar_day_back: np.ndarray | None = None,
     bar_hour_fwd: np.ndarray | None = None,
     bar_day_fwd: np.ndarray | None = None,
+    # M1 sub-bar arrays (optional)
+    m1_back: dict[str, np.ndarray] | None = None,
+    m1_fwd: dict[str, np.ndarray] | None = None,
 ) -> OptimizationResult:
     """Run full optimization pipeline.
 
@@ -304,11 +307,18 @@ def optimize(
 
     # --- Stage 1: Build engine and run staged optimization ---
     logger.info("Building back-test engine...")
+    m1_back_kwargs: dict = {}
+    if m1_back is not None:
+        for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                    "h1_to_m1_start", "h1_to_m1_end"):
+            if key in m1_back:
+                m1_back_kwargs[key] = m1_back[key]
     engine_back = BacktestEngine(
         strategy, open_back, high_back, low_back, close_back,
         volume_back, spread_back, pip_value, slippage_pips,
         config.max_trades_per_trial,
         bar_hour=bar_hour_back, bar_day_of_week=bar_day_back,
+        **m1_back_kwargs,
     )
     logger.info(f"Generated {engine_back.n_signals} signals")
 
@@ -330,11 +340,18 @@ def optimize(
         # Build forward engine if data provided
         engine_fwd = None
         if high_fwd is not None:
+            m1_fwd_kwargs: dict = {}
+            if m1_fwd is not None:
+                for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                            "h1_to_m1_start", "h1_to_m1_end"):
+                    if key in m1_fwd:
+                        m1_fwd_kwargs[key] = m1_fwd[key]
             engine_fwd = BacktestEngine(
                 strategy, open_fwd, high_fwd, low_fwd, close_fwd,
                 volume_fwd, spread_fwd, pip_value, slippage_pips,
                 config.max_trades_per_trial,
                 bar_hour=bar_hour_fwd, bar_day_of_week=bar_day_fwd,
+                **m1_fwd_kwargs,
             )
 
         # Try multi-candidate path first

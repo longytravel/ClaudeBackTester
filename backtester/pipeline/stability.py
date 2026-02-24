@@ -152,6 +152,13 @@ def evaluate_stability(
     bar_hour = data_arrays.get("bar_hour")
     bar_day_of_week = data_arrays.get("bar_day_of_week")
 
+    # Pass M1 sub-bar arrays if present
+    m1_kwargs: dict[str, np.ndarray] = {}
+    for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                "h1_to_m1_start", "h1_to_m1_end"):
+        if key in data_arrays:
+            m1_kwargs[key] = data_arrays[key]
+
     engine = BacktestEngine(
         strategy=strategy,
         open_=data_arrays["open"],
@@ -166,6 +173,7 @@ def evaluate_stability(
         max_spread_pips=0.0,
         bar_hour=bar_hour,
         bar_day_of_week=bar_day_of_week,
+        **m1_kwargs,
     )
 
     encoding = build_encoding_spec(strategy.param_space())

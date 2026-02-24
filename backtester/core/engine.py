@@ -133,6 +133,13 @@ class BacktestEngine:
         max_spread_pips: float = DEFAULT_MAX_SPREAD_PIPS,
         bar_hour: np.ndarray | None = None,
         bar_day_of_week: np.ndarray | None = None,
+        # M1 sub-bar arrays (optional — identity fallback when None)
+        m1_high: np.ndarray | None = None,
+        m1_low: np.ndarray | None = None,
+        m1_close: np.ndarray | None = None,
+        m1_spread: np.ndarray | None = None,
+        h1_to_m1_start: np.ndarray | None = None,
+        h1_to_m1_end: np.ndarray | None = None,
     ):
         self.strategy = strategy
         self.high = high
@@ -160,6 +167,24 @@ class BacktestEngine:
             bar_day_of_week if bar_day_of_week is not None
             else np.zeros(n, dtype=np.int64)
         )
+
+        # Sub-bar arrays for M1 trade simulation
+        if m1_high is not None and h1_to_m1_start is not None:
+            # M1 data provided — use it for sub-bar simulation
+            self.sub_high = m1_high
+            self.sub_low = m1_low
+            self.sub_close = m1_close
+            self.sub_spread = m1_spread
+            self.h1_to_sub_start = h1_to_m1_start
+            self.h1_to_sub_end = h1_to_m1_end
+        else:
+            # Identity fallback: each H1 bar maps to itself
+            self.sub_high = high
+            self.sub_low = low
+            self.sub_close = close
+            self.sub_spread = spread
+            self.h1_to_sub_start = np.arange(n, dtype=np.int64)
+            self.h1_to_sub_end = np.arange(n, dtype=np.int64) + 1
 
         # Build encoding spec from strategy's param space
         self.param_space = strategy.param_space()
@@ -270,6 +295,9 @@ class BacktestEngine:
             param_matrix, self.param_layout, exec_mode,
             metrics_out, self.max_trades, self.bars_per_year,
             self.commission_pips, self.max_spread_pips,
+            # Sub-bar arrays for M1 trade simulation
+            self.sub_high, self.sub_low, self.sub_close, self.sub_spread,
+            self.h1_to_sub_start, self.h1_to_sub_end,
         )
 
         return metrics_out

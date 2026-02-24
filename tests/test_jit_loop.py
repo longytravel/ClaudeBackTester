@@ -60,10 +60,70 @@ from backtester.core.jit_loop import (
     PL_TRAIL_ATR_MULT,
     PL_TRAIL_DISTANCE,
     _compute_sl_tp,
-    _simulate_trade_basic,
-    _simulate_trade_full,
-    batch_evaluate,
+    _simulate_trade_basic as _simulate_trade_basic_raw,
+    _simulate_trade_full as _simulate_trade_full_raw,
+    batch_evaluate as _batch_evaluate_raw,
 )
+
+
+# ---------------------------------------------------------------------------
+# Wrappers that add identity sub-bar arrays (tests don't use M1 resolution)
+# ---------------------------------------------------------------------------
+
+def _simulate_trade_basic(direction, entry_bar, entry_price, sl_price, tp_price,
+                          high, low, close, spread_arr, pip_value, slippage_pips,
+                          num_bars, commission_pips):
+    n = num_bars
+    return _simulate_trade_basic_raw(
+        direction, entry_bar, entry_price, sl_price, tp_price,
+        high, low, close, spread_arr, pip_value, slippage_pips, num_bars,
+        commission_pips,
+        high, low, close, spread_arr,
+        np.arange(n, dtype=np.int64),
+        np.arange(n, dtype=np.int64) + 1,
+    )
+
+
+def _simulate_trade_full(direction, entry_bar, entry_price, sl_price, tp_price,
+                         atr_pips, high, low, close, spread_arr, pip_value,
+                         slippage_pips, num_bars, trailing_mode,
+                         trail_activate_pips, trail_distance_pips, trail_atr_mult,
+                         breakeven_enabled, breakeven_trigger_pips,
+                         breakeven_offset_pips, partial_enabled, partial_pct,
+                         partial_trigger_pips, max_bars, stale_enabled,
+                         stale_bars, stale_atr_thresh, commission_pips):
+    n = num_bars
+    return _simulate_trade_full_raw(
+        direction, entry_bar, entry_price, sl_price, tp_price, atr_pips,
+        high, low, close, spread_arr, pip_value, slippage_pips, num_bars,
+        trailing_mode, trail_activate_pips, trail_distance_pips, trail_atr_mult,
+        breakeven_enabled, breakeven_trigger_pips, breakeven_offset_pips,
+        partial_enabled, partial_pct, partial_trigger_pips,
+        max_bars, stale_enabled, stale_bars, stale_atr_thresh,
+        commission_pips,
+        high, low, close, spread_arr,
+        np.arange(n, dtype=np.int64),
+        np.arange(n, dtype=np.int64) + 1,
+    )
+
+
+def batch_evaluate(high, low, close, spread, pip_value, slippage_pips,
+                   sig_bar_index, sig_direction, sig_entry_price, sig_hour,
+                   sig_day, sig_atr_pips, sig_swing_sl, sig_filter_value,
+                   sig_variant, param_matrix, param_layout, exec_mode,
+                   metrics_out, max_trades, bars_per_year, commission_pips,
+                   max_spread_pips):
+    n = len(high)
+    return _batch_evaluate_raw(
+        high, low, close, spread, pip_value, slippage_pips,
+        sig_bar_index, sig_direction, sig_entry_price, sig_hour, sig_day,
+        sig_atr_pips, sig_swing_sl, sig_filter_value, sig_variant,
+        param_matrix, param_layout, exec_mode, metrics_out, max_trades,
+        bars_per_year, commission_pips, max_spread_pips,
+        high, low, close, spread,
+        np.arange(n, dtype=np.int64),
+        np.arange(n, dtype=np.int64) + 1,
+    )
 
 
 # ---------------------------------------------------------------------------

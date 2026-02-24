@@ -223,7 +223,16 @@ class PipelineRunner:
         if self.config.stab_use_forward_data:
             n_bars = len(self.data["close"])
             fwd_start = int(n_bars * 0.8)
-            eval_data = {k: v[fwd_start:] for k, v in self.data.items()}
+            eval_data = {}
+            for k, v in self.data.items():
+                if k.startswith("m1_"):
+                    # M1 arrays are not sliceable by H1 index — keep full
+                    eval_data[k] = v
+                elif k.startswith("h1_to_m1_"):
+                    # Rebase H1→M1 mapping for the forward slice
+                    eval_data[k] = v[fwd_start:]
+                else:
+                    eval_data[k] = v[fwd_start:]
         else:
             eval_data = self.data
 
@@ -250,6 +259,11 @@ class PipelineRunner:
             return
 
         # Build engine on full data for telemetry
+        m1_kwargs: dict = {}
+        for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                    "h1_to_m1_start", "h1_to_m1_end"):
+            if key in self.data:
+                m1_kwargs[key] = self.data[key]
         engine = BacktestEngine(
             self.strategy,
             self.data["open"], self.data["high"],
@@ -258,6 +272,7 @@ class PipelineRunner:
             pip_value=self.pip_value, slippage_pips=self.slippage_pips,
             bar_hour=self.data.get("bar_hour"),
             bar_day_of_week=self.data.get("bar_day_of_week"),
+            **m1_kwargs,
         )
 
         for candidate in active:
