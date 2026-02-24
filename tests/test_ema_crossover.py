@@ -167,7 +167,8 @@ class TestMetadata:
         assert strategy.version == "1.0.0"
 
     def test_optimization_stages(self, strategy):
-        assert strategy.optimization_stages() == ["signal", "time", "risk", "management"]
+        # No time stage: EMA crossover is time-agnostic
+        assert strategy.optimization_stages() == ["signal", "risk", "management"]
 
 
 class TestRegistry:

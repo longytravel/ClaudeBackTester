@@ -65,11 +65,17 @@ class EMACrossover(Strategy):
         ]
         params += risk_params()
         params += management_params()
-        params += time_params()
+        # Fixed time params: EMA crossover is time-agnostic (trend signal).
+        # Optimizing hours cherry-picks 1-2 hours and kills 90%+ of signals.
+        params += [
+            ParamDef("allowed_hours_start", [0], group="time"),
+            ParamDef("allowed_hours_end", [23], group="time"),
+            ParamDef("allowed_days", [[0, 1, 2, 3, 4]], group="time"),
+        ]
         return ParamSpace(params)
 
     def optimization_stages(self) -> list[str]:
-        return ["signal", "time", "risk", "management"]
+        return ["signal", "risk", "management"]
 
     def generate_signals(
         self,
