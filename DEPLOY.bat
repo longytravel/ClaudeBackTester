@@ -25,14 +25,11 @@ IF ERRORLEVEL 1 (
     exit /b 1
 )
 
-REM Check .env exists (needed for MT5 login)
+REM Create .env from example on first deploy
 IF NOT EXIST .env (
     echo.
-    echo ERROR: .env file not found!
-    echo Create .env with MT5_LOGIN, MT5_PASSWORD, MT5_SERVER
-    echo See .env.example for format.
-    pause
-    exit /b 1
+    echo First deploy - creating .env from .env.example...
+    copy .env.example .env
 )
 
 echo.
