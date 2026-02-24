@@ -374,6 +374,14 @@ def _simulate_trade_full(
     trailing_active = False
     realized_pnl_pips = 0.0
 
+    # Deferred SL pattern: modifications apply from NEXT sub-bar
+    # This prevents same-bar trigger+exit (e.g., BE triggers on high then
+    # hits on low within the same M1 bar — we don't know OHLC ordering).
+    pending_sl = -1.0           # -1.0 = no pending update
+    pending_be_locked = False
+    pending_trailing_active = False
+    has_pending_update = False
+
     bars_held = 0
     exit_reason = EXIT_NONE
     exit_bar = num_bars - 1
@@ -423,6 +431,15 @@ def _simulate_trade_full(
             sb_low = sub_low[sb]
             sb_close = sub_close[sb]
 
+            # Apply any pending SL modification from the PREVIOUS sub-bar
+            if has_pending_update:
+                if pending_sl > 0.0:
+                    current_sl = pending_sl
+                be_locked = pending_be_locked
+                trailing_active = pending_trailing_active
+                pending_sl = -1.0
+                has_pending_update = False
+
             # Current floating PnL on this sub-bar
             if is_buy:
                 float_pnl_pips = (sb_high - actual_entry) / pip_value
@@ -431,22 +448,44 @@ def _simulate_trade_full(
                 float_pnl_pips = (actual_entry - sb_low) / pip_value
                 worst_pnl_pips = (actual_entry - sb_high) / pip_value
 
-            # --- Breakeven lock ---
-            if breakeven_enabled > 0 and not be_locked:
+            # --- Breakeven lock (deferred: sets pending, applied next sub-bar) ---
+            if breakeven_enabled > 0 and not be_locked and not pending_be_locked:
                 if float_pnl_pips >= breakeven_trigger_pips:
-                    be_locked = True
                     be_price = actual_entry + breakeven_offset_pips * pip_value if is_buy \
                         else actual_entry - breakeven_offset_pips * pip_value
                     if is_buy and be_price > current_sl:
-                        current_sl = be_price
+                        pending_sl = be_price
+                        pending_be_locked = True
+                        pending_trailing_active = trailing_active
+                        has_pending_update = True
                     elif not is_buy and be_price < current_sl:
-                        current_sl = be_price
+                        pending_sl = be_price
+                        pending_be_locked = True
+                        pending_trailing_active = trailing_active
+                        has_pending_update = True
 
-            # --- Trailing stop ---
+            # --- Trailing stop (deferred: sets pending, applied next sub-bar) ---
             if trailing_mode != TRAIL_OFF:
-                if not trailing_active:
+                if not trailing_active and not pending_trailing_active:
                     if float_pnl_pips >= trail_activate_pips:
-                        trailing_active = True
+                        # Activation + initial trailing SL, both deferred
+                        pending_trailing_active = True
+                        if trailing_mode == TRAIL_FIXED_PIP:
+                            trail_dist = trail_distance_pips * pip_value
+                        else:  # TRAIL_ATR_CHANDELIER
+                            trail_dist = trail_atr_mult * atr_pips * pip_value
+                        if is_buy:
+                            new_sl = sb_high - trail_dist
+                            effective_sl = pending_sl if has_pending_update and pending_sl > 0 else current_sl
+                            if new_sl > effective_sl:
+                                pending_sl = new_sl
+                        else:
+                            new_sl = sb_low + trail_dist
+                            effective_sl = pending_sl if has_pending_update and pending_sl > 0 else current_sl
+                            if new_sl < effective_sl:
+                                pending_sl = new_sl
+                        pending_be_locked = be_locked if not has_pending_update else pending_be_locked
+                        has_pending_update = True
 
                 if trailing_active:
                     if trailing_mode == TRAIL_FIXED_PIP:
@@ -456,14 +495,22 @@ def _simulate_trade_full(
 
                     if is_buy:
                         new_sl = sb_high - trail_dist
-                        if new_sl > current_sl:
-                            current_sl = new_sl
+                        effective_sl = pending_sl if has_pending_update and pending_sl > 0 else current_sl
+                        if new_sl > effective_sl:
+                            pending_sl = new_sl
+                            pending_be_locked = be_locked if not has_pending_update else pending_be_locked
+                            pending_trailing_active = True
+                            has_pending_update = True
                     else:
                         new_sl = sb_low + trail_dist
-                        if new_sl < current_sl:
-                            current_sl = new_sl
+                        effective_sl = pending_sl if has_pending_update and pending_sl > 0 else current_sl
+                        if new_sl < effective_sl:
+                            pending_sl = new_sl
+                            pending_be_locked = be_locked if not has_pending_update else pending_be_locked
+                            pending_trailing_active = True
+                            has_pending_update = True
 
-            # --- Partial close ---
+            # --- Partial close (immediate — uses close price, no ordering ambiguity) ---
             if partial_enabled > 0 and not partial_done:
                 if float_pnl_pips >= partial_trigger_pips:
                     partial_done = True
@@ -475,7 +522,7 @@ def _simulate_trade_full(
                     realized_pnl_pips += partial_pnl
                     position_pct -= close_pct
 
-            # --- Check SL (with possible trailing/BE adjustments) ---
+            # --- Check SL (uses current_sl — reflects PREVIOUS bar's state) ---
             if is_buy:
                 if sb_low <= current_sl:
                     pnl = (current_sl - actual_entry) / pip_value * position_pct
@@ -582,6 +629,8 @@ def _compute_metrics_inline(
         pf = 10.0 if gross_profit > 0 else 0.0
     else:
         pf = gross_profit / gross_loss
+        if pf > 10.0:
+            pf = 10.0
     metrics_row[M_PROFIT_FACTOR] = pf
 
     # Mean and standard deviations
@@ -614,11 +663,13 @@ def _compute_metrics_inline(
     else:
         metrics_row[M_SHARPE] = 0.0
 
-    # Sortino (annualized)
+    # Sortino (annualized) — capped at 10.0 to prevent quality score explosion
+    # when M1 sub-bar produces near-zero losses
     if down_count > 0:
         downside_std = np.sqrt(down_sq_sum / down_count)
         if downside_std > 0:
-            metrics_row[M_SORTINO] = (mean / downside_std) * np.sqrt(ann_factor)
+            raw_sortino = (mean / downside_std) * np.sqrt(ann_factor)
+            metrics_row[M_SORTINO] = min(raw_sortino, 10.0)
         else:
             metrics_row[M_SORTINO] = 0.0
     else:

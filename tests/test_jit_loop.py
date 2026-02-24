@@ -1374,3 +1374,167 @@ class TestNaNSpreadHandling:
             0.0, 3.0,  # max_spread_pips = 3.0
         )
         assert metrics[0, M_TRADES] == 0.0  # NaN spread rejected
+
+
+# ---------------------------------------------------------------------------
+# TestDeferredSLApplication — same-bar trigger+hit doesn't exit immediately
+# ---------------------------------------------------------------------------
+
+class TestDeferredSLApplication:
+    """Verify that BE and trailing SL modifications apply from the NEXT sub-bar,
+    preventing phantom same-bar trigger+exit trades."""
+
+    def test_be_trigger_and_hit_same_bar_no_exit(self):
+        """If BE triggers on high and would hit on low within the SAME bar,
+        the trade should NOT exit — SL modification is deferred."""
+        pip = 0.0001
+        base = 1.1000
+        # Bar 0: entry bar
+        # Bar 1: high goes to +10 pips (triggers BE at 5), low goes to -1 pip
+        #   OLD behavior: BE triggers, moves SL to entry+2pip, then low hits it → exit
+        #   NEW behavior: BE triggers (pending), SL stays at original → no exit from BE
+        # Bar 2: price continues, SL is now at BE level from bar 1
+        high = np.array([base, base + 10 * pip, base + 3 * pip, base + 3 * pip], dtype=np.float64)
+        low = np.array([base, base - 1 * pip, base + 1 * pip, base - 50 * pip], dtype=np.float64)
+        close = np.array([base, base + 5 * pip, base + 2 * pip, base - 50 * pip], dtype=np.float64)
+        spread = np.zeros(4, dtype=np.float64)
+        n = 4
+
+        pnl, exit_reason = _simulate_trade_full(
+            direction=DIR_BUY,
+            entry_bar=0,
+            entry_price=base,
+            sl_price=base - 30 * pip,  # original SL 30 pips below
+            tp_price=base + 60 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=1,
+            breakeven_trigger_pips=5.0,
+            breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        # Bar 1: BE triggers (pending), SL stays at -30 pips, low is -1 → no SL hit
+        # Bar 2: BE applied (SL at +2 pips), low is +1 → no SL hit
+        # Bar 3: SL at +2 pips, low goes to -50 → SL hits at +2 pips
+        assert exit_reason == EXIT_BREAKEVEN
+        expected_pnl = 2.0  # exits at entry + 2 pips offset
+        assert abs(pnl - expected_pnl) < 0.01
+
+    def test_be_deferred_applies_next_bar(self):
+        """After BE triggers in bar N, the SL should be at BE level from bar N+1 onward."""
+        pip = 0.0001
+        base = 1.1000
+        # Bar 0: entry
+        # Bar 1: high = +15 pips (triggers BE at 5 with offset 2)
+        # Bar 2: low = +1 pip (below BE SL of +2) → should exit as BE
+        high = np.array([base, base + 15 * pip, base + 3 * pip], dtype=np.float64)
+        low = np.array([base, base + 2 * pip, base + 1 * pip], dtype=np.float64)
+        close = np.array([base, base + 10 * pip, base + 2 * pip], dtype=np.float64)
+        spread = np.zeros(3, dtype=np.float64)
+        n = 3
+
+        pnl, exit_reason = _simulate_trade_full(
+            direction=DIR_BUY,
+            entry_bar=0,
+            entry_price=base,
+            sl_price=base - 30 * pip,
+            tp_price=base + 60 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=1,
+            breakeven_trigger_pips=5.0,
+            breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        # Bar 1: BE triggers (pending), SL stays at -30 pips
+        # Bar 2: BE applied (SL now +2 pips), low at +1 hits it → EXIT_BREAKEVEN
+        assert exit_reason == EXIT_BREAKEVEN
+        expected_pnl = 2.0
+        assert abs(pnl - expected_pnl) < 0.01
+
+    def test_trailing_deferred_to_next_bar(self):
+        """Trailing stop adjustment in bar N only affects SL from bar N+1."""
+        pip = 0.0001
+        base = 1.1000
+        # Bar 0: entry
+        # Bar 1: high = +20 pips (activates trailing, sets SL to +20-10=+10)
+        #         low = +5 pips → OLD: SL at +10, but with deferral, SL stays at -30
+        # Bar 2: SL now at +10, low at +5 → hits trailing SL
+        high = np.array([base, base + 20 * pip, base + 12 * pip], dtype=np.float64)
+        low = np.array([base, base + 5 * pip, base + 5 * pip], dtype=np.float64)
+        close = np.array([base, base + 15 * pip, base + 8 * pip], dtype=np.float64)
+        spread = np.zeros(3, dtype=np.float64)
+        n = 3
+
+        pnl, exit_reason = _simulate_trade_full(
+            direction=DIR_BUY,
+            entry_bar=0,
+            entry_price=base,
+            sl_price=base - 30 * pip,
+            tp_price=base + 60 * pip,
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_FIXED_PIP,
+            trail_activate_pips=10.0,  # activate at +10 pips
+            trail_distance_pips=10.0,  # trail 10 pips behind high
+            trail_atr_mult=0.0,
+            breakeven_enabled=0,
+            breakeven_trigger_pips=0.0, breakeven_offset_pips=0.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        # Bar 1: trailing activates + sets pending SL to +10 pips (deferred)
+        # Bar 2: SL applied at +10 pips, low at +5 → hits trailing SL
+        assert exit_reason == EXIT_TRAILING
+        expected_pnl = 10.0  # exits at +10 pips (trailing SL)
+        assert abs(pnl - expected_pnl) < 0.01
+
+    def test_sell_be_deferred(self):
+        """Deferred SL works correctly for SELL direction too."""
+        pip = 0.0001
+        base = 1.1000
+        # SELL: profit when price goes down
+        # Bar 0: entry (sell at base)
+        # Bar 1: low = -10 pips (triggers BE), high = +1 pip
+        # Bar 2: high = -1 pip (above BE SL at -2) → should hit BE
+        high = np.array([base, base + 1 * pip, base - 1 * pip], dtype=np.float64)
+        low = np.array([base, base - 10 * pip, base - 3 * pip], dtype=np.float64)
+        close = np.array([base, base - 5 * pip, base - 2 * pip], dtype=np.float64)
+        spread = np.zeros(3, dtype=np.float64)
+        n = 3
+
+        pnl, exit_reason = _simulate_trade_full(
+            direction=DIR_SELL,
+            entry_bar=0,
+            entry_price=base,
+            sl_price=base + 30 * pip,  # SL above for sells
+            tp_price=base - 60 * pip,  # TP below for sells
+            atr_pips=20.0,
+            high=high, low=low, close=close, spread_arr=spread,
+            pip_value=pip, slippage_pips=0.0, num_bars=n,
+            trailing_mode=TRAIL_OFF,
+            trail_activate_pips=0.0, trail_distance_pips=0.0, trail_atr_mult=0.0,
+            breakeven_enabled=1,
+            breakeven_trigger_pips=5.0,
+            breakeven_offset_pips=2.0,
+            partial_enabled=0, partial_pct=0.0, partial_trigger_pips=0.0,
+            max_bars=0, stale_enabled=0, stale_bars=0, stale_atr_thresh=0.0,
+            commission_pips=0.0,
+        )
+        # Bar 1: BE triggers (pending), SL stays at +30
+        # Bar 2: BE applied (SL at -2), high at -1 is above -2 → hits BE
+        assert exit_reason == EXIT_BREAKEVEN
+        expected_pnl = 2.0  # profit of offset_pips for sell
+        assert abs(pnl - expected_pnl) < 0.01
