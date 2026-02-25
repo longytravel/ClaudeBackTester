@@ -34,7 +34,7 @@ from backtester.core.encoding import (
     encode_params,
     indices_to_values,
 )
-from backtester.core.jit_loop import (
+from backtester.core.rust_loop import (
     NUM_PL,
     PL_BREAKEVEN_ENABLED,
     PL_BREAKEVEN_OFFSET,
@@ -222,7 +222,7 @@ class BacktestEngine:
         # Filter PL slots default to -1 (disabled) when strategy doesn't define them.
         # Without this, unmapped filter slots point to column 0 which contains
         # an unrelated param value, causing incorrect signal filtering.
-        from backtester.core.jit_loop import (
+        from backtester.core.rust_loop import (
             PL_BUY_FILTER_MAX,
             PL_SELL_FILTER_MIN,
             PL_SIGNAL_VARIANT,
