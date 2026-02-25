@@ -308,21 +308,6 @@ def optimize(
     eff_commission = commission_pips if commission_pips is not None else DEFAULT_COMMISSION_PIPS
     eff_max_spread = max_spread_pips if max_spread_pips is not None else DEFAULT_MAX_SPREAD_PIPS
 
-    # Dynamic batch size cap: PnL buffer = batch_size * max_trades * 8 bytes.
-    # On Windows, process RSS accumulates during optimizer batches and
-    # isn't returned to OS. Cap PnL buffer to 400MB to leave headroom
-    # for walk-forward validation after optimizer completes.
-    max_pnl_mb = 400
-    pnl_per_trial_mb = config.max_trades_per_trial * 8 / 1e6
-    max_batch = int(max_pnl_mb / pnl_per_trial_mb)
-    if config.batch_size > max_batch:
-        logger.info(
-            f"Reducing batch_size {config.batch_size} -> {max_batch} "
-            f"(PnL buffer would exceed {max_pnl_mb}MB)"
-        )
-        from dataclasses import replace
-        config = replace(config, batch_size=max_batch)
-
     # Memory check
     mem_mb = _estimate_memory_mb(
         len(high_back), 0, config.batch_size,

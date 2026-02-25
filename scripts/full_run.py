@@ -119,6 +119,12 @@ def _run_optimizer_only(args: argparse.Namespace) -> None:
     This isolates the optimizer's memory (Numba NRT pools, signal arrays,
     PnL buffers) in a separate process. When this process exits, the OS
     reclaims ALL memory, preventing segfaults in the subsequent walk-forward.
+
+    NOTE: Forward testing is intentionally skipped here. Creating a second
+    BacktestEngine for forward data causes segfaults on Windows because
+    Numba NRT doesn't release memory from the back-test engine even after
+    gc.collect(). The pipeline's walk-forward validation handles forward
+    testing more rigorously anyway.
     """
     pair = args.pair
     timeframe = args.timeframe
@@ -127,40 +133,33 @@ def _run_optimizer_only(args: argparse.Namespace) -> None:
     use_m1 = not getattr(args, 'no_m1', False)
     output_path = args._optimizer_only
 
-    # Load data
+    # Load back-test data only (no forward data — skip forward test to
+    # avoid second engine creation which causes NRT segfaults)
     df = load_and_check_data(pair, timeframe)
     from backtester.data.splitting import split_backforward
-    back_df, fwd_df = split_backforward(df, back_pct=0.80)
+    back_df, _ = split_backforward(df, back_pct=0.80)
     data_back = df_to_arrays(back_df)
-    data_fwd = df_to_arrays(fwd_df)
 
     if use_m1:
         h1_timestamps = df.index.astype(np.int64).to_numpy()
         m1_arrays = load_m1_arrays(pair, h1_timestamps)
         if m1_arrays is not None:
             back_h1_ts = back_df.index.astype(np.int64).to_numpy()
-            fwd_h1_ts = fwd_df.index.astype(np.int64).to_numpy()
             from backtester.data.timeframes import build_h1_to_m1_mapping
             m1_ts = pd.read_parquet(
                 DATA_DIR / f"{pair.replace('/', '_')}_M1.parquet"
             ).index.astype(np.int64).to_numpy()
             back_start, back_end = build_h1_to_m1_mapping(back_h1_ts, m1_ts)
-            fwd_start, fwd_end = build_h1_to_m1_mapping(fwd_h1_ts, m1_ts)
             data_back.update({
                 "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
                 "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
                 "h1_to_m1_start": back_start, "h1_to_m1_end": back_end,
             })
-            data_fwd.update({
-                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
-                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
-                "h1_to_m1_start": fwd_start, "h1_to_m1_end": fwd_end,
-            })
 
-    # Create strategy and run optimizer
+    # Create strategy and run optimizer (back-test only, no forward engine)
     from backtester.strategies import registry as strat_reg
     strategy = strat_reg.create(args.strategy)
-    opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
+    opt_result = run_optimization_backonly(strategy, data_back, preset, pip_value)
 
     # Serialize result to JSON
     result_data = {
@@ -277,6 +276,52 @@ def load_and_check_data(pair: str, timeframe: str) -> pd.DataFrame:
 # ============================================================
 # Section 2: Optimization
 # ============================================================
+def run_optimization_backonly(strategy, data_back, preset_name, pip_value):
+    """Optimizer with back-test only (no forward engine creation).
+
+    Used in subprocess mode to avoid Numba NRT segfaults from creating
+    two engines sequentially. Forward testing is handled by the pipeline.
+    """
+    from backtester.optimizer.config import get_preset
+    from backtester.optimizer.run import optimize
+
+    opt_config = get_preset(preset_name)
+
+    print_header("SECTION 2: OPTIMIZATION")
+    print(f"  Strategy:       {strategy.name} v{strategy.version}")
+    print(f"  Param space:    {len(strategy.param_space())} parameters")
+    print(f"  Preset:         {preset_name} ({opt_config.trials_per_stage} trials/stage)")
+
+    m1_back = None
+    m1_keys = ("m1_high", "m1_low", "m1_close", "m1_spread",
+               "h1_to_m1_start", "h1_to_m1_end")
+    if "m1_high" in data_back:
+        m1_back = {k: data_back[k] for k in m1_keys if k in data_back}
+
+    t0 = time.time()
+    opt_result = optimize(
+        strategy=strategy,
+        open_back=data_back["open"], high_back=data_back["high"],
+        low_back=data_back["low"], close_back=data_back["close"],
+        volume_back=data_back["volume"], spread_back=data_back["spread"],
+        config=opt_config,
+        pip_value=pip_value,
+        slippage_pips=SLIPPAGE_PIPS,
+        bar_hour_back=data_back["bar_hour"], bar_day_back=data_back["bar_day_of_week"],
+        m1_back=m1_back,
+        commission_pips=COMMISSION_PIPS,
+        max_spread_pips=MAX_SPREAD_PIPS,
+    )
+    elapsed = time.time() - t0
+
+    print(f"\n  Trials:         {opt_result.total_trials:,}")
+    print(f"  Time:           {elapsed:.1f}s")
+    print(f"  Throughput:     {opt_result.evals_per_second:,.0f} evals/sec")
+    print(f"  Candidates:     {len(opt_result.candidates)}")
+
+    return opt_result
+
+
 def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
     from backtester.optimizer.config import get_preset
     from backtester.optimizer.run import optimize
