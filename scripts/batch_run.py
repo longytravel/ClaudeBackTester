@@ -99,7 +99,7 @@ def main():
         output_dir = Path("results") / run_name
         log_file = output_dir / "run.log"
 
-        print(f"\n{'─' * 70}")
+        print(f"\n{'-' * 70}")
         print(f"[{idx}/{n_total}] {strategy} × {pair} × {timeframe}")
         print(f"  Output: {output_dir}")
 
