@@ -135,6 +135,7 @@ def _run_optimizer_only(args: argparse.Namespace) -> None:
     timeframe = args.timeframe
     preset = args.preset
     pip_value = PIP_VALUES.get(pair, 0.0001)
+    use_m1 = not getattr(args, 'no_m1', False)
     output_path = args._optimizer_only
 
     # Load back-test data only (no forward data — skip forward test to
@@ -144,11 +145,26 @@ def _run_optimizer_only(args: argparse.Namespace) -> None:
     back_df, _ = split_backforward(df, back_pct=0.80)
     data_back = df_to_arrays(back_df)
 
-    # M1 sub-bar data intentionally skipped in optimizer subprocess.
-    # The optimizer evaluates millions of parameter combinations — sub-pip
-    # accuracy from M1 intra-bar simulation doesn't matter for parameter
-    # selection. Bar-level EXEC_FULL simulation is sufficient.
-    # M1 is loaded fresh in the pipeline subprocess for accurate validation.
+    if use_m1:
+        h1_timestamps = df.index.astype(np.int64).to_numpy()
+        m1_arrays = load_m1_arrays(pair, h1_timestamps)
+        if m1_arrays is not None:
+            back_h1_ts = back_df.index.astype(np.int64).to_numpy()
+            from backtester.data.timeframes import build_h1_to_m1_mapping
+            m1_ts = pd.read_parquet(
+                DATA_DIR / f"{pair.replace('/', '_')}_M1.parquet"
+            ).index.astype(np.int64).to_numpy()
+            back_start, back_end = build_h1_to_m1_mapping(back_h1_ts, m1_ts)
+            data_back.update({
+                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
+                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
+                "h1_to_m1_start": back_start, "h1_to_m1_end": back_end,
+            })
+            logger.info(f"Optimizer using M1 sub-bar simulation ({len(m1_arrays['m1_high']):,} M1 bars)")
+        else:
+            logger.info("Optimizer using bar-level simulation (M1 data not found)")
+    else:
+        logger.info("Optimizer using bar-level simulation (--no-m1 flag)")
 
     # Create strategy and run optimizer (back-test only, no forward engine)
     from backtester.strategies import registry as strat_reg
@@ -972,12 +988,23 @@ def main():
         "--preset", preset,
         "--_optimizer_only", str(opt_result_path),
     ]
-    # Note: --no-m1 intentionally NOT passed to optimizer subprocess.
-    # Optimizer always skips M1 (bar-level simulation is sufficient for
-    # parameter selection). M1 is only loaded in the pipeline subprocess.
+    if not use_m1:
+        cmd.append("--no-m1")
 
     logger.info("Starting optimizer subprocess (memory-isolated)...")
     proc = subprocess.run(cmd)
+
+    # Windows segfault = exit code 3221225477 (0xC0000005 ACCESS_VIOLATION)
+    # If M1 was active and caused OOM/segfault, retry without M1.
+    WINDOWS_SEGFAULT = 3221225477
+    if proc.returncode != 0 and use_m1 and proc.returncode in (WINDOWS_SEGFAULT, -11, 139):
+        logger.warning(
+            f"Optimizer segfaulted with M1 active (exit {proc.returncode}). "
+            f"Retrying without M1 sub-bar data..."
+        )
+        cmd.append("--no-m1")
+        proc = subprocess.run(cmd)
+
     if proc.returncode != 0:
         logger.error(f"Optimizer subprocess failed with exit code {proc.returncode}")
         sys.exit(1)
