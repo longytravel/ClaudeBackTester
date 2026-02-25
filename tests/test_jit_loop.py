@@ -114,6 +114,8 @@ def batch_evaluate(high, low, close, spread, pip_value, slippage_pips,
                    metrics_out, max_trades, bars_per_year, commission_pips,
                    max_spread_pips):
     n = len(high)
+    n_trials = param_matrix.shape[0]
+    pnl_buffers = np.empty((n_trials, max_trades), dtype=np.float64)
     return _batch_evaluate_raw(
         high, low, close, spread, pip_value, slippage_pips,
         sig_bar_index, sig_direction, sig_entry_price, sig_hour, sig_day,
@@ -123,6 +125,7 @@ def batch_evaluate(high, low, close, spread, pip_value, slippage_pips,
         high, low, close, spread,
         np.arange(n, dtype=np.int64),
         np.arange(n, dtype=np.int64) + 1,
+        pnl_buffers,
     )
 
 

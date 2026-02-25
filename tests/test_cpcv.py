@@ -320,16 +320,19 @@ class TestEvaluateCandidateOnFold:
         blocks = generate_blocks(2000, 5)
         config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
+        from backtester.pipeline.walk_forward import build_engine
+        engine = build_engine(strategy, data, config)
         params = _cpcv_default_params()
 
         result = evaluate_candidate_on_fold(
-            strategy, params, data,
+            engine=engine,
+            params_dict=params,
             blocks=blocks,
             test_indices=(2,),
             train_indices=(0, 1, 3, 4),
-            lookback_prefix=100,
             config=config,
             fold_index=0,
+            n_bars=2000,
         )
 
         assert isinstance(result, CPCVFoldResult)
@@ -344,16 +347,19 @@ class TestEvaluateCandidateOnFold:
         blocks = generate_blocks(2000, 5)
         config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
+        from backtester.pipeline.walk_forward import build_engine
+        engine = build_engine(strategy, data, config)
         params = _cpcv_default_params()
 
         result = evaluate_candidate_on_fold(
-            strategy, params, data,
+            engine=engine,
+            params_dict=params,
             blocks=blocks,
             test_indices=(1, 3),
             train_indices=(0, 2, 4),
-            lookback_prefix=100,
             config=config,
             fold_index=5,
+            n_bars=2000,
         )
 
         assert result.fold_index == 5

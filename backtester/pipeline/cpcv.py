@@ -4,6 +4,9 @@ Divides data into N blocks, picks k blocks for testing in all C(N,k)
 combinations. Each split purges training bars near test boundaries and
 applies embargo. Produces a distribution of OOS Sharpe ratios.
 
+Uses a SINGLE BacktestEngine on the full dataset with windowed evaluation
+to avoid memory issues from creating hundreds of engine instances.
+
 Reference: Bailey, Borwein, Lopez de Prado & Zhu (2017).
 """
 
@@ -17,8 +20,15 @@ from typing import Any
 
 import numpy as np
 
+from backtester.core.dtypes import EXEC_FULL
+from backtester.core.encoding import encode_params
+from backtester.core.engine import BacktestEngine
 from backtester.pipeline.config import PipelineConfig
 from backtester.pipeline.types import CPCVFoldResult, CPCVResult
+from backtester.pipeline.walk_forward import (
+    _metrics_row_to_window_result,
+    build_engine,
+)
 from backtester.strategies.base import Strategy
 
 logger = logging.getLogger(__name__)
@@ -144,32 +154,29 @@ def build_fold_masks(
 
 
 def evaluate_candidate_on_fold(
-    strategy: Strategy,
+    engine: BacktestEngine,
     params_dict: dict[str, Any],
-    data_arrays: dict[str, np.ndarray],
     blocks: list[tuple[int, int]],
     test_indices: tuple[int, ...],
-    lookback_prefix: int,
     config: PipelineConfig,
     fold_index: int = 0,
     train_indices: tuple[int, ...] = (),
-    pip_value: float = 0.0001,
-    slippage_pips: float = 0.5,
+    n_bars: int = 0,
 ) -> CPCVFoldResult:
-    """Evaluate one candidate on one CPCV fold.
+    """Evaluate one candidate on one CPCV fold using windowed evaluation.
 
-    Evaluates each test block independently using
-    evaluate_candidate_on_window, then aggregates metrics.
+    Uses the pre-built engine's evaluate_batch_windowed() for each test
+    block, avoiding per-block engine creation.
     """
-    from backtester.pipeline.walk_forward import evaluate_candidate_on_window
-
-    n_bars = len(data_arrays["close"])
-
     # Build masks for purge/embargo stats
     _, _, n_purged = build_fold_masks(
         blocks, train_indices, test_indices,
         n_bars, config.cpcv_purge_bars, config.cpcv_embargo_bars,
     )
+
+    # Encode params
+    param_row = encode_params(engine.encoding, params_dict)
+    param_matrix = param_row.reshape(1, -1)
 
     # Evaluate each test block as a separate window
     all_sharpes: list[float] = []
@@ -178,23 +185,18 @@ def evaluate_candidate_on_fold(
 
     for ti in test_indices:
         block_start, block_end = blocks[ti]
-
-        wr = evaluate_candidate_on_window(
-            strategy=strategy,
-            params_dict=params_dict,
-            data_arrays=data_arrays,
-            window_start=block_start,
-            window_end=block_end,
-            lookback_prefix=lookback_prefix,
-            config=config,
-            window_index=fold_index,
-            is_oos=True,
-            pip_value=pip_value,
-            slippage_pips=slippage_pips,
+        metrics = engine.evaluate_batch_windowed(
+            param_matrix, block_start, block_end, exec_mode=EXEC_FULL,
         )
-        all_sharpes.append(wr.sharpe)
-        all_qualities.append(wr.quality_score)
-        total_trades += wr.n_trades
+        row = metrics[0]
+
+        sharpe = float(row[3])    # M_SHARPE
+        quality = float(row[9])   # M_QUALITY
+        n_trades = int(row[0])    # M_TRADES
+
+        all_sharpes.append(sharpe)
+        all_qualities.append(quality)
+        total_trades += n_trades
 
     # Aggregate across test blocks in this fold
     if all_sharpes:
@@ -222,8 +224,12 @@ def cpcv_validate(
     config: PipelineConfig,
     pip_value: float = 0.0001,
     slippage_pips: float = 0.5,
+    engine: BacktestEngine | None = None,
 ) -> list[CPCVResult]:
     """Run CPCV validation for a list of candidates.
+
+    Creates ONE BacktestEngine on the full dataset, then evaluates each
+    fold's test blocks using windowed evaluation.
 
     Args:
         strategy: Strategy instance.
@@ -265,6 +271,11 @@ def cpcv_validate(
         f"block sizes {min_block_size}-{max(e - s for s, e in blocks)} bars"
     )
 
+    # Use provided engine or create one
+    if engine is None:
+        engine = build_engine(strategy, data_arrays, config, pip_value, slippage_pips)
+    logger.info("CPCV engine: %d signals on %d bars", engine.n_signals, engine.n_bars)
+
     results: list[CPCVResult] = []
 
     for cand_idx, params_dict in enumerate(candidates):
@@ -272,24 +283,16 @@ def cpcv_validate(
 
         for fold_idx, (train_idxs, test_idxs) in enumerate(folds):
             fr = evaluate_candidate_on_fold(
-                strategy=strategy,
+                engine=engine,
                 params_dict=params_dict,
-                data_arrays=data_arrays,
                 blocks=blocks,
                 test_indices=test_idxs,
-                lookback_prefix=config.wf_lookback_prefix,
                 config=config,
                 fold_index=fold_idx,
                 train_indices=train_idxs,
-                pip_value=pip_value,
-                slippage_pips=slippage_pips,
+                n_bars=n_bars,
             )
             fold_results.append(fr)
-            if (fold_idx + 1) % 10 == 0:
-                gc.collect()
-
-        # Final cleanup after all folds for this candidate
-        gc.collect()
 
         # Compute distribution statistics
         sharpes = np.array([f.sharpe for f in fold_results])

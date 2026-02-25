@@ -17,6 +17,9 @@ class PipelineConfig:
     commission_pips: float = 0.7    # IC Markets Raw, ~$7/lot RT ≈ 0.7 pips EUR/USD
     max_spread_pips: float = 3.0    # Reject signals with spread > 3 pips
 
+    # --- Bars per year (set from timeframe for correct Sharpe annualization) ---
+    bars_per_year: float = 6048.0   # Default H1; override for other timeframes
+
     # --- General ---
     output_dir: str = "pipeline_output"
     n_candidates: int = 20  # Number of candidates to validate from optimizer
@@ -27,6 +30,7 @@ class PipelineConfig:
     wf_embargo_bars: int = 168  # 1 week of H1 bars between train/test
     wf_anchored: bool = False   # Rolling (False) vs anchored (True) windows
     wf_lookback_prefix: int = 200  # Extra bars before test window for indicator warmup
+    wf_max_trades_per_trial: int = 5_000  # Walk-forward window: fewer bars → fewer trades
     wf_min_trades_per_window: int = 10
     wf_pass_rate_gate: float = 0.6      # Hard gate: >= 60% windows must pass
     wf_mean_sharpe_gate: float = 0.3    # Hard gate: mean OOS Sharpe >= 0.3

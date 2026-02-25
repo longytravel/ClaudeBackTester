@@ -1,12 +1,13 @@
 """Walk-forward validation for the validation pipeline (Stage 3).
 
 Evaluates strategy candidates on rolling/anchored out-of-sample windows.
-Each window creates a new BacktestEngine because signal generation
-(indicators like RSI, ATR) depends on lookback from that window's data.
+Uses a SINGLE BacktestEngine on the full dataset with windowed evaluation
+to avoid memory issues from creating hundreds of engine instances.
 
 Functions:
     generate_windows   - Create rolling or anchored window boundaries
     label_windows      - Label windows as in-sample or out-of-sample
+    build_engine       - Create a BacktestEngine from data_arrays dict
     evaluate_candidate_on_window - Evaluate one candidate on one window
     walk_forward_validate - Full walk-forward validation for candidate list
 """
@@ -103,104 +104,53 @@ def label_windows(
     return labels
 
 
-def evaluate_candidate_on_window(
+def build_engine(
     strategy: Strategy,
-    params_dict: dict[str, Any],
     data_arrays: dict[str, np.ndarray],
-    window_start: int,
-    window_end: int,
-    lookback_prefix: int,
     config: PipelineConfig,
-    window_index: int = 0,
-    is_oos: bool = True,
     pip_value: float = 0.0001,
     slippage_pips: float = 0.5,
-) -> WindowResult:
-    """Evaluate one candidate on one walk-forward window.
+) -> BacktestEngine:
+    """Create a BacktestEngine from a data_arrays dict.
 
-    Creates a new BacktestEngine on the window slice (with lookback prefix
-    for indicator warmup), encodes params, evaluates, and returns metrics.
-
-    Args:
-        strategy: Strategy instance.
-        params_dict: Parameter dictionary for the candidate.
-        data_arrays: Dict with keys: open, high, low, close, volume, spread,
-                     bar_hour, bar_day_of_week. All full-length numpy arrays.
-        window_start: Start bar of the test window (inclusive).
-        window_end: End bar of the test window (exclusive).
-        lookback_prefix: Number of extra bars before window_start for warmup.
-        config: Pipeline configuration.
-        window_index: Index of this window (for result tracking).
-        is_oos: Whether this window is out-of-sample.
-
-    Returns:
-        WindowResult with metrics from this window evaluation.
+    Shared helper for walk-forward, CPCV, and other pipeline stages
+    that need to build an engine on the full dataset.
     """
-    # Compute slice boundaries with lookback prefix
-    slice_start = max(0, window_start - lookback_prefix)
-    slice_end = window_end
-
-    # Slice all data arrays
-    open_s = data_arrays["open"][slice_start:slice_end]
-    high_s = data_arrays["high"][slice_start:slice_end]
-    low_s = data_arrays["low"][slice_start:slice_end]
-    close_s = data_arrays["close"][slice_start:slice_end]
-    volume_s = data_arrays["volume"][slice_start:slice_end]
-    spread_s = data_arrays["spread"][slice_start:slice_end]
-
-    # Optional time arrays
-    bar_hour_s = None
-    bar_dow_s = None
-    if data_arrays.get("bar_hour") is not None:
-        bar_hour_s = data_arrays["bar_hour"][slice_start:slice_end]
-    if data_arrays.get("bar_day_of_week") is not None:
-        bar_dow_s = data_arrays["bar_day_of_week"][slice_start:slice_end]
-
-    # Slice + rebase M1 sub-bar arrays if present
     m1_kwargs: dict[str, np.ndarray] = {}
-    if "m1_high" in data_arrays and data_arrays.get("h1_to_m1_start") is not None:
-        h1_starts = data_arrays["h1_to_m1_start"]
-        h1_ends = data_arrays["h1_to_m1_end"]
-        # Find M1 range corresponding to H1 slice
-        m1_start = int(h1_starts[slice_start])
-        m1_end = int(h1_ends[slice_end - 1]) if slice_end > slice_start else m1_start
-        m1_kwargs["m1_high"] = data_arrays["m1_high"][m1_start:m1_end]
-        m1_kwargs["m1_low"] = data_arrays["m1_low"][m1_start:m1_end]
-        m1_kwargs["m1_close"] = data_arrays["m1_close"][m1_start:m1_end]
-        m1_kwargs["m1_spread"] = data_arrays["m1_spread"][m1_start:m1_end]
-        # Rebase mapping: subtract m1_start from all indices
-        m1_kwargs["h1_to_m1_start"] = h1_starts[slice_start:slice_end] - m1_start
-        m1_kwargs["h1_to_m1_end"] = h1_ends[slice_start:slice_end] - m1_start
+    for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                "h1_to_m1_start", "h1_to_m1_end"):
+        if key in data_arrays and data_arrays[key] is not None:
+            m1_kwargs[key] = data_arrays[key]
 
-    # Create a fresh BacktestEngine on the sliced data
-    engine = BacktestEngine(
+    return BacktestEngine(
         strategy=strategy,
-        open_=open_s,
-        high=high_s,
-        low=low_s,
-        close=close_s,
-        volume=volume_s,
-        spread=spread_s,
+        open_=data_arrays["open"],
+        high=data_arrays["high"],
+        low=data_arrays["low"],
+        close=data_arrays["close"],
+        volume=data_arrays["volume"],
+        spread=data_arrays["spread"],
         pip_value=pip_value,
         slippage_pips=slippage_pips,
+        max_trades_per_trial=config.wf_max_trades_per_trial,
+        bars_per_year=config.bars_per_year,
         commission_pips=config.commission_pips,
         max_spread_pips=config.max_spread_pips,
-        bar_hour=bar_hour_s,
-        bar_day_of_week=bar_dow_s,
+        bar_hour=data_arrays.get("bar_hour"),
+        bar_day_of_week=data_arrays.get("bar_day_of_week"),
         **m1_kwargs,
     )
 
-    # Encode params and evaluate
-    encoding = build_encoding_spec(strategy.param_space())
-    param_row = encode_params(encoding, params_dict)
-    param_matrix = param_row.reshape(1, -1)
 
-    metrics = engine.evaluate_batch(param_matrix, exec_mode=EXEC_FULL)
-    row = metrics[0].copy()  # copy before engine cleanup
-
-    # Eagerly free engine and its large arrays (signals, M1 sub-bars)
-    del engine
-
+def _metrics_row_to_window_result(
+    row: np.ndarray,
+    window_start: int,
+    window_end: int,
+    window_index: int,
+    is_oos: bool,
+    min_trades: int,
+) -> WindowResult:
+    """Extract metrics from a JIT output row and build a WindowResult."""
     n_trades = int(row[M_TRADES])
     sharpe = float(row[M_SHARPE])
     quality = float(row[M_QUALITY])
@@ -208,9 +158,8 @@ def evaluate_candidate_on_window(
     max_dd_pct = float(row[M_MAX_DD_PCT])
     return_pct = float(row[M_RETURN_PCT])
 
-    # A window passes if: enough trades AND positive sharpe AND positive quality
     passed = (
-        n_trades >= config.wf_min_trades_per_window
+        n_trades >= min_trades
         and sharpe > 0
         and quality > 0
     )
@@ -230,6 +179,117 @@ def evaluate_candidate_on_window(
     )
 
 
+def evaluate_candidate_on_window(
+    strategy: Strategy,
+    params_dict: dict[str, Any],
+    data_arrays: dict[str, np.ndarray],
+    window_start: int,
+    window_end: int,
+    lookback_prefix: int,
+    config: PipelineConfig,
+    window_index: int = 0,
+    is_oos: bool = True,
+    pip_value: float = 0.0001,
+    slippage_pips: float = 0.5,
+    engine: BacktestEngine | None = None,
+) -> WindowResult:
+    """Evaluate one candidate on one walk-forward window.
+
+    When engine is provided, uses windowed evaluation on the pre-built engine
+    (no engine creation — memory efficient). When engine is None, falls back
+    to creating a per-window engine (legacy behavior for tests).
+
+    Args:
+        strategy: Strategy instance.
+        params_dict: Parameter dictionary for the candidate.
+        data_arrays: Dict with keys: open, high, low, close, volume, spread,
+                     bar_hour, bar_day_of_week. All full-length numpy arrays.
+        window_start: Start bar of the test window (inclusive).
+        window_end: End bar of the test window (exclusive).
+        lookback_prefix: Number of extra bars before window_start for warmup.
+        config: Pipeline configuration.
+        window_index: Index of this window (for result tracking).
+        is_oos: Whether this window is out-of-sample.
+        pip_value: Pip value for the instrument.
+        slippage_pips: Slippage in pips.
+        engine: Pre-built BacktestEngine on full data. When provided,
+                uses evaluate_batch_windowed() instead of creating a new engine.
+
+    Returns:
+        WindowResult with metrics from this window evaluation.
+    """
+    if engine is not None:
+        # Fast path: use pre-built engine with windowed evaluation
+        encoding = engine.encoding
+        param_row = encode_params(encoding, params_dict)
+        param_matrix = param_row.reshape(1, -1)
+        metrics = engine.evaluate_batch_windowed(
+            param_matrix, window_start, window_end, exec_mode=EXEC_FULL,
+        )
+        row = metrics[0]
+    else:
+        # Legacy path: create per-window engine (for backwards compatibility)
+        slice_start = max(0, window_start - lookback_prefix)
+        slice_end = window_end
+
+        open_s = data_arrays["open"][slice_start:slice_end]
+        high_s = data_arrays["high"][slice_start:slice_end]
+        low_s = data_arrays["low"][slice_start:slice_end]
+        close_s = data_arrays["close"][slice_start:slice_end]
+        volume_s = data_arrays["volume"][slice_start:slice_end]
+        spread_s = data_arrays["spread"][slice_start:slice_end]
+
+        bar_hour_s = None
+        bar_dow_s = None
+        if data_arrays.get("bar_hour") is not None:
+            bar_hour_s = data_arrays["bar_hour"][slice_start:slice_end]
+        if data_arrays.get("bar_day_of_week") is not None:
+            bar_dow_s = data_arrays["bar_day_of_week"][slice_start:slice_end]
+
+        m1_kwargs: dict[str, np.ndarray] = {}
+        if "m1_high" in data_arrays and data_arrays.get("h1_to_m1_start") is not None:
+            h1_starts = data_arrays["h1_to_m1_start"]
+            h1_ends = data_arrays["h1_to_m1_end"]
+            m1_start = int(h1_starts[slice_start])
+            m1_end = int(h1_ends[slice_end - 1]) if slice_end > slice_start else m1_start
+            m1_kwargs["m1_high"] = data_arrays["m1_high"][m1_start:m1_end]
+            m1_kwargs["m1_low"] = data_arrays["m1_low"][m1_start:m1_end]
+            m1_kwargs["m1_close"] = data_arrays["m1_close"][m1_start:m1_end]
+            m1_kwargs["m1_spread"] = data_arrays["m1_spread"][m1_start:m1_end]
+            m1_kwargs["h1_to_m1_start"] = h1_starts[slice_start:slice_end] - m1_start
+            m1_kwargs["h1_to_m1_end"] = h1_ends[slice_start:slice_end] - m1_start
+
+        per_window_engine = BacktestEngine(
+            strategy=strategy,
+            open_=open_s,
+            high=high_s,
+            low=low_s,
+            close=close_s,
+            volume=volume_s,
+            spread=spread_s,
+            pip_value=pip_value,
+            slippage_pips=slippage_pips,
+            max_trades_per_trial=config.wf_max_trades_per_trial,
+            commission_pips=config.commission_pips,
+            max_spread_pips=config.max_spread_pips,
+            bar_hour=bar_hour_s,
+            bar_day_of_week=bar_dow_s,
+            **m1_kwargs,
+        )
+
+        encoding = build_encoding_spec(strategy.param_space())
+        param_row = encode_params(encoding, params_dict)
+        param_matrix = param_row.reshape(1, -1)
+        metrics = per_window_engine.evaluate_batch(param_matrix, exec_mode=EXEC_FULL)
+        row = metrics[0].copy()
+        del per_window_engine
+
+    return _metrics_row_to_window_result(
+        row, window_start, window_end, window_index, is_oos,
+        config.wf_min_trades_per_window,
+    )
+
+
 def walk_forward_validate(
     strategy: Strategy,
     candidates: list[dict[str, Any]],
@@ -239,12 +299,14 @@ def walk_forward_validate(
     config: PipelineConfig | None = None,
     pip_value: float = 0.0001,
     slippage_pips: float = 0.5,
+    engine: BacktestEngine | None = None,
 ) -> list[WalkForwardResult]:
     """Run full walk-forward validation for a list of candidates.
 
-    Generates windows from the full data range, labels them IS/OOS,
-    evaluates each candidate on all OOS windows, and computes aggregate
-    statistics with pass/fail gates.
+    Creates ONE BacktestEngine on the full dataset, then evaluates each
+    candidate on each window using windowed evaluation (signal filtering +
+    data slicing). This avoids creating hundreds of engine instances which
+    caused segfaults on large datasets (M15+).
 
     Args:
         strategy: Strategy instance.
@@ -295,58 +357,42 @@ def walk_forward_validate(
             passed_gate=False,
         ) for _ in candidates]
 
+    # Use provided engine or create one — signals generated once
+    if engine is None:
+        engine = build_engine(strategy, data_arrays, config, pip_value, slippage_pips)
+    logger.info("Walk-forward engine: %d signals on %d bars", engine.n_signals, engine.n_bars)
+
     results: list[WalkForwardResult] = []
 
     for cand_idx, params_dict in enumerate(candidates):
+        # Encode params ONCE per candidate
+        param_row = encode_params(engine.encoding, params_dict)
+        param_matrix = param_row.reshape(1, -1)
+
         window_results: list[WindowResult] = []
 
         # Evaluate on OOS windows
         for i, (win_idx, (w_start, w_end)) in enumerate(oos_windows):
-            logger.debug(
-                "OOS window %d/%d [%d:%d]", i + 1, len(oos_windows), w_start, w_end,
+            metrics = engine.evaluate_batch_windowed(
+                param_matrix, w_start, w_end, exec_mode=EXEC_FULL,
             )
-            wr = evaluate_candidate_on_window(
-                strategy=strategy,
-                params_dict=params_dict,
-                data_arrays=data_arrays,
-                window_start=w_start,
-                window_end=w_end,
-                lookback_prefix=config.wf_lookback_prefix,
-                config=config,
-                window_index=win_idx,
-                is_oos=True,
-                pip_value=pip_value,
-                slippage_pips=slippage_pips,
+            wr = _metrics_row_to_window_result(
+                metrics[0], w_start, w_end, win_idx, True,
+                config.wf_min_trades_per_window,
             )
             window_results.append(wr)
-            if (i + 1) % 5 == 0:
-                gc.collect()
 
         # Also evaluate on IS windows (needed for WFE calculation)
         is_results: list[WindowResult] = []
         for i, (win_idx, (w_start, w_end)) in enumerate(is_windows):
-            logger.debug(
-                "IS window %d/%d [%d:%d]", i + 1, len(is_windows), w_start, w_end,
+            metrics = engine.evaluate_batch_windowed(
+                param_matrix, w_start, w_end, exec_mode=EXEC_FULL,
             )
-            wr = evaluate_candidate_on_window(
-                strategy=strategy,
-                params_dict=params_dict,
-                data_arrays=data_arrays,
-                window_start=w_start,
-                window_end=w_end,
-                lookback_prefix=config.wf_lookback_prefix,
-                config=config,
-                window_index=win_idx,
-                is_oos=False,
-                pip_value=pip_value,
-                slippage_pips=slippage_pips,
+            wr = _metrics_row_to_window_result(
+                metrics[0], w_start, w_end, win_idx, False,
+                config.wf_min_trades_per_window,
             )
             is_results.append(wr)
-            if (i + 1) % 5 == 0:
-                gc.collect()
-
-        # Final cleanup after all windows for this candidate
-        gc.collect()
 
         # Compute aggregate OOS stats
         n_oos = len(window_results)
@@ -361,7 +407,6 @@ def walk_forward_validate(
         # Geometric mean of quality scores from passed OOS windows
         passed_qualities = [wr.quality_score for wr in window_results if wr.passed]
         if passed_qualities and all(q > 0 for q in passed_qualities):
-            # Use log-sum-exp for numerical stability
             log_sum = sum(math.log(q) for q in passed_qualities)
             geo_mean_quality = math.exp(log_sum / len(passed_qualities))
         else:

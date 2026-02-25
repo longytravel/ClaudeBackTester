@@ -23,11 +23,11 @@ for s in registry.list_strategies():
 ```
 
 ### 0b. Ask user for missing arguments
-Use AskUserQuestion to gather anything not provided in $ARGUMENTS. Ask up to 4 questions at once:
+Use AskUserQuestion to gather anything not provided in $ARGUMENTS. **ALWAYS ask all 4 questions in a single AskUserQuestion call** (the tool supports up to 4 questions at once):
 
 1. **Strategy** — which strategy to test (from registry list)
 2. **Pair** — EUR/USD, GBP/USD, USD/JPY, XAU/USD (check what data exists in `G:/My Drive/BackTestData`)
-3. **Timeframe** — H1, H4, D, M15, M30
+3. **Timeframe** — H1, H4, M30, M15, D (always ask — never assume H1)
 4. **Preset** — How thorough:
    - turbo (50K/stage, ~1 min) — quick sanity check
    - standard (200K/stage, ~2 min) — normal run

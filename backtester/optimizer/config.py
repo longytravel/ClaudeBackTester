@@ -38,7 +38,11 @@ class OptimizationConfig:
     dsr_threshold: float = 0.95   # DSR must exceed this to be "significant"
 
     # --- Execution ---
-    max_trades_per_trial: int = 50000
+    # PnL buffer = batch_size × max_trades × 8 bytes. At batch_size=4096:
+    #   50K → 1.6GB (segfaults on Windows), 25K → 781MB (safe).
+    # 25K trades covers M15 over 16 years (~3 trades/day).
+    # The batch_size cap in run.py further guards against extreme cases.
+    max_trades_per_trial: int = 25_000
     seed: int | None = None
 
 

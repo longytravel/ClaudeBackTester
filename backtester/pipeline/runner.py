@@ -12,6 +12,7 @@ Stages:
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import os
@@ -111,6 +112,15 @@ class PipelineRunner:
                 for i, p in enumerate(candidates)
             ]
 
+        # Create ONE shared engine for all stages that need evaluation.
+        # Creating multiple BacktestEngine instances accumulates Numba NRT
+        # memory that Windows never returns to the OS, causing ACCESS_VIOLATION.
+        from backtester.pipeline.walk_forward import build_engine
+        self._shared_engine = build_engine(
+            self.strategy, self.data, self.config,
+            self.pip_value, self.slippage_pips,
+        )
+
         # Run stages
         stages = [
             (3, "Walk-Forward", self._run_walk_forward),
@@ -145,6 +155,10 @@ class PipelineRunner:
                 f"{len(active)}/{len(self.state.candidates)} candidates surviving"
             )
 
+        # Free shared engine after all stages complete
+        del self._shared_engine
+        gc.collect()
+
         elapsed = time.time() - t0
         logger.info(f"Pipeline complete in {elapsed:.1f}s")
         return self.state
@@ -167,6 +181,7 @@ class PipelineRunner:
             self.strategy, param_dicts, self.data,
             opt_start=0, opt_end=opt_end, config=self.config,
             pip_value=self.pip_value, slippage_pips=self.slippage_pips,
+            engine=self._shared_engine,
         )
 
         for candidate, wf_result in zip(active, results):
@@ -198,6 +213,7 @@ class PipelineRunner:
             config=self.config,
             pip_value=self.pip_value,
             slippage_pips=self.slippage_pips,
+            engine=self._shared_engine,
         )
 
         for candidate, cpcv_result in zip(active, results):
@@ -219,27 +235,22 @@ class PipelineRunner:
             logger.warning("No active candidates for stability")
             return
 
-        # Use forward data if configured, else full data
+        # Use shared engine with windowed evaluation for forward portion
+        n_bars = len(self.data["close"])
         if self.config.stab_use_forward_data:
-            n_bars = len(self.data["close"])
             fwd_start = int(n_bars * 0.8)
-            eval_data = {}
-            for k, v in self.data.items():
-                if k.startswith("m1_"):
-                    # M1 arrays are not sliceable by H1 index — keep full
-                    eval_data[k] = v
-                elif k.startswith("h1_to_m1_"):
-                    # Rebase H1→M1 mapping for the forward slice
-                    eval_data[k] = v[fwd_start:]
-                else:
-                    eval_data[k] = v[fwd_start:]
+            window_start = fwd_start
+            window_end = n_bars
         else:
-            eval_data = self.data
+            window_start = None
+            window_end = None
 
         param_dicts = [c.params for c in active]
         results = run_stability(
-            self.strategy, param_dicts, eval_data, self.config,
+            self.strategy, param_dicts, self.data, self.config,
             pip_value=self.pip_value, slippage_pips=self.slippage_pips,
+            engine=self._shared_engine,
+            window_start=window_start, window_end=window_end,
         )
 
         for candidate, stab_result in zip(active, results):
@@ -250,7 +261,6 @@ class PipelineRunner:
         """Stage 5: Monte Carlo simulation + regime analysis."""
         from backtester.pipeline.monte_carlo import run_monte_carlo
         from backtester.core.telemetry import run_telemetry
-        from backtester.core.engine import BacktestEngine
         from backtester.core.dtypes import EXEC_FULL
 
         active = [c for c in self.state.candidates if not c.eliminated]
@@ -258,24 +268,8 @@ class PipelineRunner:
             logger.warning("No active candidates for Monte Carlo")
             return
 
-        # Build engine on full data for telemetry
-        m1_kwargs: dict = {}
-        for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
-                    "h1_to_m1_start", "h1_to_m1_end"):
-            if key in self.data:
-                m1_kwargs[key] = self.data[key]
-        engine = BacktestEngine(
-            self.strategy,
-            self.data["open"], self.data["high"],
-            self.data["low"], self.data["close"],
-            self.data["volume"], self.data["spread"],
-            pip_value=self.pip_value, slippage_pips=self.slippage_pips,
-            commission_pips=self.config.commission_pips,
-            max_spread_pips=self.config.max_spread_pips,
-            bar_hour=self.data.get("bar_hour"),
-            bar_day_of_week=self.data.get("bar_day_of_week"),
-            **m1_kwargs,
-        )
+        # Use shared engine for telemetry (no new engine creation)
+        engine = self._shared_engine
 
         # Pre-compute regime labels once if enabled
         regime_labels = None

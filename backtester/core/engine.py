@@ -201,6 +201,7 @@ class BacktestEngine:
             self.bar_hour, self.bar_day_of_week,
         )
         self._unpack_signals(sig_dict, high, low, swing_lookback)
+        logger.debug("Generated %d signals for %d bars", self.n_signals, len(high))
 
     def _build_param_layout(self) -> np.ndarray:
         """Build the param_layout array that maps PL_* to encoding column indices."""
@@ -288,6 +289,11 @@ class BacktestEngine:
         if self.n_signals == 0:
             return metrics_out
 
+        # Pre-allocate PnL buffer on Python side (not inside Numba JIT).
+        # Numba's NRT allocator pools large arrays and never returns pages
+        # to the OS, causing segfaults on Windows after many batches.
+        pnl_buffers = np.empty((n_trials, self.max_trades), dtype=np.float64)
+
         batch_evaluate(
             self.high, self.low, self.close, self.spread,
             self.pip_value, self.slippage_pips,
@@ -300,6 +306,81 @@ class BacktestEngine:
             # Sub-bar arrays for M1 trade simulation
             self.sub_high, self.sub_low, self.sub_close, self.sub_spread,
             self.h1_to_sub_start, self.h1_to_sub_end,
+            pnl_buffers,
+        )
+
+        return metrics_out
+
+    def evaluate_batch_windowed(
+        self,
+        param_matrix: np.ndarray,
+        window_start: int,
+        window_end: int,
+        exec_mode: int = EXEC_BASIC,
+    ) -> np.ndarray:
+        """Evaluate N parameter sets on a sub-window [window_start, window_end).
+
+        Filters pre-computed signals to the window range, slices data arrays,
+        and rebases bar indices so n_bars = window_size (correct for Sharpe
+        annualization). No engine recreation needed — uses the same signals.
+
+        Args:
+            param_matrix: (N, P) float64 matrix of encoded parameter values.
+            window_start: First bar of the window (inclusive).
+            window_end: Last bar of the window (exclusive).
+            exec_mode: EXEC_BASIC or EXEC_FULL.
+
+        Returns:
+            (N, NUM_METRICS) array with metric values per trial.
+        """
+        window_start = max(0, window_start)
+        window_end = min(self.n_bars, window_end)
+
+        n_trials = param_matrix.shape[0]
+        metrics_out = np.zeros((n_trials, NUM_METRICS), dtype=np.float64)
+
+        # Filter signals to window range
+        mask = (self.sig_bar_index >= window_start) & (self.sig_bar_index < window_end)
+
+        if not mask.any():
+            return metrics_out
+
+        # Rebase signal bar indices to 0-based within window
+        sig_bar_index = self.sig_bar_index[mask] - window_start
+        sig_direction = self.sig_direction[mask]
+        sig_entry_price = self.sig_entry_price[mask]
+        sig_hour = self.sig_hour[mask]
+        sig_day = self.sig_day[mask]
+        sig_atr_pips = self.sig_atr_pips[mask]
+        sig_swing_sl = self.sig_swing_sl[mask]
+        sig_filter_value = self.sig_filter_value[mask]
+        sig_variant = self.sig_variant[mask]
+
+        # Slice data arrays to window (numpy views — no copy)
+        high = self.high[window_start:window_end]
+        low = self.low[window_start:window_end]
+        close = self.close[window_start:window_end]
+        spread = self.spread[window_start:window_end]
+
+        # Sub-bar mapping: slice to window range. M1 data stays full —
+        # the mapping indices still point to correct M1 positions.
+        h1_to_sub_start = self.h1_to_sub_start[window_start:window_end]
+        h1_to_sub_end = self.h1_to_sub_end[window_start:window_end]
+
+        pnl_buffers = np.empty((n_trials, self.max_trades), dtype=np.float64)
+
+        batch_evaluate(
+            high, low, close, spread,
+            self.pip_value, self.slippage_pips,
+            sig_bar_index, sig_direction, sig_entry_price,
+            sig_hour, sig_day, sig_atr_pips, sig_swing_sl,
+            sig_filter_value, sig_variant,
+            param_matrix, self.param_layout, exec_mode,
+            metrics_out, self.max_trades, self.bars_per_year,
+            self.commission_pips, self.max_spread_pips,
+            self.sub_high, self.sub_low, self.sub_close, self.sub_spread,
+            h1_to_sub_start, h1_to_sub_end,
+            pnl_buffers,
         )
 
         return metrics_out

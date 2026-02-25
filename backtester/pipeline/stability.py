@@ -120,12 +120,15 @@ def evaluate_stability(
     config: PipelineConfig,
     pip_value: float = 0.0001,
     slippage_pips: float = 0.5,
+    engine: "BacktestEngine | None" = None,
+    window_start: int | None = None,
+    window_end: int | None = None,
 ) -> StabilityResult:
     """Evaluate parameter stability for one candidate.
 
-    Creates a BacktestEngine on the provided data, evaluates the original
-    params and all perturbations in a single batch, then computes ratios
-    and assigns a stability rating.
+    When engine is provided, uses it directly (with optional windowed
+    evaluation) instead of creating a new engine. This avoids memory
+    issues from creating many engine instances.
 
     Args:
         strategy: Strategy instance.
@@ -135,6 +138,9 @@ def evaluate_stability(
         data_arrays: Dict with keys: open, high, low, close, volume, spread,
                      bar_hour, bar_day_of_week.
         config: Pipeline configuration.
+        engine: Pre-built BacktestEngine. When provided, skips engine creation.
+        window_start: Start bar for windowed evaluation (used with engine).
+        window_end: End bar for windowed evaluation (used with engine).
 
     Returns:
         StabilityResult with perturbation details, ratios, and rating.
@@ -148,33 +154,34 @@ def evaluate_stability(
             rating=StabilityRating.ROBUST,
         )
 
-    # Create engine on the evaluation data
-    bar_hour = data_arrays.get("bar_hour")
-    bar_day_of_week = data_arrays.get("bar_day_of_week")
+    if engine is None:
+        # Create engine on the evaluation data
+        bar_hour = data_arrays.get("bar_hour")
+        bar_day_of_week = data_arrays.get("bar_day_of_week")
 
-    # Pass M1 sub-bar arrays if present
-    m1_kwargs: dict[str, np.ndarray] = {}
-    for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
-                "h1_to_m1_start", "h1_to_m1_end"):
-        if key in data_arrays:
-            m1_kwargs[key] = data_arrays[key]
+        m1_kwargs: dict[str, np.ndarray] = {}
+        for key in ("m1_high", "m1_low", "m1_close", "m1_spread",
+                    "h1_to_m1_start", "h1_to_m1_end"):
+            if key in data_arrays:
+                m1_kwargs[key] = data_arrays[key]
 
-    engine = BacktestEngine(
-        strategy=strategy,
-        open_=data_arrays["open"],
-        high=data_arrays["high"],
-        low=data_arrays["low"],
-        close=data_arrays["close"],
-        volume=data_arrays["volume"],
-        spread=data_arrays["spread"],
-        pip_value=pip_value,
-        slippage_pips=slippage_pips,
-        commission_pips=config.commission_pips,
-        max_spread_pips=config.max_spread_pips,
-        bar_hour=bar_hour,
-        bar_day_of_week=bar_day_of_week,
-        **m1_kwargs,
-    )
+        engine = BacktestEngine(
+            strategy=strategy,
+            open_=data_arrays["open"],
+            high=data_arrays["high"],
+            low=data_arrays["low"],
+            close=data_arrays["close"],
+            volume=data_arrays["volume"],
+            spread=data_arrays["spread"],
+            pip_value=pip_value,
+            slippage_pips=slippage_pips,
+            bars_per_year=config.bars_per_year,
+            commission_pips=config.commission_pips,
+            max_spread_pips=config.max_spread_pips,
+            bar_hour=bar_hour,
+            bar_day_of_week=bar_day_of_week,
+            **m1_kwargs,
+        )
 
     encoding = build_encoding_spec(strategy.param_space())
 
@@ -186,8 +193,13 @@ def evaluate_stability(
     for i, d in enumerate(all_dicts):
         param_matrix[i] = encode_params(encoding, d)
 
-    # Evaluate all at once
-    metrics = engine.evaluate_batch(param_matrix, exec_mode=EXEC_FULL)
+    # Evaluate all at once (windowed if range specified)
+    if window_start is not None and window_end is not None:
+        metrics = engine.evaluate_batch_windowed(
+            param_matrix, window_start, window_end, exec_mode=EXEC_FULL,
+        )
+    else:
+        metrics = engine.evaluate_batch(param_matrix, exec_mode=EXEC_FULL)
 
     original_quality = float(metrics[0, M_QUALITY])
 
@@ -250,6 +262,9 @@ def run_stability(
     config: PipelineConfig | None = None,
     pip_value: float = 0.0001,
     slippage_pips: float = 0.5,
+    engine: "BacktestEngine | None" = None,
+    window_start: int | None = None,
+    window_end: int | None = None,
 ) -> list[StabilityResult]:
     """Run stability analysis for a list of candidates.
 
@@ -262,6 +277,9 @@ def run_stability(
         data_arrays: Dict with keys: open, high, low, close, volume, spread,
                      bar_hour, bar_day_of_week.
         config: Pipeline configuration. Uses defaults if None.
+        engine: Pre-built BacktestEngine. When provided, skips engine creation.
+        window_start: Start bar for windowed evaluation (used with engine).
+        window_end: End bar for windowed evaluation (used with engine).
 
     Returns:
         List of StabilityResult, one per candidate.
@@ -289,6 +307,9 @@ def run_stability(
             config=config,
             pip_value=pip_value,
             slippage_pips=slippage_pips,
+            engine=engine,
+            window_start=window_start,
+            window_end=window_end,
         )
         results.append(result)
 

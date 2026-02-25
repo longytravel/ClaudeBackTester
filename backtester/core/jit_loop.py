@@ -811,18 +811,21 @@ def batch_evaluate(
     sub_spread: np.ndarray,     # (M,) float64 — M1 or identity spread
     h1_to_sub_start: np.ndarray,  # (B,) int64 — H1 bar → sub-bar start index
     h1_to_sub_end: np.ndarray,    # (B,) int64 — H1 bar → sub-bar end index
+    pnl_buffers: np.ndarray,      # (N, max_trades) float64 — pre-allocated by caller
 ) -> None:
     """Evaluate N parameter sets in parallel.
 
     This is the main hot loop. Each trial filters signals, computes SL/TP,
     simulates trades bar-by-bar, and computes metrics.
+
+    IMPORTANT: pnl_buffers must be pre-allocated by the caller (Python-side)
+    and passed in. This prevents Numba's NRT allocator from pooling large
+    buffers that are never returned to the OS, which causes segfaults on
+    Windows when memory pressure accumulates across batches.
     """
     n_trials = param_matrix.shape[0]
     n_signals = len(sig_bar_index)
     n_bars = len(high)
-
-    # Pre-allocate PnL buffers OUTSIDE prange (zero-allocation rule)
-    pnl_buffers = np.empty((n_trials, max_trades), dtype=np.float64)
 
     for trial in prange(n_trials):
         # Get params for this trial

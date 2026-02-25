@@ -6,8 +6,11 @@ Usage:
 """
 
 import argparse
+import json
 import logging
+import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter
 from pathlib import Path
@@ -52,6 +55,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default=None, help="Output directory (default: results/<pair>_<tf>)")
     parser.add_argument("--no-m1", action="store_true",
                         help="Disable M1 sub-bar simulation (use H1-only identity mapping)")
+    # Internal: run optimizer in isolated subprocess, write result to JSON path
+    parser.add_argument("--_optimizer_only", default=None, metavar="OUTPUT_PATH",
+                        help=argparse.SUPPRESS)
     return parser.parse_args()
 
 
@@ -105,6 +111,103 @@ def load_m1_arrays(
         "h1_to_m1_start": start_idx,
         "h1_to_m1_end": end_idx,
     }
+
+
+def _run_optimizer_only(args: argparse.Namespace) -> None:
+    """Run optimizer in subprocess mode: load data, optimize, write JSON, exit.
+
+    This isolates the optimizer's memory (Numba NRT pools, signal arrays,
+    PnL buffers) in a separate process. When this process exits, the OS
+    reclaims ALL memory, preventing segfaults in the subsequent walk-forward.
+    """
+    pair = args.pair
+    timeframe = args.timeframe
+    preset = args.preset
+    pip_value = PIP_VALUES.get(pair, 0.0001)
+    use_m1 = not getattr(args, 'no_m1', False)
+    output_path = args._optimizer_only
+
+    # Load data
+    df = load_and_check_data(pair, timeframe)
+    from backtester.data.splitting import split_backforward
+    back_df, fwd_df = split_backforward(df, back_pct=0.80)
+    data_back = df_to_arrays(back_df)
+    data_fwd = df_to_arrays(fwd_df)
+
+    if use_m1:
+        h1_timestamps = df.index.astype(np.int64).to_numpy()
+        m1_arrays = load_m1_arrays(pair, h1_timestamps)
+        if m1_arrays is not None:
+            back_h1_ts = back_df.index.astype(np.int64).to_numpy()
+            fwd_h1_ts = fwd_df.index.astype(np.int64).to_numpy()
+            from backtester.data.timeframes import build_h1_to_m1_mapping
+            m1_ts = pd.read_parquet(
+                DATA_DIR / f"{pair.replace('/', '_')}_M1.parquet"
+            ).index.astype(np.int64).to_numpy()
+            back_start, back_end = build_h1_to_m1_mapping(back_h1_ts, m1_ts)
+            fwd_start, fwd_end = build_h1_to_m1_mapping(fwd_h1_ts, m1_ts)
+            data_back.update({
+                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
+                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
+                "h1_to_m1_start": back_start, "h1_to_m1_end": back_end,
+            })
+            data_fwd.update({
+                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
+                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
+                "h1_to_m1_start": fwd_start, "h1_to_m1_end": fwd_end,
+            })
+
+    # Create strategy and run optimizer
+    from backtester.strategies import registry as strat_reg
+    strategy = strat_reg.create(args.strategy)
+    opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
+
+    # Serialize result to JSON
+    result_data = {
+        "total_trials": opt_result.total_trials,
+        "elapsed_seconds": opt_result.elapsed_seconds,
+        "evals_per_second": opt_result.evals_per_second,
+        "candidates": [],
+    }
+    for cand in opt_result.candidates:
+        result_data["candidates"].append({
+            "index": cand.index,
+            "params": cand.params,
+            "back_metrics": cand.back_metrics,
+            "forward_metrics": cand.forward_metrics,
+            "combined_rank": cand.combined_rank,
+            "dsr": cand.dsr,
+            "forward_back_ratio": cand.forward_back_ratio,
+        })
+
+    with open(output_path, "w") as f:
+        json.dump(result_data, f)
+
+    logger.info(f"Optimizer result written to {output_path}")
+
+
+def _deserialize_opt_result(data: dict) -> "OptimizationResult":
+    """Reconstruct OptimizationResult from JSON data."""
+    from backtester.optimizer.run import Candidate, OptimizationResult
+
+    result = OptimizationResult()
+    result.total_trials = data["total_trials"]
+    result.elapsed_seconds = data["elapsed_seconds"]
+    result.evals_per_second = data["evals_per_second"]
+
+    for cd in data["candidates"]:
+        cand = Candidate(
+            index=cd["index"],
+            params=cd["params"],
+            back_metrics=cd["back_metrics"],
+            forward_metrics=cd.get("forward_metrics"),
+            combined_rank=cd.get("combined_rank", 0.0),
+            dsr=cd.get("dsr", 0.0),
+            forward_back_ratio=cd.get("forward_back_ratio", 0.0),
+        )
+        result.candidates.append(cand)
+
+    return result
 
 
 def print_header(title: str) -> None:
@@ -273,9 +376,23 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         )
         candidate_results.append(cr)
 
+    # Scale pipeline parameters by timeframe (bar-count params are designed for H1)
+    from backtester.core.dtypes import BARS_PER_YEAR
+    bars_py = BARS_PER_YEAR.get(timeframe, 6048.0)
+    tf_scale = bars_py / BARS_PER_YEAR["H1"]
+
     pipeline_config = PipelineConfig(
         commission_pips=COMMISSION_PIPS,
         max_spread_pips=MAX_SPREAD_PIPS,
+        bars_per_year=bars_py,
+        wf_window_bars=int(8760 * tf_scale),
+        wf_step_bars=int(4380 * tf_scale),
+        wf_embargo_bars=int(168 * tf_scale),
+        wf_lookback_prefix=int(200 * tf_scale),
+        cpcv_purge_bars=int(200 * tf_scale),
+        cpcv_embargo_bars=int(168 * tf_scale),
+        cpcv_min_block_bars=int(500 * tf_scale),
+        regime_min_bars=int(8 * tf_scale),
     )
     runner = PipelineRunner(
         strategy=strategy,
@@ -386,7 +503,7 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
                         bar_count = s.n_bars
                         break
                 bar_len = int(pct / 3)  # ~33 chars max
-                bar_str = "\u2588" * bar_len
+                bar_str = "#" * bar_len
                 print(f"      {name:22s} {bar_count:>7,} bars ({pct:5.1f}%)  {bar_str}")
 
             # Per-regime performance table
@@ -706,6 +823,12 @@ def print_verdict(state):
 # ============================================================
 def main():
     args = parse_args()
+
+    # Internal: optimizer-only subprocess mode
+    if args._optimizer_only:
+        _run_optimizer_only(args)
+        return
+
     pair = args.pair
     timeframe = args.timeframe
     preset = args.preset
@@ -716,66 +839,71 @@ def main():
 
     t_start = time.time()
 
-    # ---- Section 1: Load Data ----
+    # ---- Section 2: Optimization (in subprocess for memory isolation) ----
+    # The optimizer accumulates significant memory (Numba NRT pools, signal
+    # arrays, PnL buffers) that isn't fully returned to the OS on Windows.
+    # Running it in a subprocess ensures ALL memory is reclaimed on exit,
+    # leaving the main process with clean memory for walk-forward validation.
+    opt_result_path = Path(tempfile.mkdtemp()) / "opt_result.json"
+    cmd = [
+        sys.executable, str(Path(__file__).resolve()),
+        "--strategy", args.strategy,
+        "--pair", pair,
+        "--timeframe", timeframe,
+        "--preset", preset,
+        "--_optimizer_only", str(opt_result_path),
+    ]
+    if not use_m1:
+        cmd.append("--no-m1")
+
+    logger.info("Starting optimizer subprocess (memory-isolated)...")
+    proc = subprocess.run(cmd)
+    if proc.returncode != 0:
+        logger.error(f"Optimizer subprocess failed with exit code {proc.returncode}")
+        sys.exit(1)
+
+    # Read optimizer result
+    with open(opt_result_path) as f:
+        opt_data = json.load(f)
+    opt_result_path.unlink(missing_ok=True)
+    opt_result = _deserialize_opt_result(opt_data)
+    logger.info(
+        f"Optimizer subprocess complete: {opt_result.total_trials:,} trials, "
+        f"{opt_result.elapsed_seconds:.1f}s, {len(opt_result.candidates)} candidates"
+    )
+
+    # Print optimizer summary (subprocess already printed Section 1 + 2 headers)
+    if not opt_result.candidates:
+        print("\n  *** NO CANDIDATES FOUND — optimization failed ***")
+        sys.exit(1)
+
+    # ---- Load data for validation (fresh, no optimizer memory residue) ----
     df = load_and_check_data(pair, timeframe)
-
-    # ---- Split 80/20 ----
-    from backtester.data.splitting import split_backforward
-    back_df, fwd_df = split_backforward(df, back_pct=0.80)
-    print(f"\n  Back-test:      {len(back_df):,} bars ({back_df.index[0]} to {back_df.index[-1]})")
-    print(f"  Forward-test:   {len(fwd_df):,} bars ({fwd_df.index[0]} to {fwd_df.index[-1]})")
-
-    data_back = df_to_arrays(back_df)
-    data_fwd = df_to_arrays(fwd_df)
     data_full = df_to_arrays(df)
 
-    # ---- Load M1 sub-bar data ----
     if use_m1:
         h1_timestamps = df.index.astype(np.int64).to_numpy()
         m1_arrays = load_m1_arrays(pair, h1_timestamps)
         if m1_arrays is not None:
             data_full.update(m1_arrays)
-            # Also build M1 mappings for back/fwd splits
-            back_h1_ts = back_df.index.astype(np.int64).to_numpy()
-            fwd_h1_ts = fwd_df.index.astype(np.int64).to_numpy()
-            from backtester.data.timeframes import build_h1_to_m1_mapping
-            m1_ts = pd.read_parquet(
-                DATA_DIR / f"{pair.replace('/', '_')}_M1.parquet"
-            ).index.astype(np.int64).to_numpy()
-            back_start, back_end = build_h1_to_m1_mapping(back_h1_ts, m1_ts)
-            fwd_start, fwd_end = build_h1_to_m1_mapping(fwd_h1_ts, m1_ts)
-            data_back.update({
-                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
-                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
-                "h1_to_m1_start": back_start, "h1_to_m1_end": back_end,
-            })
-            data_fwd.update({
-                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
-                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
-                "h1_to_m1_start": fwd_start, "h1_to_m1_end": fwd_end,
-            })
             print(f"\n  M1 sub-bar:     ACTIVE ({len(m1_arrays['m1_high']):,} M1 bars)")
         else:
             print(f"\n  M1 sub-bar:     DISABLED (M1 data not found)")
     else:
         print(f"\n  M1 sub-bar:     DISABLED (--no-m1 flag)")
 
-    # ---- Section 2: Optimization ----
-    from backtester.strategies import registry as strat_reg
-    strategy = strat_reg.create(args.strategy)
-    opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
-
-    # Free optimizer data before validation (reduce peak memory)
-    import gc
-    del data_back, data_fwd
-    gc.collect()
+    del df  # Free DataFrame, keep numpy arrays
 
     # ---- Sections 3-6: Validation Pipeline ----
+    from backtester.strategies import registry as strat_reg
+    strategy = strat_reg.create(args.strategy)
     state, pipe_elapsed = run_validation(
         strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
     )
 
     # ---- Section 7: Trade Statistics ----
+    import gc
+    gc.collect()  # Ensure pipeline engine fully freed before creating telemetry engine
     run_trade_stats(strategy, data_full, state, pip_value)
 
     # ---- Section 8: Verdict ----
