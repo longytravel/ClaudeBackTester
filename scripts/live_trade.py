@@ -18,6 +18,7 @@ import sys
 import backtester.strategies  # noqa: F401
 import backtester.strategies.rsi_mean_reversion  # noqa: F401
 import backtester.strategies.always_buy  # noqa: F401
+import backtester.strategies.ema_crossover  # noqa: F401
 
 from backtester.live.config import LiveConfig
 from backtester.live.trader import LiveTrader
