@@ -1,6 +1,6 @@
 # Current Task
 
-## Status: Rust Backend Integrated — Ready for M1 Stress Testing
+## Status: Rust Backend Proven — M1 Stress Test Passed, Ready to Remove Subprocess Isolation
 
 Phase 6 (live trading) is being built by another agent. Phase 5b optimizer/validation enhancements in progress.
 
@@ -68,18 +68,24 @@ Replaced the Numba @njit hot loop (`backtester/core/jit_loop.py`, 963 lines) wit
 - **Line-for-line port**: Each Numba function → one Rust file. Same logic, same constants, same control flow.
 - **Parity verified**: Bit-for-bit identical output (atol=1e-12) across EXEC_BASIC, EXEC_FULL, 500+ trials, with/without costs.
 
+### Completed
+1. **M1 stress test PASSED** — EUR/USD M15 (384K bars) + M1 (5.7M bars), 10K evals, +1 MB memory growth, zero segfaults. Rust backend proven stable.
+
+2. **Subprocess isolation REMOVED** — `scripts/full_run.py` now runs optimizer + pipeline in-process. Removed subprocess launching, JSON serialization, segfault retry, temp files.
+
+3. **Benchmark DONE** — Rust vs Numba throughput:
+   - H1 BASIC: 33K (Rust) vs 26K (Numba mid) = ~1.25x
+   - H1 FULL: 19K (Rust) vs 7K (Numba mid) = **2.7x faster**
+   - M15 BASIC: 5.3K (Rust) — Numba segfaults on M15
+   - M15 FULL: 2.5K (Rust) — Numba segfaults on M15
+   - M15+M1: 915 (Rust) — Numba segfaults on M1
+
 ### NOT yet done
-1. **M1 stress test** — Need to run EUR/USD M15 with M1 data through Rust backend to prove no segfaults
-2. **Remove subprocess isolation** — `scripts/full_run.py` still uses subprocess isolation; can simplify once Rust is proven stable
-3. **Benchmark** — No throughput comparison yet (Rust vs Numba evals/sec)
-4. **`jit_loop.py` NOT deleted** — Kept as Numba fallback. Only `engine.py` changed to use `rust_loop.py`.
+1. **`jit_loop.py` NOT deleted** — Kept as Numba fallback. Only `engine.py` changed to use `rust_loop.py`.
 
 ## Next Steps
-1. **M1 Stress Test** — Run EUR/USD M15 with M1 data (5.7M bars) through Rust backend, verify no segfaults
-2. **Remove subprocess isolation workarounds** once Rust is stable with M1
-3. **Benchmark Rust vs Numba** throughput comparison
-4. **OPT-2: GT-Score Objective** — A/B test vs Quality Score
-5. **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select
+1. **OPT-2: GT-Score Objective** — A/B test vs Quality Score
+2. **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select
 
 ## Phase 6 — Live Trading (separate agent, do NOT build)
 - Live Trading Engine (REQ-L01-L15)
