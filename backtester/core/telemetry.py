@@ -264,6 +264,12 @@ def run_telemetry(
         trailing_active = False
         be_locked = False
 
+        # Deferred SL state — modifications apply on NEXT sub-bar
+        has_pending_update = False
+        pending_sl = -1.0  # sentinel: -1 means no SL change pending
+        pending_be_locked = False
+        pending_trailing_active = False
+
         for bar in range(bar_idx + 1, engine.n_bars):
             bar_high = engine.high[bar]
             bar_low = engine.low[bar]
@@ -310,41 +316,84 @@ def run_telemetry(
                     sb_l = sub_low[sb]
                     sb_c = sub_close[sb]
 
+                    # Apply deferred SL update from previous sub-bar
+                    if has_pending_update:
+                        if pending_sl > 0.0:
+                            current_sl = pending_sl
+                        be_locked = pending_be_locked
+                        trailing_active = pending_trailing_active
+                        pending_sl = -1.0
+                        has_pending_update = False
+
                     # Floating PnL on this sub-bar
                     if is_buy:
                         float_pnl = (sb_h - actual_entry) / pip
                     else:
                         float_pnl = (actual_entry - sb_l) / pip
 
-                    # Breakeven
-                    if be_enabled and not be_locked and float_pnl >= be_trigger:
-                        be_locked = True
-                        be_price = actual_entry + be_offset * pip if is_buy \
-                            else actual_entry - be_offset * pip
-                        if is_buy and be_price > current_sl:
-                            current_sl = be_price
-                        elif not is_buy and be_price < current_sl:
-                            current_sl = be_price
+                    # Breakeven (deferred — applies next sub-bar)
+                    if be_enabled and not be_locked and not pending_be_locked:
+                        if float_pnl >= be_trigger:
+                            be_price = actual_entry + be_offset * pip if is_buy \
+                                else actual_entry - be_offset * pip
+                            if is_buy and be_price > current_sl:
+                                pending_sl = be_price
+                                pending_be_locked = True
+                                pending_trailing_active = trailing_active
+                                has_pending_update = True
+                            elif not is_buy and be_price < current_sl:
+                                pending_sl = be_price
+                                pending_be_locked = True
+                                pending_trailing_active = trailing_active
+                                has_pending_update = True
 
-                    # Trailing
+                    # Trailing (deferred — applies next sub-bar)
                     if trailing_mode != "off":
-                        if not trailing_active and float_pnl >= trail_activate:
-                            trailing_active = True
-                        if trailing_active:
+                        if not trailing_active and not pending_trailing_active:
+                            # Trailing activation
+                            if float_pnl >= trail_activate:
+                                pending_trailing_active = True
+                                if trailing_mode == "fixed_pip":
+                                    t_dist = trail_distance * pip
+                                else:
+                                    t_dist = trail_atr_m * atr_pips * pip
+                                # Effective SL considers any pending from BE on same sub-bar
+                                eff_sl = pending_sl if (has_pending_update and pending_sl > 0.0) else current_sl
+                                if is_buy:
+                                    new_sl = sb_h - t_dist
+                                    if new_sl > eff_sl:
+                                        pending_sl = new_sl
+                                else:
+                                    new_sl = sb_l + t_dist
+                                    if new_sl < eff_sl:
+                                        pending_sl = new_sl
+                                # Preserve pending_be_locked if already set by BE
+                                pending_be_locked = be_locked if not has_pending_update else pending_be_locked
+                                has_pending_update = True
+                        elif trailing_active:
+                            # Ongoing trailing ratchet
                             if trailing_mode == "fixed_pip":
                                 t_dist = trail_distance * pip
                             else:
                                 t_dist = trail_atr_m * atr_pips * pip
+                            # Effective SL considers any pending from BE on same sub-bar
+                            eff_sl = pending_sl if (has_pending_update and pending_sl > 0.0) else current_sl
                             if is_buy:
                                 new_sl = sb_h - t_dist
-                                if new_sl > current_sl:
-                                    current_sl = new_sl
+                                if new_sl > eff_sl:
+                                    pending_sl = new_sl
+                                    pending_be_locked = be_locked if not has_pending_update else pending_be_locked
+                                    pending_trailing_active = True
+                                    has_pending_update = True
                             else:
                                 new_sl = sb_l + t_dist
-                                if new_sl < current_sl:
-                                    current_sl = new_sl
+                                if new_sl < eff_sl:
+                                    pending_sl = new_sl
+                                    pending_be_locked = be_locked if not has_pending_update else pending_be_locked
+                                    pending_trailing_active = True
+                                    has_pending_update = True
 
-                    # Partial close
+                    # Partial close (immediate — uses sb_close, no ordering issue)
                     if partial_en and not partial_done:
                         if float_pnl >= partial_trig:
                             partial_done = True
@@ -356,7 +405,7 @@ def run_telemetry(
                             realized_pnl_pips += partial_pnl
                             position_pct -= close_pct
 
-                    # Check SL/TP on sub-bar
+                    # Check SL/TP on sub-bar (using current_sl, not pending)
                     if is_buy:
                         if sb_l <= current_sl:
                             exit_reason = EXIT_SL
@@ -430,11 +479,26 @@ def run_telemetry(
         if exit_reason == EXIT_NONE:
             exit_price = engine.close[engine.n_bars - 1]
 
-        # Compute PnL (accounting for partial close)
-        if is_buy:
-            pnl = (exit_price - actual_entry) / pip * position_pct
+        # Compute PnL (accounting for partial close + adverse exit slippage)
+        slippage_price = slippage * pip
+        if exit_reason in (EXIT_SL, EXIT_TRAILING, EXIT_BREAKEVEN):
+            # SL-type exits get adverse slippage
+            if is_buy:
+                pnl = (exit_price - slippage_price - actual_entry) / pip * position_pct
+            else:
+                pnl = (actual_entry - exit_price - slippage_price) / pip * position_pct
+        elif exit_reason == EXIT_TP:
+            # TP exits: no slippage (limit order fills at price or better)
+            if is_buy:
+                pnl = (exit_price - actual_entry) / pip * position_pct
+            else:
+                pnl = (actual_entry - exit_price) / pip * position_pct
         else:
-            pnl = (actual_entry - exit_price) / pip * position_pct
+            # Market close / max bars / stale / end-of-data: adverse slippage
+            if is_buy:
+                pnl = (exit_price - slippage_price - actual_entry) / pip * position_pct
+            else:
+                pnl = (actual_entry - exit_price - slippage_price) / pip * position_pct
         pnl += realized_pnl_pips
 
         # Apply execution costs
