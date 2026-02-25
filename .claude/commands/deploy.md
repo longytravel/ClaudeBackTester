@@ -60,7 +60,7 @@ for cp_path in sorted(results_dir.glob('*/checkpoint.json')):
         if eliminated:
             print(f'  Eliminated at: {elim_at} ({elim_reason})')
         print(f'  Back Quality: {back_q:.2f} | Back Sharpe: {back_sharpe:.3f} | Trades: {n_trades}')
-        if wf_pass > 0 or wf_sharpe != 0:
+        if wf_pass > 0 or wf_sharpe > 0:
             print(f'  WF Pass Rate: {wf_pass:.0%} | WF Mean Sharpe: {wf_sharpe:.3f}')
         if rating:
             print(f'  Rating: {rating}')
@@ -108,49 +108,28 @@ Modify the checkpoint to un-eliminate the candidate so `start_all.py` will pick 
 ```bash
 export PATH="/c/Users/ROG/.local/bin:$PATH"
 uv run python -c "
-import json
+import json, os
 from pathlib import Path
 
-cp_path = Path('results/RUN_DIR/checkpoint.json')
-data = json.loads(cp_path.read_text())
-
-# Un-eliminate the first candidate
-c = data['candidates'][0]
-c['eliminated'] = False
-c['force_deployed'] = True
-c['force_deploy_note'] = 'Manually force-deployed by user. Original elimination: ELIM_REASON'
-
-# Write back atomically
-tmp = cp_path.with_suffix('.tmp')
-tmp.write_text(json.dumps(data, indent=2))
-tmp.rename(cp_path)
-
-print(f'Checkpoint updated: eliminated=False, force_deployed=True')
-print(f'Strategy: {data.get(\"strategy_name\")} | {data.get(\"pair\")} | {data.get(\"timeframe\")}')
-"
-```
-
-Also update the report.json if it exists:
-
-```bash
-uv run python -c "
-import json
-from pathlib import Path
-
-rp_path = Path('results/RUN_DIR/report.json')
-if not rp_path.exists():
-    print('No report.json to update')
-else:
-    data = json.loads(rp_path.read_text())
-    if data.get('candidates'):
-        c = data['candidates'][0]
-        c['eliminated'] = False
-        c['force_deployed'] = True
-        c['force_deploy_note'] = 'Manually force-deployed by user. Original elimination: ELIM_REASON'
-    tmp = rp_path.with_suffix('.tmp')
+for filename in ['checkpoint.json', 'report.json']:
+    fp = Path('results/RUN_DIR') / filename
+    if not fp.exists():
+        print(f'{filename} not found, skipping')
+        continue
+    data = json.loads(fp.read_text())
+    candidates = data.get('candidates', [])
+    if not candidates:
+        continue
+    c = candidates[0]
+    c['eliminated'] = False
+    c['force_deployed'] = True
+    c['force_deploy_note'] = 'Manually force-deployed by user. Original elimination: ELIM_REASON'
+    tmp = fp.with_suffix('.tmp')
     tmp.write_text(json.dumps(data, indent=2))
-    tmp.rename(rp_path)
-    print('Report updated.')
+    os.replace(str(tmp), str(fp))
+    print(f'{filename} updated: eliminated=False, force_deployed=True')
+
+print('Done.')
 "
 ```
 
