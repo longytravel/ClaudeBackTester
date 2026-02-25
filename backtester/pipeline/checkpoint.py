@@ -204,6 +204,9 @@ def _reconstruct_candidate(cd: dict) -> CandidateResult:
     if regime_data is not None:
         c.regime = _reconstruct_regime(regime_data)
 
+    # Trade stats (plain dict, no reconstruction needed)
+    c.trade_stats = cd.get("trade_stats")
+
     # Confidence
     conf_data = cd.get("confidence")
     if conf_data is not None:

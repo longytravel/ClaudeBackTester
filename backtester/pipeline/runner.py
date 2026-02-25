@@ -32,6 +32,78 @@ from backtester.pipeline.types import (
 
 logger = logging.getLogger(__name__)
 
+# Pip value per standard lot (1.0 lot) for $ conversion
+# At 0.01 lots: multiply by 0.01
+_PIP_VALUE_USD = {
+    "EUR/USD": 10.0, "GBP/USD": 10.0, "AUD/USD": 10.0, "NZD/USD": 10.0,
+    "USD/CHF": 10.0, "USD/CAD": 10.0, "EUR/GBP": 10.0,
+    "USD/JPY": 7.0, "EUR/JPY": 7.0, "GBP/JPY": 7.0, "AUD/JPY": 7.0,
+    "CAD/JPY": 7.0, "CHF/JPY": 7.0, "NZD/JPY": 7.0,
+    "EUR/AUD": 6.5, "GBP/AUD": 6.5, "AUD/NZD": 6.5, "EUR/NZD": 6.5,
+    "GBP/NZD": 6.5, "EUR/CHF": 10.0, "GBP/CHF": 10.0, "AUD/CAD": 7.0,
+    "EUR/CAD": 7.0, "GBP/CAD": 7.0,
+    "XAU/USD": 10.0,
+}
+LOT_SIZE = 0.01  # Standard micro lot for all strategies
+
+
+def _compute_trade_stats(trades: list, pair: str) -> dict[str, Any]:
+    """Compute trade P&L statistics from telemetry trades."""
+    from collections import Counter
+
+    if not trades:
+        return {"n_trades": 0, "total_pnl_pips": 0.0, "total_pnl_usd": 0.0}
+
+    pnls = [t.pnl_pips for t in trades]
+    wins = [p for p in pnls if p > 0]
+    losses = [p for p in pnls if p <= 0]
+    total_pnl = sum(pnls)
+    pip_val = _PIP_VALUE_USD.get(pair, 10.0) * LOT_SIZE
+    total_usd = total_pnl * pip_val
+
+    exit_counts = Counter(t.exit_reason for t in trades)
+    exit_breakdown = {}
+    for reason, count in exit_counts.most_common():
+        reason_pnl = sum(t.pnl_pips for t in trades if t.exit_reason == reason)
+        exit_breakdown[reason] = {
+            "count": count,
+            "pct": round(count / len(trades) * 100, 1),
+            "pnl_pips": round(reason_pnl, 2),
+            "pnl_usd": round(reason_pnl * pip_val, 2),
+        }
+
+    buys = [t for t in trades if t.direction == "BUY"]
+    sells = [t for t in trades if t.direction == "SELL"]
+
+    direction_stats = {}
+    for label, group in [("BUY", buys), ("SELL", sells)]:
+        if group:
+            g_pnls = [t.pnl_pips for t in group]
+            direction_stats[label] = {
+                "n_trades": len(group),
+                "win_rate": round(sum(1 for p in g_pnls if p > 0) / len(group) * 100, 1),
+                "total_pnl_pips": round(sum(g_pnls), 2),
+                "total_pnl_usd": round(sum(g_pnls) * pip_val, 2),
+            }
+
+    return {
+        "n_trades": len(trades),
+        "total_pnl_pips": round(total_pnl, 2),
+        "total_pnl_usd": round(total_usd, 2),
+        "lot_size": LOT_SIZE,
+        "pip_value_usd": pip_val,
+        "win_rate": round(len(wins) / len(trades) * 100, 1) if trades else 0,
+        "profit_factor": round(sum(wins) / abs(sum(losses)), 2) if losses and sum(losses) != 0 else 0,
+        "avg_pnl_pips": round(float(np.mean(pnls)), 2),
+        "median_pnl_pips": round(float(np.median(pnls)), 2),
+        "best_trade_pips": round(max(pnls), 2),
+        "worst_trade_pips": round(min(pnls), 2),
+        "std_dev_pips": round(float(np.std(pnls)), 2),
+        "avg_bars_held": round(float(np.mean([t.bars_held for t in trades])), 1),
+        "exit_breakdown": exit_breakdown,
+        "direction_stats": direction_stats,
+    }
+
 
 class PipelineRunner:
     """Orchestrates the multi-stage validation pipeline.
@@ -317,6 +389,11 @@ class PipelineRunner:
             )
             candidate.monte_carlo = mc_result
 
+            # Compute trade statistics from telemetry
+            candidate.trade_stats = _compute_trade_stats(
+                telemetry.trades, self.state.pair
+            )
+
             if not mc_result.passed_gate:
                 candidate.eliminated = True
                 candidate.eliminated_at_stage = "monte_carlo"
@@ -402,6 +479,8 @@ class PipelineRunner:
                 entry["regime_robustness_score"] = c.regime.robustness_score
                 entry["regime_advisory"] = c.regime.advisory
                 entry["per_regime_stats"] = [asdict(rs) for rs in c.regime.per_regime]
+            if c.trade_stats:
+                entry["trade_stats"] = c.trade_stats
 
             report["candidates"].append(entry)
 

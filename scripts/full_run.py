@@ -568,10 +568,11 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
 # ============================================================
 # Section 7: Trade Statistics (Telemetry)
 # ============================================================
-def run_trade_stats(strategy, data_full, state, pip_value):
+def run_trade_stats(strategy, data_full, state, pip_value, pair="EUR/USD"):
     from backtester.core.dtypes import EXEC_FULL
     from backtester.core.engine import BacktestEngine
     from backtester.core.telemetry import run_telemetry
+    from backtester.pipeline.runner import _PIP_VALUE_USD, LOT_SIZE
 
     active = [c for c in state.candidates if not c.eliminated]
     if not active:
@@ -616,14 +617,17 @@ def run_trade_stats(strategy, data_full, state, pip_value):
         gross_loss = abs(sum(losses)) if losses else 0
         pf = gross_win / gross_loss if gross_loss > 0 else float("inf")
 
-        print(f"\n    P&L Summary:")
-        print(f"      Total P&L:       {total_pnl:+.1f} pips")
+        pip_val = _PIP_VALUE_USD.get(pair, 10.0) * LOT_SIZE
+        total_usd = total_pnl * pip_val
+
+        print(f"\n    P&L Summary (at {LOT_SIZE} lots):")
+        print(f"      Total P&L:       {total_pnl:+.1f} pips  (${total_usd:+.2f})")
         print(f"      Win rate:        {win_rate:.1f}%")
         print(f"      Profit factor:   {pf:.2f}")
-        print(f"      Avg P&L/trade:   {np.mean(pnls):+.2f} pips")
+        print(f"      Avg P&L/trade:   {np.mean(pnls):+.2f} pips  (${np.mean(pnls) * pip_val:+.4f})")
         print(f"      Median P&L:      {np.median(pnls):+.2f} pips")
-        print(f"      Best trade:      {max(pnls):+.1f} pips")
-        print(f"      Worst trade:     {min(pnls):+.1f} pips")
+        print(f"      Best trade:      {max(pnls):+.1f} pips  (${max(pnls) * pip_val:+.2f})")
+        print(f"      Worst trade:     {min(pnls):+.1f} pips  (${min(pnls) * pip_val:+.2f})")
         print(f"      Std dev:         {np.std(pnls):.2f} pips")
 
         # Exit reason distribution
@@ -858,7 +862,7 @@ def main():
 
     # ---- Section 7: Trade Statistics ----
     gc.collect()
-    run_trade_stats(strategy, data_full, state, pip_value)
+    run_trade_stats(strategy, data_full, state, pip_value, pair=pair)
 
     # ---- Section 8: Verdict ----
     print_verdict(state)

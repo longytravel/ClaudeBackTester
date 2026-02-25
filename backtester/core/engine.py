@@ -107,6 +107,18 @@ _PARAM_TO_PL: dict[str, int] = {
     "rsi_overbought": PL_SELL_FILTER_MIN,  # SELL if RSI >= overbought
     # EMA crossover: composite variant = fast*1000 + slow
     "ema_combo": PL_SIGNAL_VARIANT,
+    # MACD crossover: composite variant = fast*10000 + slow*100 + signal
+    "macd_combo": PL_SIGNAL_VARIANT,
+    # Bollinger reversion: composite variant = period*100 + int(std*10)
+    "bb_combo": PL_SIGNAL_VARIANT,
+    # Stochastic crossover: variant = k*100 + d, thresholds via filter
+    "stoch_combo": PL_SIGNAL_VARIANT,
+    "stoch_oversold": PL_BUY_FILTER_MAX,
+    "stoch_overbought": PL_SELL_FILTER_MIN,
+    # Donchian breakout: variant = period directly
+    "donchian_period": PL_SIGNAL_VARIANT,
+    # ADX trend: composite variant = period*100 + threshold
+    "adx_combo": PL_SIGNAL_VARIANT,
 }
 
 

@@ -208,6 +208,9 @@ class CandidateResult:
     # Stage 5b (Regime analysis — advisory)
     regime: Any | None = None  # RegimeResult from pipeline/regime.py
 
+    # Trade statistics (computed alongside Monte Carlo from telemetry)
+    trade_stats: dict[str, Any] | None = None
+
     # Stage 6
     confidence: ConfidenceResult | None = None
 
