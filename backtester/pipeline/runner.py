@@ -421,6 +421,20 @@ class PipelineRunner:
 
     def _run_report(self) -> None:
         """Stage 7: Generate JSON report (MVP)."""
+        from backtester.core.telemetry import run_telemetry
+        from backtester.core.dtypes import EXEC_FULL
+
+        # Compute trade_stats for any candidate that doesn't have it yet
+        # (e.g. eliminated before Monte Carlo stage)
+        for candidate in self.state.candidates:
+            if candidate.trade_stats is None:
+                telemetry = run_telemetry(
+                    self._shared_engine, candidate.params, EXEC_FULL
+                )
+                candidate.trade_stats = _compute_trade_stats(
+                    telemetry.trades, self.state.pair
+                )
+
         os.makedirs(self.output_dir, exist_ok=True)
         report_path = os.path.join(self.output_dir, "report.json")
 
