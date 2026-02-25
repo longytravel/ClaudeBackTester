@@ -1,6 +1,6 @@
 # Current Task
 
-## Status: Rust Backend Proven — M1 Stress Test Passed, Ready to Remove Subprocess Isolation
+## Status: Accuracy Verified — Rust + Telemetry match bit-for-bit
 
 Phase 6 (live trading) is being built by another agent. Phase 5b optimizer/validation enhancements in progress.
 
@@ -80,12 +80,29 @@ Replaced the Numba @njit hot loop (`backtester/core/jit_loop.py`, 963 lines) wit
    - M15 FULL: 2.5K (Rust) — Numba segfaults on M15
    - M15+M1: 915 (Rust) — Numba segfaults on M1
 
+4. **Telemetry fix DONE** — 5 bugs in deferred SL pattern fixed:
+   - pending_sl sentinel (-1.0 not current_sl)
+   - Guard `pending_sl > 0.0` before applying
+   - Trailing effective_sl considers same-sub-bar BE pending state
+   - Trailing no-improve doesn't overwrite BE's pending_sl
+   - pending_be_locked preservation when trailing also triggers
+   - Added adverse exit slippage on SL/market-close exits
+
+5. **Accuracy verified**: Telemetry matches Rust batch evaluator at 0.0000 diff across all 10 metrics for:
+   - EMA EXEC_BASIC (5500 trades)
+   - EMA EXEC_FULL simple (5500 trades)
+   - EMA EXEC_FULL complex, ALL features (5500 trades)
+   - RSI EXEC_FULL complex, ALL features (5001 trades)
+
+6. **Old saved results are INVALID** — generated before cost consistency fix + deferred SL fix. Need to re-run.
+
 ### NOT yet done
 1. **`jit_loop.py` NOT deleted** — Kept as Numba fallback. Only `engine.py` changed to use `rust_loop.py`.
 
 ## Next Steps
-1. **OPT-2: GT-Score Objective** — A/B test vs Quality Score
-2. **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select
+1. **Re-run strategies** with corrected Rust backend to generate valid results
+2. **OPT-2: GT-Score Objective** — A/B test vs Quality Score
+3. **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select
 
 ## Phase 6 — Live Trading (separate agent, do NOT build)
 - Live Trading Engine (REQ-L01-L15)
