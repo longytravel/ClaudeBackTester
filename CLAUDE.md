@@ -42,9 +42,9 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - **Batch-first principle**: optimizer generates N param sets → engine evaluates all N via prange → optimizer updates once per batch. Never single-trial evaluation in the hot loop
 - **DSR overfitting gate**: Deflated Sharpe Ratio for multiple-testing correction. Forward/back quality ratio >= 0.4 as promotion gate
 - Broker integration is an abstraction layer — swappable without touching strategy/pipeline code (currently IC Markets via MT5)
-- Backtest and live trader will use identical signal generation and trade management logic (live trader not yet built)
+- Backtest and live trader use identical signal generation and trade management logic (position_manager.py mirrors backtest check order)
 - State files will use atomic writes (write temp, then rename) — currently only in data downloader
-- Long-running processes will checkpoint to disk for crash recovery (not yet implemented)
+- Long-running processes checkpoint to disk for crash recovery (pipeline checkpoints, live trader state.json)
 - Rust hot loop implemented (PyO3 + Rayon) — Numba kept as fallback
 
 ## Staged Optimization
@@ -99,23 +99,26 @@ rust/                              # Rust native extension (PyO3 + Rayon)
   pyproject.toml                   #   maturin build config
   build.sh                         #   Windows build script (sets MSVC env)
 backtester/
-  core/           # Backtest engine, metrics, trade simulation (Rust + Numba fallback)
+  core/           # Backtest engine, metrics, trade simulation (Rust + Numba fallback), telemetry
   data/           # Data download, caching, validation, timeframe conversion
   strategies/     # Strategy framework, base classes, indicator library
   optimizer/      # Parameter optimization, staged search
-  pipeline/       # 7-stage validation pipeline orchestration (not yet built)
-  live/           # Live trading engine, position management (not yet built)
-  risk/           # Risk management, position sizing, circuit breakers (not yet built)
+  pipeline/       # 7-stage validation pipeline (walk-forward, CPCV, MC, stability, confidence, regime)
+  live/           # Live trading engine, position management, state persistence
+  risk/           # Risk management, position sizing, circuit breakers
+  broker/         # Broker abstraction layer (IC Markets / MT5 orders + data)
   verification/   # Trade verification, signal replay (not yet built)
   reporting/      # HTML report generation, leaderboard (not yet built)
   research/       # Strategy research factory, source tracker (not yet built)
-  broker/         # Broker abstraction layer (IC Markets / MT5 implementation)
   notifications/  # Telegram bot integration (not yet built)
   config/         # Configuration management, defaults
   cli/            # CLI entry points
-scripts/          # Operational scripts (download, live data testing)
+scripts/          # Operational scripts (download, deploy, live trading, benchmarks)
 Research/         # Strategy research papers and documents
-tests/            # Unit and integration tests
+tests/            # Unit and integration tests (533 tests)
+DEPLOY.bat        # One-click VPS deployment (git pull + start traders)
+STATUS.bat        # Check running trader status
+STOP.bat          # Stop all running traders
 ```
 
 ## Conventions
@@ -161,22 +164,37 @@ Before context gets long or session ends:
 - When investigating poor results, fix the SYSTEM not the RESULTS
 - Always question whether backtesting behavior matches live trading reality
 
-## Phase 5b: Validation & Optimizer Enhancements (Safe to Build Now)
+## Phase 5b: Validation & Optimizer Enhancements — COMPLETE (except OPT-2, OPT-3)
 
-Research papers in `Research/` identified improvements deferred from Phase 5 MVP. These don't conflict with Phase 6 (live trading, being built by another agent). Full details in PROGRESS.md.
+### Completed
+- **VP-1: CPCV** — Combinatorial Purged Cross-Validation. 45 folds, integrated into confidence scoring. `pipeline/cpcv.py`
+- **VP-2: Multi-Candidate Pipeline** — Optimizer returns top N, pipeline validates all. `optimizer/run.py` + `pipeline/runner.py`
+- **VP-3: Regime-Aware Validation** — ADX+NATR 4-quadrant classification, per-regime stats. `pipeline/regime.py`
+- **OPT-1: CE Exploitation Upgrade** — Adaptive LR + entropy monitoring. Pairwise dependencies descoped. `optimizer/sampler.py`
+- **Causality Contract** — SignalCausality enum, pipeline/engine guards, verification tests
+- **Rust Backend** — PyO3 + Rayon replaces Numba, 2.7x faster EXEC_FULL, M1 stable, subprocess isolation removed
+- **Telemetry Accuracy** — 5 deferred-SL bugs fixed, 11 parity tests prevent divergence
 
-### Validation Pipeline
-- **VP-1: CPCV** — Combinatorial Purged Cross-Validation (HIGH). Distribution of OOS metrics instead of one path. New `pipeline/cpcv.py`
-- **VP-2: Multi-Candidate Pipeline** — Optimizer returns top N via diversity archive, pipeline validates all (HIGH). `optimizer/run.py` + `pipeline/runner.py`
-- **VP-3: Regime-Aware Validation** — Simple ADX/ATR quadrant classification, per-regime stats (MEDIUM). New `pipeline/regime.py`
+### Remaining
+- **OPT-2: GT-Score Objective** — A/B test vs Quality Score on FX data (MEDIUM)
+- **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select optimal batch size (LOW)
 
-### Optimizer
-- **OPT-1: CE Exploitation Upgrade** — Pairwise dependencies, adaptive LR, entropy monitoring (MEDIUM). `optimizer/sampler.py`
-- **OPT-2: GT-Score Objective** — A/B test vs Quality Score on FX data (MEDIUM). `core/metrics.py` or `optimizer/ranking.py`
-- **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select optimal batch size (LOW). `optimizer/config.py`
+## Phase 6: Live Trading — BUILT & DEPLOYED
+
+Live trading engine, risk management, broker integration, and deployment scripts are complete.
+Practice deployment running on IC Markets demo account.
+
+### Key Files
+- `backtester/live/trader.py` — Candle-close event loop, order placement, broker sync
+- `backtester/live/position_manager.py` — Mirrors backtest management (trailing, BE, partial, stale, max bars)
+- `backtester/risk/manager.py` — Pre-trade checks, position sizing, circuit breaker
+- `backtester/broker/mt5_orders.py` — MT5 order execution (market, modify, close, partial)
+- `scripts/live_trade.py` — CLI entry point (dry_run/practice/live)
+- `scripts/start_all.py` — Auto-discover strategies, launch as detached processes
+- `DEPLOY.bat` — One-click VPS deploy (git pull, deps, start)
 
 ### NOT building now
-- NSGA-II/GA rewrite, island model, White's RC/Hansen SPA, full HMM, multi-fidelity, factor attribution, HTML reports — all correctly deferred to later phases
+- NSGA-II/GA rewrite, island model, White's RC/Hansen SPA, full HMM, multi-fidelity, factor attribution, HTML reports — all deferred to later phases
 
 ## Development Workflow
 - Work in small, testable increments (one FR sub-section at a time)

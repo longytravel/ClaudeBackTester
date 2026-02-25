@@ -321,9 +321,79 @@ Research papers (paper1.txt, paper2.txt, report_a.txt, validation_pipeline.txt) 
 
 ---
 
+## Rust Backend & Accuracy Verification
+- [x] Rust native extension (PyO3 + Rayon) replaces Numba JIT hot loop
+- [x] Bit-for-bit parity vs Numba (atol=1e-12), 11 parity tests
+- [x] M1 stress test: 384K bars + 5.7M M1 bars, zero segfaults, +1 MB memory
+- [x] Subprocess isolation removed (Rust handles M1 natively)
+- [x] Benchmark: H1 FULL 19K evals/sec (2.7x faster than Numba)
+- [x] Telemetry deferred SL fixed (5 bugs): matches batch evaluator at 0.0000 diff
+- [x] 11 telemetry parity tests prevent future divergence
+- [x] `scripts/rust_accuracy_check.py` — re-evaluate saved results with Rust
+- [x] `scripts/rust_vs_numba_benchmark.py` — throughput comparison
+- [x] 533 tests passing
+
+---
+
 ## Phase 6: Live Trading (FR-6) & Risk Management (FR-7)
-- [ ] REQ-L01-L41: Trading loop, orders, position management, broker sync, state, multi-instance
-- [ ] REQ-R01-R13: Pre-trade checks, position sizing, circuit breaker, status
+
+### Trading Engine
+- [x] REQ-L01: Candle-close event loop (`backtester/live/trader.py`, 568 lines)
+- [x] REQ-L02: Signal generation from live candles (loads strategy, runs generate_signals)
+- [x] REQ-L03: Market order placement via MT5 (`backtester/broker/mt5_orders.py`)
+- [x] REQ-L04: SL/TP order management (modify_sl_tp, partial_close)
+- [x] REQ-L05: Position management — trailing, BE, partial, stale, max bars (`backtester/live/position_manager.py`, 220 lines)
+- [x] REQ-L06: Broker sync — detects external closes, SL/TP hits
+- [x] REQ-L07: Signal dedup — tracks last_signal_time to prevent duplicate orders
+- [x] REQ-L08: Graceful shutdown with signal handlers
+
+### State & Recovery
+- [x] REQ-L09: Atomic state persistence (state.json with write-temp-rename)
+- [x] REQ-L10: Crash recovery — reload positions and daily stats on restart
+- [x] REQ-L14: Append-only audit trail (audit.jsonl)
+- [x] REQ-L30: Heartbeat monitoring (heartbeat.json, checked by status_all.py)
+
+### Risk Management
+- [x] REQ-R05: Daily trade limit (max 10 trades/day)
+- [x] REQ-R06: Daily loss limit (max 3% daily loss)
+- [x] REQ-R07: Spread filter (max 3 pips, skip if exceeded)
+- [x] REQ-R08: Drawdown limit (max 10% from peak balance)
+- [x] REQ-R09: Max open positions (max 3)
+- [x] REQ-R10: Circuit breaker — trips on threshold violations
+- [x] REQ-R11: Manual circuit breaker reset
+- [x] REQ-R12: Risk-based position sizing (Kelly-like: balance * risk_pct / sl_pips / pip_value)
+- [x] REQ-R13: Risk status reporting (get_status)
+
+### Broker Integration
+- [x] REQ-L16: MT5 connection (`backtester/broker/mt5.py`, 258 lines)
+- [x] REQ-L17: Market order execution with SL/TP (`backtester/broker/mt5_orders.py`, 298 lines)
+- [x] REQ-L18: Position query (get_open_positions, get_closed_deals)
+- [x] REQ-L19: Candle fetch for signal generation (fetch_candles, fetch_candles_range)
+- [x] REQ-L20: Account info (balance, equity, margin)
+- [x] REQ-L21: Symbol info (point, digits, contract_size, volume constraints)
+- [x] REQ-L22: EET/UTC timezone handling (_mt5_epoch_to_utc)
+
+### Deployment & Operations
+- [x] DEPLOY.bat — One-click VPS deploy (git pull, ensure deps, start traders)
+- [x] STATUS.bat — Check all running traders (heartbeat, positions, logs)
+- [x] STOP.bat — Stop all running traders
+- [x] scripts/start_all.py — Auto-discover validated strategies, launch as detached processes
+- [x] scripts/stop_all.py — Kill all live_trade.py processes
+- [x] scripts/status_all.py — Read heartbeat/logs for each trader
+- [x] scripts/live_trade.py — CLI entry point with dry_run/practice/live modes
+- [x] scripts/ensure_deps.py — Auto-install when requirements change
+- [x] .env.example — Template for MT5 credentials
+- [x] /deploy skill — Claude command for guided deployment workflow
+
+### Configuration
+- [x] LiveConfig dataclass: strategy, pair, timeframe, risk params, execution costs
+- [x] TradingMode enum: DRY_RUN, PRACTICE, LIVE (with safety gate for LIVE)
+- [x] Per-strategy state directories (state/DIR_NAME/)
+
+### Tests
+- [x] test_live_state.py — State persistence, heartbeat, audit trail
+- [x] test_position_manager.py — Management actions for all exit types
+- [x] test_risk_manager.py — Pre-trade checks, position sizing, circuit breaker
 
 ---
 
