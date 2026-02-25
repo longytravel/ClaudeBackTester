@@ -506,17 +506,22 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         )
         candidate_results.append(cr)
 
-    # Scale pipeline parameters by timeframe (bar-count params are designed for H1)
+    # Scale pipeline parameters by timeframe
+    # Walk-forward: 6-month train windows, 3-month step (industry best practice).
+    # With 19 years of data this gives ~12 OOS windows instead of 3.
     from backtester.core.dtypes import BARS_PER_YEAR
     bars_py = BARS_PER_YEAR.get(timeframe, 6048.0)
     tf_scale = bars_py / BARS_PER_YEAR["H1"]
+
+    wf_window = int(bars_py * 0.5)    # 6 months of bars
+    wf_step = int(bars_py * 0.25)     # 3-month step
 
     pipeline_config = PipelineConfig(
         commission_pips=COMMISSION_PIPS,
         max_spread_pips=MAX_SPREAD_PIPS,
         bars_per_year=bars_py,
-        wf_window_bars=int(8760 * tf_scale),
-        wf_step_bars=int(4380 * tf_scale),
+        wf_window_bars=wf_window,
+        wf_step_bars=wf_step,
         wf_embargo_bars=int(168 * tf_scale),
         wf_lookback_prefix=int(200 * tf_scale),
         cpcv_purge_bars=int(200 * tf_scale),

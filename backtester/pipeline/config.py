@@ -25,8 +25,8 @@ class PipelineConfig:
     n_candidates: int = 20  # Number of candidates to validate from optimizer
 
     # --- Walk-Forward (Stage 3) ---
-    wf_window_bars: int = 8760  # ~1.45 years at H1 (365 * 24)
-    wf_step_bars: int = 4380    # ~0.72 years at H1 (step = half window)
+    wf_window_bars: int = 3024  # 6 months at H1 (6048 * 0.5)
+    wf_step_bars: int = 1512    # 3 months at H1 (6048 * 0.25)
     wf_embargo_bars: int = 168  # 1 week of H1 bars between train/test
     wf_anchored: bool = False   # Rolling (False) vs anchored (True) windows
     wf_lookback_prefix: int = 200  # DEPRECATED: unused by shared-engine pipeline. Kept for checkpoint compat.
