@@ -112,6 +112,19 @@ class PipelineRunner:
                 for i, p in enumerate(candidates)
             ]
 
+        # Guard: shared engine assumes causal signals (pre-computed once on
+        # full dataset). Non-causal strategies need per-window signal generation,
+        # which is not yet supported.
+        from backtester.strategies.base import SignalCausality
+        if self.strategy.signal_causality() == SignalCausality.REQUIRES_TRAIN_FIT:
+            raise NotImplementedError(
+                f"Strategy '{self.strategy.name}' declares REQUIRES_TRAIN_FIT "
+                f"signal causality. The shared-engine pipeline pre-computes "
+                f"signals once on the full dataset, which is only correct for "
+                f"causal indicators. Per-window signal generation is not yet "
+                f"supported."
+            )
+
         # Create ONE shared engine for all stages that need evaluation.
         # Creating multiple BacktestEngine instances accumulates Numba NRT
         # memory that Windows never returns to the OS, causing ACCESS_VIOLATION.

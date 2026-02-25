@@ -413,36 +413,33 @@ class TestEvaluateCandidateOnWindow:
         assert result.sharpe > 0
         assert result.passed is True
 
-    def test_lookback_prefix_extends_slice(self):
-        """Lookback prefix gives indicators warmup data before the window."""
+    def test_window_evaluation_captures_signals_in_range(self):
+        """Signals within [window_start, window_end) are evaluated via windowed path."""
         n_bars = 600
         data_arrays = _make_data_arrays(n_bars=n_bars, trending=True)
-        # Signal at bar 210 (relative to full data): should be in range
-        # if lookback is considered
+        # Signal at bar 210 — inside window [200, 400)
         signal_bars = [210]
         strategy = DummyStrategy(signal_bars=signal_bars)
         params = _default_params()
         config = PipelineConfig(wf_min_trades_per_window=1, commission_pips=0.0, max_spread_pips=0.0)
 
-        # Window is [200, 400), with 50-bar lookback => slice is [150, 400)
-        # Signal at bar 210 in full data maps to bar 210-150=60 in the slice
+        # Shared-engine approach: signals are pre-computed on full data,
+        # then filtered to [window_start, window_end). Signal at bar 210
+        # is inside [200, 400), so it should be evaluated.
         result = evaluate_candidate_on_window(
             strategy=strategy,
             params_dict=params,
             data_arrays=data_arrays,
             window_start=200,
             window_end=400,
-            lookback_prefix=50,
+            lookback_prefix=50,  # Accepted but unused
             config=config,
         )
 
-        # The strategy generates signals based on the slice's indices,
-        # not the original data indices. Since the slice starts at 150 and
-        # the DummyStrategy generates at bar_index=210 only if 210 < len(slice)=250,
-        # which is true, we should get a signal.
-        # NOTE: The DummyStrategy uses absolute bar indices within the slice,
-        # so bar 210 in a 250-bar slice is valid.
-        assert result.n_trades >= 0  # May or may not produce trades depending on TP/SL
+        # Signal at bar 210 is inside the window, should produce a trade
+        assert result.n_trades == 1
+        assert result.start_bar == 200
+        assert result.end_bar == 400
 
 
 # ---------------------------------------------------------------------------
@@ -755,3 +752,114 @@ class TestWalkForwardEdgeCases:
                 mean_oos_q = np.mean([w.quality_score for w in oos_windows])
                 expected_wfe = mean_oos_q / best_is_q
                 assert abs(wf.wfe - expected_wfe) < 1e-6
+
+
+# ---------------------------------------------------------------------------
+# Tests: WFA boundary signal diagnostic
+# ---------------------------------------------------------------------------
+
+class TestWFABoundarySignals:
+    """Validate that shared-engine approach doesn't create signal dead zones
+    at walk-forward window boundaries.
+
+    The per-window approach had dead zones at window starts because
+    indicators needed warmup bars. The shared engine pre-computes signals
+    on the full dataset, so no window should have a signal gap at its start.
+    """
+
+    def test_no_signal_dead_zones_in_oos_windows(self):
+        """Dense signals should appear in the first 20% of every OOS window."""
+        # Create data with dense signals (every 15 bars)
+        n_bars = 2000
+        data_arrays = _make_data_arrays(n_bars=n_bars, trending=True)
+        signal_bars = list(range(10, n_bars - 10, 15))
+        strategy = DummyStrategy(signal_bars=signal_bars)
+        params = _default_params()
+
+        config = PipelineConfig(
+            wf_window_bars=400,
+            wf_step_bars=200,
+            wf_embargo_bars=0,
+            wf_anchored=False,
+            wf_min_trades_per_window=1,
+            wf_pass_rate_gate=0.0,
+            wf_mean_sharpe_gate=-999.0,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
+        )
+
+        # Build shared engine to check signal presence per window
+        from backtester.pipeline.walk_forward import build_engine, generate_windows, label_windows
+        engine = build_engine(strategy, data_arrays, config)
+
+        windows = generate_windows(
+            n_bars=n_bars,
+            window_size=config.wf_window_bars,
+            step_size=config.wf_step_bars,
+            embargo_bars=config.wf_embargo_bars,
+            anchored=config.wf_anchored,
+        )
+        oos_labels = label_windows(windows, opt_start=0, opt_end=int(n_bars * 0.5))
+        oos_windows = [(w, is_oos) for w, is_oos in zip(windows, oos_labels) if is_oos]
+
+        assert len(oos_windows) > 0, "Should have at least one OOS window"
+
+        dead_zone_warnings = []
+        for (w_start, w_end), _ in oos_windows:
+            # Check for signals in the first 20% of the window
+            first_20pct = w_start + int((w_end - w_start) * 0.2)
+            mask = (engine.sig_bar_index >= w_start) & (engine.sig_bar_index < first_20pct)
+            n_early_signals = mask.sum()
+
+            if n_early_signals == 0:
+                dead_zone_warnings.append(
+                    f"Window [{w_start}, {w_end}): 0 signals in first 20% "
+                    f"[{w_start}, {first_20pct})"
+                )
+
+        assert len(dead_zone_warnings) == 0, (
+            f"Signal dead zones found in {len(dead_zone_warnings)} OOS windows:\n"
+            + "\n".join(dead_zone_warnings)
+        )
+
+    def test_signal_coverage_across_all_windows(self):
+        """Every OOS window with dense signals should have multiple signals."""
+        n_bars = 1500
+        data_arrays = _make_data_arrays(n_bars=n_bars, trending=True)
+        signal_bars = list(range(5, n_bars - 5, 10))
+        strategy = DummyStrategy(signal_bars=signal_bars)
+
+        config = PipelineConfig(
+            wf_window_bars=300,
+            wf_step_bars=150,
+            wf_embargo_bars=0,
+            wf_anchored=False,
+            wf_min_trades_per_window=1,
+            wf_pass_rate_gate=0.0,
+            wf_mean_sharpe_gate=-999.0,
+            commission_pips=0.0,
+            max_spread_pips=0.0,
+        )
+
+        from backtester.pipeline.walk_forward import build_engine, generate_windows, label_windows
+        engine = build_engine(strategy, data_arrays, config)
+
+        windows = generate_windows(
+            n_bars=n_bars,
+            window_size=config.wf_window_bars,
+            step_size=config.wf_step_bars,
+            embargo_bars=config.wf_embargo_bars,
+            anchored=config.wf_anchored,
+        )
+        oos_labels = label_windows(windows, opt_start=0, opt_end=int(n_bars * 0.5))
+
+        for (w_start, w_end), is_oos in zip(windows, oos_labels):
+            if not is_oos:
+                continue
+            mask = (engine.sig_bar_index >= w_start) & (engine.sig_bar_index < w_end)
+            n_signals = mask.sum()
+            # With signals every 10 bars and 300-bar windows, expect ~30 signals
+            assert n_signals > 0, (
+                f"Window [{w_start}, {w_end}) has 0 signals — "
+                f"shared engine may have signal filtering issues"
+            )

@@ -84,6 +84,21 @@ class ParamSpace:
 # Signals
 # ---------------------------------------------------------------------------
 
+class SignalCausality(Enum):
+    """Declares whether a strategy's signal generation is purely causal.
+
+    CAUSAL: Signals at bar t depend only on data at bars <= t. Safe for
+    shared-engine architecture (pre-compute signals once on full dataset,
+    slice per window). EMA, RSI, ATR — all causal.
+
+    REQUIRES_TRAIN_FIT: Signals depend on future data or require fitting
+    on a training window (z-score normalization, PCA, percentile ranks).
+    Must use per-window engine creation. Not yet supported by the pipeline.
+    """
+    CAUSAL = "causal"
+    REQUIRES_TRAIN_FIT = "requires_train_fit"
+
+
 class Direction(Enum):
     BUY = 1
     SELL = -1
@@ -271,6 +286,19 @@ class Strategy(ABC):
         ...
 
     # --- Optimization support ---
+
+    def signal_causality(self) -> SignalCausality:
+        """Declare whether this strategy's signals are purely causal.
+
+        Causal strategies produce identical signals at bar t regardless of
+        data after bar t. The shared-engine pipeline relies on this property
+        to pre-compute signals once on the full dataset.
+
+        Override and return REQUIRES_TRAIN_FIT if your signal generation
+        uses lookback windows, z-scores, PCA, or any transformation that
+        depends on the training range boundaries.
+        """
+        return SignalCausality.CAUSAL
 
     def optimization_stages(self) -> list[str]:
         """Define the optimization stage order for this strategy.

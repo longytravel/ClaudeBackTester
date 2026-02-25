@@ -188,6 +188,18 @@ class BacktestEngine:
             self.h1_to_sub_start = np.arange(n, dtype=np.int64)
             self.h1_to_sub_end = np.arange(n, dtype=np.int64) + 1
 
+        # Guard: BacktestEngine pre-computes signals once on the full dataset,
+        # which is only valid for causal strategies.
+        from backtester.strategies.base import SignalCausality
+        if strategy.signal_causality() == SignalCausality.REQUIRES_TRAIN_FIT:
+            raise NotImplementedError(
+                f"Strategy '{strategy.name}' declares REQUIRES_TRAIN_FIT "
+                f"signal causality. BacktestEngine pre-computes signals once "
+                f"on the full dataset, which produces incorrect results for "
+                f"non-causal indicators. Per-window signal generation is not "
+                f"yet supported."
+            )
+
         # Build encoding spec from strategy's param space
         self.param_space = strategy.param_space()
         self.encoding = build_encoding_spec(self.param_space)

@@ -14,7 +14,6 @@ Functions:
 
 from __future__ import annotations
 
-import gc
 import logging
 import math
 from typing import Any
@@ -30,7 +29,7 @@ from backtester.core.dtypes import (
     M_SHARPE,
     M_TRADES,
 )
-from backtester.core.encoding import build_encoding_spec, encode_params
+from backtester.core.encoding import encode_params
 from backtester.core.engine import BacktestEngine
 from backtester.pipeline.config import PipelineConfig
 from backtester.pipeline.types import WalkForwardResult, WindowResult
@@ -185,7 +184,7 @@ def evaluate_candidate_on_window(
     data_arrays: dict[str, np.ndarray],
     window_start: int,
     window_end: int,
-    lookback_prefix: int,
+    lookback_prefix: int,  # Kept for API compat, unused by shared-engine path
     config: PipelineConfig,
     window_index: int = 0,
     is_oos: bool = True,
@@ -195,9 +194,8 @@ def evaluate_candidate_on_window(
 ) -> WindowResult:
     """Evaluate one candidate on one walk-forward window.
 
-    When engine is provided, uses windowed evaluation on the pre-built engine
-    (no engine creation — memory efficient). When engine is None, falls back
-    to creating a per-window engine (legacy behavior for tests).
+    Uses windowed evaluation on a shared BacktestEngine. If no engine is
+    provided, builds one on the full dataset on the fly.
 
     Args:
         strategy: Strategy instance.
@@ -206,83 +204,29 @@ def evaluate_candidate_on_window(
                      bar_hour, bar_day_of_week. All full-length numpy arrays.
         window_start: Start bar of the test window (inclusive).
         window_end: End bar of the test window (exclusive).
-        lookback_prefix: Number of extra bars before window_start for warmup.
+        lookback_prefix: Deprecated — unused by shared-engine pipeline.
+                         Kept for API compatibility.
         config: Pipeline configuration.
         window_index: Index of this window (for result tracking).
         is_oos: Whether this window is out-of-sample.
         pip_value: Pip value for the instrument.
         slippage_pips: Slippage in pips.
-        engine: Pre-built BacktestEngine on full data. When provided,
-                uses evaluate_batch_windowed() instead of creating a new engine.
+        engine: Pre-built BacktestEngine on full data. If None, one is
+                created from data_arrays.
 
     Returns:
         WindowResult with metrics from this window evaluation.
     """
-    if engine is not None:
-        # Fast path: use pre-built engine with windowed evaluation
-        encoding = engine.encoding
-        param_row = encode_params(encoding, params_dict)
-        param_matrix = param_row.reshape(1, -1)
-        metrics = engine.evaluate_batch_windowed(
-            param_matrix, window_start, window_end, exec_mode=EXEC_FULL,
-        )
-        row = metrics[0]
-    else:
-        # Legacy path: create per-window engine (for backwards compatibility)
-        slice_start = max(0, window_start - lookback_prefix)
-        slice_end = window_end
+    if engine is None:
+        engine = build_engine(strategy, data_arrays, config, pip_value, slippage_pips)
 
-        open_s = data_arrays["open"][slice_start:slice_end]
-        high_s = data_arrays["high"][slice_start:slice_end]
-        low_s = data_arrays["low"][slice_start:slice_end]
-        close_s = data_arrays["close"][slice_start:slice_end]
-        volume_s = data_arrays["volume"][slice_start:slice_end]
-        spread_s = data_arrays["spread"][slice_start:slice_end]
-
-        bar_hour_s = None
-        bar_dow_s = None
-        if data_arrays.get("bar_hour") is not None:
-            bar_hour_s = data_arrays["bar_hour"][slice_start:slice_end]
-        if data_arrays.get("bar_day_of_week") is not None:
-            bar_dow_s = data_arrays["bar_day_of_week"][slice_start:slice_end]
-
-        m1_kwargs: dict[str, np.ndarray] = {}
-        if "m1_high" in data_arrays and data_arrays.get("h1_to_m1_start") is not None:
-            h1_starts = data_arrays["h1_to_m1_start"]
-            h1_ends = data_arrays["h1_to_m1_end"]
-            m1_start = int(h1_starts[slice_start])
-            m1_end = int(h1_ends[slice_end - 1]) if slice_end > slice_start else m1_start
-            m1_kwargs["m1_high"] = data_arrays["m1_high"][m1_start:m1_end]
-            m1_kwargs["m1_low"] = data_arrays["m1_low"][m1_start:m1_end]
-            m1_kwargs["m1_close"] = data_arrays["m1_close"][m1_start:m1_end]
-            m1_kwargs["m1_spread"] = data_arrays["m1_spread"][m1_start:m1_end]
-            m1_kwargs["h1_to_m1_start"] = h1_starts[slice_start:slice_end] - m1_start
-            m1_kwargs["h1_to_m1_end"] = h1_ends[slice_start:slice_end] - m1_start
-
-        per_window_engine = BacktestEngine(
-            strategy=strategy,
-            open_=open_s,
-            high=high_s,
-            low=low_s,
-            close=close_s,
-            volume=volume_s,
-            spread=spread_s,
-            pip_value=pip_value,
-            slippage_pips=slippage_pips,
-            max_trades_per_trial=config.wf_max_trades_per_trial,
-            commission_pips=config.commission_pips,
-            max_spread_pips=config.max_spread_pips,
-            bar_hour=bar_hour_s,
-            bar_day_of_week=bar_dow_s,
-            **m1_kwargs,
-        )
-
-        encoding = build_encoding_spec(strategy.param_space())
-        param_row = encode_params(encoding, params_dict)
-        param_matrix = param_row.reshape(1, -1)
-        metrics = per_window_engine.evaluate_batch(param_matrix, exec_mode=EXEC_FULL)
-        row = metrics[0].copy()
-        del per_window_engine
+    encoding = engine.encoding
+    param_row = encode_params(encoding, params_dict)
+    param_matrix = param_row.reshape(1, -1)
+    metrics = engine.evaluate_batch_windowed(
+        param_matrix, window_start, window_end, exec_mode=EXEC_FULL,
+    )
+    row = metrics[0]
 
     return _metrics_row_to_window_result(
         row, window_start, window_end, window_index, is_oos,

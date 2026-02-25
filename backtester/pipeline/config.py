@@ -29,7 +29,7 @@ class PipelineConfig:
     wf_step_bars: int = 4380    # ~0.72 years at H1 (step = half window)
     wf_embargo_bars: int = 168  # 1 week of H1 bars between train/test
     wf_anchored: bool = False   # Rolling (False) vs anchored (True) windows
-    wf_lookback_prefix: int = 200  # Extra bars before test window for indicator warmup
+    wf_lookback_prefix: int = 200  # DEPRECATED: unused by shared-engine pipeline. Kept for checkpoint compat.
     wf_max_trades_per_trial: int = 5_000  # Walk-forward window: fewer bars → fewer trades
     wf_min_trades_per_window: int = 10
     wf_pass_rate_gate: float = 0.6      # Hard gate: >= 60% windows must pass

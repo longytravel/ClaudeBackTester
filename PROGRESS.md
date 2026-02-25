@@ -202,7 +202,7 @@
 - [x] NaN spread sanitization in telemetry (entry & exit)
 - [x] Time array warning when bar_hour/bar_day_of_week not provided
 - [x] Weekly timeframe anchor: "1W" → "W-MON" for FX weekly bars
-- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b VP-1/VP-2, 451 after OPT-1, 472 after VP-3
+- [x] 253 tests passing (15 new regression tests), 362 after Phase 5, 442 after Phase 5b VP-1/VP-2, 451 after OPT-1, 472 after VP-3, 511 after causality contract + pipeline hardening
 
 ---
 
@@ -295,6 +295,20 @@ Research papers (paper1.txt, paper2.txt, report_a.txt, validation_pipeline.txt) 
 - **Source**: paper2.txt (batch size depends on cache behavior, memory bandwidth)
 - **Impact**: Low — current 512 default works, but optimal varies by workload
 - **Location**: `optimizer/config.py`, `optimizer/staged.py`
+
+### Causality Contract + Pipeline Hardening ✓
+- [x] `SignalCausality` enum (`CAUSAL` / `REQUIRES_TRAIN_FIT`) in `strategies/base.py`
+- [x] Default `signal_causality()` method on Strategy base class (returns CAUSAL)
+- [x] Pipeline guard: `runner.py` raises `NotImplementedError` for non-causal strategies in shared-engine pipeline
+- [x] Engine guard: `engine.py` raises `NotImplementedError` for non-causal strategies
+- [x] Legacy cleanup: removed ~55 lines of dead per-window engine creation code from `walk_forward.py`
+- [x] Deprecated `wf_lookback_prefix` config field (kept for checkpoint compat)
+- [x] Automated causality verification tests (`tests/test_causality.py`):
+  - Truncation invariance: signals at bars < t identical on full vs truncated data
+  - Future perturbation: wildly changed future data doesn't affect past signals
+  - Parameterized across all registered CAUSAL strategies (auto-discovers new ones)
+- [x] WFA boundary diagnostic tests: validates no signal dead zones in shared-engine windows
+- [x] 511 tests passing (39 new: 6 causality + 2 boundary + 31 walk-forward updates)
 
 ### NOT building now (correctly deferred)
 - **NSGA-II / full GA rewrite** — current Sobol+EDA works well, massive rewrite not justified
