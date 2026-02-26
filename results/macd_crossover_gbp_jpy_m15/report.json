@@ -1,0 +1,103 @@
+{
+  "strategy": "macd_crossover",
+  "version": "1.0.0",
+  "pair": "GBP/JPY",
+  "timeframe": "M15",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {
+        "macd_combo": 163012,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 90,
+        "sl_atr_mult": 1.0,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 5.0,
+        "tp_atr_mult": 2.5,
+        "tp_fixed_pips": 30,
+        "trailing_mode": "off",
+        "trail_activate_pips": 20,
+        "trail_distance_pips": 15,
+        "trail_atr_mult": 1.5,
+        "breakeven_enabled": false,
+        "breakeven_trigger_pips": 30,
+        "breakeven_offset_pips": 10,
+        "partial_close_enabled": false,
+        "partial_close_pct": 70,
+        "partial_close_trigger_pips": 30,
+        "max_bars": 0,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 50,
+        "stale_exit_atr_threshold": 1.0,
+        "allowed_hours_start": 7,
+        "allowed_hours_end": 11,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "back_quality": 4.87241567824911,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.37, mean_sharpe=-3.97",
+      "wf_pass_rate": 0.3684210526315789,
+      "wf_mean_sharpe": -3.9661882397634245,
+      "trade_stats": {
+        "n_trades": 559576,
+        "total_pnl_pips": 5280992.0,
+        "total_pnl_usd": 369669.44,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.07,
+        "win_rate": 19.1,
+        "profit_factor": 1.12,
+        "avg_pnl_pips": 9.44,
+        "median_pnl_pips": -93.2,
+        "best_trade_pips": 448.3,
+        "worst_trade_pips": -136.05,
+        "std_dev_pips": 212.18,
+        "avg_bars_held": 571.4,
+        "exit_breakdown": {
+          "stop_loss": {
+            "count": 452455,
+            "pct": 80.9,
+            "pnl_pips": -42366426.15,
+            "pnl_usd": -2965649.83
+          },
+          "take_profit": {
+            "count": 106622,
+            "pct": 19.1,
+            "pnl_pips": 47623394.0,
+            "pnl_usd": 3333637.58
+          },
+          "open": {
+            "count": 499,
+            "pct": 0.1,
+            "pnl_pips": 24024.15,
+            "pnl_usd": 1681.69
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 278847,
+            "win_rate": 21.6,
+            "total_pnl_pips": 6491926.15,
+            "total_pnl_usd": 454434.83
+          },
+          "SELL": {
+            "n_trades": 280729,
+            "win_rate": 16.7,
+            "total_pnl_pips": -1210934.15,
+            "total_pnl_usd": -84765.39
+          }
+        }
+      }
+    }
+  ]
+}

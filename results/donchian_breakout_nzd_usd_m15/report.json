@@ -1,0 +1,105 @@
+{
+  "strategy": "donchian_breakout",
+  "version": "1.0.0",
+  "pair": "NZD/USD",
+  "timeframe": "M15",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {
+        "donchian_period": 20,
+        "sl_mode": "swing",
+        "sl_fixed_pips": 30,
+        "sl_atr_mult": 1.25,
+        "tp_mode": "fixed_pips",
+        "tp_rr_ratio": 5.0,
+        "tp_atr_mult": 2.5,
+        "tp_fixed_pips": 200,
+        "trailing_mode": "off",
+        "trail_activate_pips": 50,
+        "trail_distance_pips": 10,
+        "trail_atr_mult": 1.5,
+        "breakeven_enabled": false,
+        "breakeven_trigger_pips": 30,
+        "breakeven_offset_pips": 3,
+        "partial_close_enabled": false,
+        "partial_close_pct": 70,
+        "partial_close_trigger_pips": 20,
+        "max_bars": 0,
+        "stale_exit_enabled": true,
+        "stale_exit_bars": 50,
+        "stale_exit_atr_threshold": 1.0,
+        "allowed_hours_start": 4,
+        "allowed_hours_end": 4,
+        "allowed_days": [
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 0.9294866919644024,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.33, mean_sharpe=-0.59",
+      "wf_pass_rate": 0.3333333333333333,
+      "wf_mean_sharpe": -0.5928117084713178,
+      "trade_stats": {
+        "n_trades": 4989,
+        "total_pnl_pips": 28999.85,
+        "total_pnl_usd": 2899.99,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 23.3,
+        "profit_factor": 1.19,
+        "avg_pnl_pips": 5.81,
+        "median_pnl_pips": -29.8,
+        "best_trade_pips": 198.25,
+        "worst_trade_pips": -155.7,
+        "std_dev_pips": 89.23,
+        "avg_bars_held": 401.2,
+        "exit_breakdown": {
+          "stop_loss": {
+            "count": 3730,
+            "pct": 74.8,
+            "pnl_pips": -146709.1,
+            "pnl_usd": -14670.91
+          },
+          "take_profit": {
+            "count": 777,
+            "pct": 15.6,
+            "pnl_pips": 153439.45,
+            "pnl_usd": 15343.94
+          },
+          "stale_exit": {
+            "count": 480,
+            "pct": 9.6,
+            "pnl_pips": 22283.4,
+            "pnl_usd": 2228.34
+          },
+          "open": {
+            "count": 2,
+            "pct": 0.0,
+            "pnl_pips": -13.9,
+            "pnl_usd": -1.39
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 2482,
+            "win_rate": 21.3,
+            "total_pnl_pips": 4422.95,
+            "total_pnl_usd": 442.3
+          },
+          "SELL": {
+            "n_trades": 2507,
+            "win_rate": 25.3,
+            "total_pnl_pips": 24576.9,
+            "total_pnl_usd": 2457.69
+          }
+        }
+      }
+    }
+  ]
+}

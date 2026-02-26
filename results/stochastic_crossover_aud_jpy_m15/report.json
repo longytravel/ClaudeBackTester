@@ -1,0 +1,58 @@
+{
+  "strategy": "stochastic_crossover",
+  "version": "1.0.0",
+  "pair": "AUD/JPY",
+  "timeframe": "M15",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {
+        "stoch_combo": 2103,
+        "stoch_oversold": 30,
+        "stoch_overbought": 75,
+        "sl_mode": "atr_based",
+        "sl_fixed_pips": 20,
+        "sl_atr_mult": 1.5,
+        "tp_mode": "atr_based",
+        "tp_rr_ratio": 2.0,
+        "tp_atr_mult": 1.5,
+        "tp_fixed_pips": 180,
+        "trailing_mode": "atr_chandelier",
+        "trail_activate_pips": 50,
+        "trail_distance_pips": 30,
+        "trail_atr_mult": 3.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 30,
+        "breakeven_offset_pips": 2,
+        "partial_close_enabled": false,
+        "partial_close_pct": 50,
+        "partial_close_trigger_pips": 30,
+        "max_bars": 1000,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 100,
+        "stale_exit_atr_threshold": 0.3,
+        "allowed_hours_start": 16,
+        "allowed_hours_end": 16,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 0.0,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.00",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.0,
+      "trade_stats": {
+        "n_trades": 0,
+        "total_pnl_pips": 0.0,
+        "total_pnl_usd": 0.0
+      }
+    }
+  ]
+}

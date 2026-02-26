@@ -1,0 +1,806 @@
+{
+  "strategy": "adx_trend",
+  "version": "1.0.0",
+  "pair": "EUR/USD",
+  "timeframe": "M15",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 75,
+        "sl_atr_mult": 2.5,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 1.5,
+        "tp_atr_mult": 3.0,
+        "tp_fixed_pips": 30,
+        "trailing_mode": "fixed_pip",
+        "trail_activate_pips": 15,
+        "trail_distance_pips": 20,
+        "trail_atr_mult": 2.5,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 5,
+        "partial_close_enabled": false,
+        "partial_close_pct": 30,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 200,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 50,
+        "stale_exit_atr_threshold": 0.3,
+        "allowed_hours_start": 15,
+        "allowed_hours_end": 12,
+        "allowed_days": [
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 129.9935090224056,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.75",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.7516991007207158,
+      "trade_stats": {
+        "n_trades": 38423,
+        "total_pnl_pips": -100182.8,
+        "total_pnl_usd": -10018.28,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 79.2,
+        "profit_factor": 0.81,
+        "avg_pnl_pips": -2.61,
+        "median_pnl_pips": 3.8,
+        "best_trade_pips": 111.2,
+        "worst_trade_pips": -96.75,
+        "std_dev_pips": 36.86,
+        "avg_bars_held": 55.8,
+        "exit_breakdown": {
+          "trailing_stop": {
+            "count": 29922,
+            "pct": 77.9,
+            "pnl_pips": 392728.05,
+            "pnl_usd": 39272.8
+          },
+          "stop_loss": {
+            "count": 5801,
+            "pct": 15.1,
+            "pnl_pips": -447671.5,
+            "pnl_usd": -44767.15
+          },
+          "max_bars": {
+            "count": 2513,
+            "pct": 6.5,
+            "pnl_pips": -65514.8,
+            "pnl_usd": -6551.48
+          },
+          "take_profit": {
+            "count": 184,
+            "pct": 0.5,
+            "pnl_pips": 20318.1,
+            "pnl_usd": 2031.81
+          },
+          "open": {
+            "count": 3,
+            "pct": 0.0,
+            "pnl_pips": -42.65,
+            "pnl_usd": -4.27
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 19096,
+            "win_rate": 77.8,
+            "total_pnl_pips": -73008.25,
+            "total_pnl_usd": -7300.83
+          },
+          "SELL": {
+            "n_trades": 19327,
+            "win_rate": 80.6,
+            "total_pnl_pips": -27174.55,
+            "total_pnl_usd": -2717.46
+          }
+        }
+      }
+    },
+    {
+      "index": 1,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 75,
+        "sl_atr_mult": 2.5,
+        "tp_mode": "fixed_pips",
+        "tp_rr_ratio": 2.0,
+        "tp_atr_mult": 1.5,
+        "tp_fixed_pips": 70,
+        "trailing_mode": "off",
+        "trail_activate_pips": 10,
+        "trail_distance_pips": 20,
+        "trail_atr_mult": 3.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 2,
+        "partial_close_enabled": false,
+        "partial_close_pct": 40,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 50,
+        "stale_exit_enabled": true,
+        "stale_exit_bars": 20,
+        "stale_exit_atr_threshold": 0.75,
+        "allowed_hours_start": 17,
+        "allowed_hours_end": 6,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "back_quality": 27.767823046627843,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.00",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.0,
+      "trade_stats": {
+        "n_trades": 29858,
+        "total_pnl_pips": -68062.4,
+        "total_pnl_usd": -6806.24,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 62.5,
+        "profit_factor": 0.79,
+        "avg_pnl_pips": -2.28,
+        "median_pnl_pips": 0.55,
+        "best_trade_pips": 87.75,
+        "worst_trade_pips": -117.0,
+        "std_dev_pips": 31.3,
+        "avg_bars_held": 37.0,
+        "exit_breakdown": {
+          "max_bars": {
+            "count": 13319,
+            "pct": 44.6,
+            "pnl_pips": -55325.13,
+            "pnl_usd": -5532.51
+          },
+          "breakeven": {
+            "count": 10940,
+            "pct": 36.6,
+            "pnl_pips": 6326.8,
+            "pnl_usd": 632.68
+          },
+          "stale_exit": {
+            "count": 2602,
+            "pct": 8.7,
+            "pnl_pips": -9573.48,
+            "pnl_usd": -957.35
+          },
+          "stop_loss": {
+            "count": 1523,
+            "pct": 5.1,
+            "pnl_pips": -117557.4,
+            "pnl_usd": -11755.74
+          },
+          "take_profit": {
+            "count": 1474,
+            "pct": 4.9,
+            "pnl_pips": 108066.8,
+            "pnl_usd": 10806.68
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 14891,
+            "win_rate": 64.0,
+            "total_pnl_pips": -38450.8,
+            "total_pnl_usd": -3845.08
+          },
+          "SELL": {
+            "n_trades": 14967,
+            "win_rate": 61.0,
+            "total_pnl_pips": -29611.6,
+            "total_pnl_usd": -2961.16
+          }
+        }
+      }
+    },
+    {
+      "index": 2,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 90,
+        "sl_atr_mult": 1.25,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 4.0,
+        "tp_atr_mult": 2.0,
+        "tp_fixed_pips": 70,
+        "trailing_mode": "fixed_pip",
+        "trail_activate_pips": 10,
+        "trail_distance_pips": 15,
+        "trail_atr_mult": 2.0,
+        "breakeven_enabled": false,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 5,
+        "partial_close_enabled": true,
+        "partial_close_pct": 30,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 50,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 50,
+        "stale_exit_atr_threshold": 0.5,
+        "allowed_hours_start": 8,
+        "allowed_hours_end": 6,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 15.232074543213153,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=2.10",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 2.1041783609853253,
+      "trade_stats": {
+        "n_trades": 53518,
+        "total_pnl_pips": -115889.53,
+        "total_pnl_usd": -11588.95,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 49.9,
+        "profit_factor": 0.77,
+        "avg_pnl_pips": -2.17,
+        "median_pnl_pips": -0.0,
+        "best_trade_pips": 454.67,
+        "worst_trade_pips": -112.85,
+        "std_dev_pips": 25.99,
+        "avg_bars_held": 27.6,
+        "exit_breakdown": {
+          "trailing_stop": {
+            "count": 35077,
+            "pct": 65.5,
+            "pnl_pips": 281773.13,
+            "pnl_usd": 28177.31
+          },
+          "max_bars": {
+            "count": 17258,
+            "pct": 32.2,
+            "pnl_pips": -289149.98,
+            "pnl_usd": -28915.0
+          },
+          "stop_loss": {
+            "count": 1182,
+            "pct": 2.2,
+            "pnl_pips": -108967.35,
+            "pnl_usd": -10896.74
+          },
+          "take_profit": {
+            "count": 1,
+            "pct": 0.0,
+            "pnl_pips": 454.67,
+            "pnl_usd": 45.47
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 26942,
+            "win_rate": 50.0,
+            "total_pnl_pips": -66872.08,
+            "total_pnl_usd": -6687.21
+          },
+          "SELL": {
+            "n_trades": 26576,
+            "win_rate": 49.7,
+            "total_pnl_pips": -49017.45,
+            "total_pnl_usd": -4901.74
+          }
+        }
+      }
+    },
+    {
+      "index": 3,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 85,
+        "sl_atr_mult": 2.5,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 4.0,
+        "tp_atr_mult": 2.0,
+        "tp_fixed_pips": 10,
+        "trailing_mode": "atr_chandelier",
+        "trail_activate_pips": 40,
+        "trail_distance_pips": 20,
+        "trail_atr_mult": 2.5,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 3,
+        "partial_close_enabled": true,
+        "partial_close_pct": 70,
+        "partial_close_trigger_pips": 30,
+        "max_bars": 50,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 100,
+        "stale_exit_atr_threshold": 0.3,
+        "allowed_hours_start": 18,
+        "allowed_hours_end": 6,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "back_quality": 14.999066687744246,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.00",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.0,
+      "trade_stats": {
+        "n_trades": 27797,
+        "total_pnl_pips": -56447.79,
+        "total_pnl_usd": -5644.78,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 66.2,
+        "profit_factor": 0.82,
+        "avg_pnl_pips": -2.03,
+        "median_pnl_pips": 1.65,
+        "best_trade_pips": 577.63,
+        "worst_trade_pips": -117.0,
+        "std_dev_pips": 29.66,
+        "avg_bars_held": 36.8,
+        "exit_breakdown": {
+          "max_bars": {
+            "count": 12412,
+            "pct": 44.7,
+            "pnl_pips": -151759.1,
+            "pnl_usd": -15175.91
+          },
+          "breakeven": {
+            "count": 10172,
+            "pct": 36.6,
+            "pnl_pips": 41347.91,
+            "pnl_usd": 4134.79
+          },
+          "trailing_stop": {
+            "count": 4213,
+            "pct": 15.2,
+            "pnl_pips": 140472.57,
+            "pnl_usd": 14047.26
+          },
+          "stop_loss": {
+            "count": 999,
+            "pct": 3.6,
+            "pnl_pips": -87086.8,
+            "pnl_usd": -8708.68
+          },
+          "take_profit": {
+            "count": 1,
+            "pct": 0.0,
+            "pnl_pips": 577.63,
+            "pnl_usd": 57.76
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 13798,
+            "win_rate": 65.5,
+            "total_pnl_pips": -32512.54,
+            "total_pnl_usd": -3251.25
+          },
+          "SELL": {
+            "n_trades": 13999,
+            "win_rate": 66.8,
+            "total_pnl_pips": -23935.25,
+            "total_pnl_usd": -2393.52
+          }
+        }
+      }
+    },
+    {
+      "index": 4,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 95,
+        "sl_atr_mult": 2.5,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 2.0,
+        "tp_atr_mult": 3.0,
+        "tp_fixed_pips": 30,
+        "trailing_mode": "fixed_pip",
+        "trail_activate_pips": 10,
+        "trail_distance_pips": 20,
+        "trail_atr_mult": 1.5,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 20,
+        "breakeven_offset_pips": 7,
+        "partial_close_enabled": true,
+        "partial_close_pct": 40,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 50,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 50,
+        "stale_exit_atr_threshold": 0.3,
+        "allowed_hours_start": 8,
+        "allowed_hours_end": 6,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 12.351526499571282,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=4.20",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 4.199785730683963,
+      "trade_stats": {
+        "n_trades": 53518,
+        "total_pnl_pips": -116991.6,
+        "total_pnl_usd": -11699.16,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 47.3,
+        "profit_factor": 0.79,
+        "avg_pnl_pips": -2.19,
+        "median_pnl_pips": -2.2,
+        "best_trade_pips": 384.91,
+        "worst_trade_pips": -169.05,
+        "std_dev_pips": 27.47,
+        "avg_bars_held": 30.5,
+        "exit_breakdown": {
+          "trailing_stop": {
+            "count": 32367,
+            "pct": 60.5,
+            "pnl_pips": 224555.4,
+            "pnl_usd": 22455.54
+          },
+          "max_bars": {
+            "count": 20091,
+            "pct": 37.5,
+            "pnl_pips": -242871.98,
+            "pnl_usd": -24287.2
+          },
+          "stop_loss": {
+            "count": 1046,
+            "pct": 2.0,
+            "pnl_pips": -101671.25,
+            "pnl_usd": -10167.13
+          },
+          "take_profit": {
+            "count": 14,
+            "pct": 0.0,
+            "pnl_pips": 2996.23,
+            "pnl_usd": 299.62
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 26942,
+            "win_rate": 46.4,
+            "total_pnl_pips": -71577.63,
+            "total_pnl_usd": -7157.76
+          },
+          "SELL": {
+            "n_trades": 26576,
+            "win_rate": 48.3,
+            "total_pnl_pips": -45413.97,
+            "total_pnl_usd": -4541.4
+          }
+        }
+      }
+    },
+    {
+      "index": 5,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 70,
+        "sl_atr_mult": 1.0,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 4.0,
+        "tp_atr_mult": 2.0,
+        "tp_fixed_pips": 130,
+        "trailing_mode": "atr_chandelier",
+        "trail_activate_pips": 10,
+        "trail_distance_pips": 15,
+        "trail_atr_mult": 3.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 20,
+        "breakeven_offset_pips": 7,
+        "partial_close_enabled": false,
+        "partial_close_pct": 30,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 50,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 20,
+        "stale_exit_atr_threshold": 0.5,
+        "allowed_hours_start": 18,
+        "allowed_hours_end": 4,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "back_quality": 4.999342381487345,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.00",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.0,
+      "trade_stats": {
+        "n_trades": 20072,
+        "total_pnl_pips": -48648.32,
+        "total_pnl_usd": -4864.83,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 52.6,
+        "profit_factor": 0.76,
+        "avg_pnl_pips": -2.42,
+        "median_pnl_pips": 1.15,
+        "best_trade_pips": 277.95,
+        "worst_trade_pips": -117.0,
+        "std_dev_pips": 26.57,
+        "avg_bars_held": 35.1,
+        "exit_breakdown": {
+          "trailing_stop": {
+            "count": 12018,
+            "pct": 59.9,
+            "pnl_pips": 77387.03,
+            "pnl_usd": 7738.7
+          },
+          "max_bars": {
+            "count": 7211,
+            "pct": 35.9,
+            "pnl_pips": -66586.1,
+            "pnl_usd": -6658.61
+          },
+          "stop_loss": {
+            "count": 839,
+            "pct": 4.2,
+            "pnl_pips": -60560.3,
+            "pnl_usd": -6056.03
+          },
+          "take_profit": {
+            "count": 4,
+            "pct": 0.0,
+            "pnl_pips": 1111.05,
+            "pnl_usd": 111.1
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 9929,
+            "win_rate": 52.7,
+            "total_pnl_pips": -26213.68,
+            "total_pnl_usd": -2621.37
+          },
+          "SELL": {
+            "n_trades": 10143,
+            "win_rate": 52.5,
+            "total_pnl_pips": -22434.63,
+            "total_pnl_usd": -2243.46
+          }
+        }
+      }
+    },
+    {
+      "index": 6,
+      "params": {
+        "adx_combo": 2040,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 100,
+        "sl_atr_mult": 2.5,
+        "tp_mode": "fixed_pips",
+        "tp_rr_ratio": 1.0,
+        "tp_atr_mult": 2.5,
+        "tp_fixed_pips": 30,
+        "trailing_mode": "off",
+        "trail_activate_pips": 15,
+        "trail_distance_pips": 15,
+        "trail_atr_mult": 1.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 3,
+        "partial_close_enabled": true,
+        "partial_close_pct": 70,
+        "partial_close_trigger_pips": 10,
+        "max_bars": 50,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 20,
+        "stale_exit_atr_threshold": 0.5,
+        "allowed_hours_start": 14,
+        "allowed_hours_end": 5,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "back_quality": 4.998636247822742,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.00",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.0,
+      "trade_stats": {
+        "n_trades": 36156,
+        "total_pnl_pips": -60921.97,
+        "total_pnl_usd": -6092.2,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 68.0,
+        "profit_factor": 0.81,
+        "avg_pnl_pips": -1.68,
+        "median_pnl_pips": 6.56,
+        "best_trade_pips": 505.63,
+        "worst_trade_pips": -169.05,
+        "std_dev_pips": 23.65,
+        "avg_bars_held": 39.9,
+        "exit_breakdown": {
+          "max_bars": {
+            "count": 22016,
+            "pct": 60.9,
+            "pnl_pips": -128198.4,
+            "pnl_usd": -12819.84
+          },
+          "breakeven": {
+            "count": 12928,
+            "pct": 35.8,
+            "pnl_pips": 93375.16,
+            "pnl_usd": 9337.52
+          },
+          "take_profit": {
+            "count": 608,
+            "pct": 1.7,
+            "pnl_pips": 26271.04,
+            "pnl_usd": 2627.1
+          },
+          "stop_loss": {
+            "count": 604,
+            "pct": 1.7,
+            "pnl_pips": -52369.77,
+            "pnl_usd": -5236.98
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 18275,
+            "win_rate": 68.0,
+            "total_pnl_pips": -33928.09,
+            "total_pnl_usd": -3392.81
+          },
+          "SELL": {
+            "n_trades": 17881,
+            "win_rate": 68.0,
+            "total_pnl_pips": -26993.88,
+            "total_pnl_usd": -2699.39
+          }
+        }
+      }
+    },
+    {
+      "index": 7,
+      "params": {
+        "adx_combo": 1025,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 15,
+        "sl_atr_mult": 2.5,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 4.0,
+        "tp_atr_mult": 2.5,
+        "tp_fixed_pips": 190,
+        "trailing_mode": "off",
+        "trail_activate_pips": 30,
+        "trail_distance_pips": 10,
+        "trail_atr_mult": 1.0,
+        "breakeven_enabled": false,
+        "breakeven_trigger_pips": 20,
+        "breakeven_offset_pips": 7,
+        "partial_close_enabled": true,
+        "partial_close_pct": 60,
+        "partial_close_trigger_pips": 50,
+        "max_bars": 200,
+        "stale_exit_enabled": false,
+        "stale_exit_bars": 100,
+        "stale_exit_atr_threshold": 1.0,
+        "allowed_hours_start": 9,
+        "allowed_hours_end": 9,
+        "allowed_days": [
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 0.5426486120222306,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=-0.07",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": -0.06910594837347091,
+      "trade_stats": {
+        "n_trades": 2254,
+        "total_pnl_pips": 1391.92,
+        "total_pnl_usd": 139.19,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 26.3,
+        "profit_factor": 1.05,
+        "avg_pnl_pips": 0.62,
+        "median_pnl_pips": -16.95,
+        "best_trade_pips": 437.57,
+        "worst_trade_pips": -19.15,
+        "std_dev_pips": 33.34,
+        "avg_bars_held": 35.9,
+        "exit_breakdown": {
+          "stop_loss": {
+            "count": 1719,
+            "pct": 76.3,
+            "pnl_pips": -26872.3,
+            "pnl_usd": -2687.23
+          },
+          "take_profit": {
+            "count": 480,
+            "pct": 21.3,
+            "pnl_pips": 26753.96,
+            "pnl_usd": 2675.4
+          },
+          "max_bars": {
+            "count": 55,
+            "pct": 2.4,
+            "pnl_pips": 1510.26,
+            "pnl_usd": 151.03
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 1111,
+            "win_rate": 22.7,
+            "total_pnl_pips": -2560.53,
+            "total_pnl_usd": -256.05
+          },
+          "SELL": {
+            "n_trades": 1143,
+            "win_rate": 29.8,
+            "total_pnl_pips": 3952.45,
+            "total_pnl_usd": 395.24
+          }
+        }
+      }
+    }
+  ]
+}

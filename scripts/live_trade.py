@@ -19,6 +19,11 @@ import backtester.strategies  # noqa: F401
 import backtester.strategies.rsi_mean_reversion  # noqa: F401
 import backtester.strategies.always_buy  # noqa: F401
 import backtester.strategies.ema_crossover  # noqa: F401
+import backtester.strategies.adx_trend  # noqa: F401
+import backtester.strategies.bollinger_reversion  # noqa: F401
+import backtester.strategies.donchian_breakout  # noqa: F401
+import backtester.strategies.macd_crossover  # noqa: F401
+import backtester.strategies.stochastic_crossover  # noqa: F401
 
 from backtester.live.config import LiveConfig
 from backtester.live.trader import LiveTrader

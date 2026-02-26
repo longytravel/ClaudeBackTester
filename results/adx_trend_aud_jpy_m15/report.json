@@ -1,0 +1,55 @@
+{
+  "strategy": "adx_trend",
+  "version": "1.0.0",
+  "pair": "AUD/JPY",
+  "timeframe": "M15",
+  "candidates": [
+    {
+      "index": 0,
+      "params": {
+        "adx_combo": 2830,
+        "sl_mode": "swing",
+        "sl_fixed_pips": 40,
+        "sl_atr_mult": 1.0,
+        "tp_mode": "rr_ratio",
+        "tp_rr_ratio": 2.5,
+        "tp_atr_mult": 2.0,
+        "tp_fixed_pips": 80,
+        "trailing_mode": "off",
+        "trail_activate_pips": 50,
+        "trail_distance_pips": 30,
+        "trail_atr_mult": 3.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 30,
+        "breakeven_offset_pips": 5,
+        "partial_close_enabled": true,
+        "partial_close_pct": 30,
+        "partial_close_trigger_pips": 10,
+        "max_bars": 200,
+        "stale_exit_enabled": true,
+        "stale_exit_bars": 100,
+        "stale_exit_atr_threshold": 0.5,
+        "allowed_hours_start": 23,
+        "allowed_hours_end": 0,
+        "allowed_days": [
+          1,
+          2,
+          3
+        ]
+      },
+      "back_quality": 0.0,
+      "forward_quality": 0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "walk_forward",
+      "elimination_reason": "pass_rate=0.00, mean_sharpe=0.00",
+      "wf_pass_rate": 0.0,
+      "wf_mean_sharpe": 0.0,
+      "trade_stats": {
+        "n_trades": 0,
+        "total_pnl_pips": 0.0,
+        "total_pnl_usd": 0.0
+      }
+    }
+  ]
+}

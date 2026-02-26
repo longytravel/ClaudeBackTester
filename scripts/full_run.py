@@ -332,11 +332,11 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
     back_bars = int(total_bars * 0.8)
 
     # Use median trade count across candidates for robustness
+    TARGET_TRADES_PER_WINDOW = 30
     trade_counts = [cr.back_trades for cr in candidate_results if cr.back_trades > 0]
     if trade_counts:
         median_trades = sorted(trade_counts)[len(trade_counts) // 2]
         trades_per_bar = median_trades / back_bars
-        TARGET_TRADES_PER_WINDOW = 30
         auto_window = int(TARGET_TRADES_PER_WINDOW / trades_per_bar) if trades_per_bar > 0 else int(bars_py * 0.5)
     else:
         auto_window = int(bars_py * 0.5)
