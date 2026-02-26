@@ -3,32 +3,13 @@
 import numpy as np
 
 
-def test_numba_jit_compiles():
-    """Verify Numba JIT compilation works."""
-    from numba import njit
+def test_rust_backend_imports():
+    """Verify Rust native extension imports and exports constants."""
+    import backtester_core
 
-    @njit
-    def add(a, b):
-        return a + b
-
-    assert add(2, 3) == 5
-
-
-def test_numba_parallel_prange():
-    """Verify Numba parallel=True with prange and TBB works."""
-    import numba
-    from numba import njit, prange
-
-    @njit(parallel=True)
-    def parallel_sum(arr, results):
-        for i in prange(len(arr)):
-            results[i] = arr[i] * 2
-
-    arr = np.arange(1000, dtype=np.float64)
-    results = np.empty(1000, dtype=np.float64)
-    parallel_sum(arr, results)
-    np.testing.assert_array_equal(results, arr * 2)
-    assert numba.threading_layer() == "tbb"
+    assert hasattr(backtester_core, "batch_evaluate")
+    assert backtester_core.NUM_METRICS == 10
+    assert backtester_core.NUM_PL == 27
 
 
 def test_parquet_roundtrip(tmp_path):

@@ -60,7 +60,7 @@ pub fn simulate_trade_basic(
     // Walk forward bar by bar, checking sub-bars within each bar
     'outer: for bar in (entry_bar + 1)..num_bars {
         let sub_start = h1_to_sub_start[bar] as usize;
-        let sub_end = h1_to_sub_end[bar] as usize;
+        let sub_end = (h1_to_sub_end[bar] as usize).min(sub_high.len());
 
         for sb in sub_start..sub_end {
             let sb_high = sub_high[sb];

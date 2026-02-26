@@ -5,11 +5,9 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 
 ## Tech Stack
 - **Language**: Python 3.12
-- **Hot Loop**: Rust (PyO3 + Rayon) via `backtester_core` native extension — replaces Numba JIT
-- **Fallback**: Numba @njit(parallel=True) + prange (auto-fallback if Rust not built)
-- **Threading Backend**: TBB for Numba fallback — MUST be installed on Windows
+- **Hot Loop**: Rust (PyO3 + Rayon) via `backtester_core` native extension
 - **Data**: numpy arrays, Parquet storage, Dukascopy historical data
-- **Parallelism**: Rayon (Rust) for hot loop, Numba prange as fallback
+- **Parallelism**: Rayon (Rust) for hot loop
 - **Broker**: IC Markets Global (MT5) — offshore branch (Seychelles FSA), 1:500 leverage
 - **Execution**: MetaTrader 5 Python library (`MetaTrader5` package)
 - **Historical Data**: Dukascopy (free tick/M1 data, 15+ years) via `dukascopy-python`
@@ -32,11 +30,10 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - **Data source parity**: Dukascopy vs IC Markets M1 prices differ by ~0.1-0.3 pip median, 99%+ within 1 pip, correlation 0.9999+. Backtest-live verification threshold of 0.5 pip (REQ-V07) is achievable.
 
 ## Architecture Principles
-- All backtest-critical code uses Rust (PyO3 + Rayon) for the hot loop, with Numba as fallback
-- Primary: Rust `batch_evaluate()` via `backtester_core` extension — zero-copy numpy arrays, Rayon parallel iter, GIL released
-- Fallback: Numba @njit(parallel=True) + prange (auto-detected if Rust not built)
-- Rust uses system allocator with deterministic deallocation — no NRT memory pooling, no segfaults with M1 data
-- CRITICAL: Pre-allocate ALL output arrays (metrics_out, pnl_buffers) in Python before passing to Rust/Numba
+- All backtest-critical code uses Rust (PyO3 + Rayon) for the hot loop
+- Rust `batch_evaluate()` via `backtester_core` extension — zero-copy numpy arrays, Rayon parallel iter, GIL released
+- Rust uses system allocator with deterministic deallocation, `catch_unwind` for panic safety across FFI boundary
+- CRITICAL: Pre-allocate ALL output arrays (metrics_out, pnl_buffers) in Python before passing to Rust
 - Precompute-Once, Filter-Many: indicators computed once, parameter filtering is cheap per-trial
 - **Optimizer Design**: Sobol exploration + EDA exploitation + MAP-Elites diversity archive. Staged optimization is the biggest lever (reduces search space exponentially per stage). Optuna/TPE is NOT used in the hot loop (suggestion overhead dominates at sub-ms eval times per research). Optuna kept as dependency for future expensive-objective use (walk-forward, Monte Carlo)
 - **Batch-first principle**: optimizer generates N param sets → engine evaluates all N via prange → optimizer updates once per batch. Never single-trial evaluation in the hot loop
@@ -45,7 +42,7 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - Backtest and live trader use identical signal generation and trade management logic (position_manager.py mirrors backtest check order)
 - State files will use atomic writes (write temp, then rename) — currently only in data downloader
 - Long-running processes checkpoint to disk for crash recovery (pipeline checkpoints, live trader state.json)
-- Rust hot loop implemented (PyO3 + Rayon) — Numba kept as fallback
+- Rust hot loop implemented (PyO3 + Rayon) with catch_unwind panic safety
 
 ## Staged Optimization
 - Stage order is **strategy-defined** via `optimization_stages()`, NOT hard-coded
@@ -78,13 +75,7 @@ cd rust && maturin develop --release   # Linux/macOS
 ```
 Prerequisites: Rust toolchain (`rustup`), MSVC Build Tools 2022 (Windows), `uv pip install maturin`
 
-Backend control: `BACKTESTER_BACKEND=rust|numba|auto` (default: auto — Rust if built, else Numba)
-
-## Windows-Specific Requirements
-- Install TBB: `pip install tbb` (or via conda) — for Numba fallback
-- Set environment variable: NUMBA_THREADING_LAYER=tbb — for Numba fallback
-- Verify threading layer: `numba -s` (must show TBB, not workqueue)
-- Without TBB, Numba silently falls back to SINGLE-THREADED on Windows
+The Rust extension is the sole backend — no fallback.
 
 ## Hardware Target (i9-14900HX)
 - 24 physical cores (8P + 16E), 32 logical threads, 64 GB RAM
@@ -99,7 +90,7 @@ rust/                              # Rust native extension (PyO3 + Rayon)
   pyproject.toml                   #   maturin build config
   build.sh                         #   Windows build script (sets MSVC env)
 backtester/
-  core/           # Backtest engine, metrics, trade simulation (Rust + Numba fallback), telemetry
+  core/           # Backtest engine, metrics, trade simulation (Rust), telemetry
   data/           # Data download, caching, validation, timeframe conversion
   strategies/     # Strategy framework, base classes, indicator library
   optimizer/      # Parameter optimization, staged search
@@ -172,7 +163,7 @@ Before context gets long or session ends:
 - **VP-3: Regime-Aware Validation** — ADX+NATR 4-quadrant classification, per-regime stats. `pipeline/regime.py`
 - **OPT-1: CE Exploitation Upgrade** — Adaptive LR + entropy monitoring. Pairwise dependencies descoped. `optimizer/sampler.py`
 - **Causality Contract** — SignalCausality enum, pipeline/engine guards, verification tests
-- **Rust Backend** — PyO3 + Rayon replaces Numba, 2.7x faster EXEC_FULL, M1 stable, subprocess isolation removed
+- **Rust Backend** — PyO3 + Rayon, sole backend, 2.7x faster EXEC_FULL, M1 stable, catch_unwind for panic safety
 - **Telemetry Accuracy** — 5 deferred-SL bugs fixed, 11 parity tests prevent divergence
 
 ### Remaining

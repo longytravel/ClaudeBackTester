@@ -133,7 +133,7 @@ pub fn simulate_trade_full(
 
         // --- Sub-bar trade management ---
         let sub_start = h1_to_sub_start[bar] as usize;
-        let sub_end = h1_to_sub_end[bar] as usize;
+        let sub_end = (h1_to_sub_end[bar] as usize).min(sub_high.len());
 
         for sb in sub_start..sub_end {
             let sb_high = sub_high[sb];
@@ -330,11 +330,8 @@ pub fn simulate_trade_full(
 
     // End of data — close remaining position
     if exit_reason == EXIT_NONE {
-        let close_price = if exit_bar < close.len() {
-            close[exit_bar]
-        } else {
-            (high[exit_bar] + low[exit_bar]) / 2.0
-        };
+        // exit_bar is initialized to num_bars - 1, always in bounds
+        let close_price = close[exit_bar];
         let pnl = if is_buy {
             (close_price - slippage_price - actual_entry) / pip_value * position_pct
         } else {

@@ -16,13 +16,14 @@ def info():
     import platform
     import sys
 
-    import numba
-
     click.echo(f"Python:  {sys.version}")
-    click.echo(f"Numba:   {numba.__version__}")
     click.echo(f"Platform: {platform.platform()}")
-    click.echo(f"CPU cores (logical): {numba.config.NUMBA_NUM_THREADS}")
-    click.echo(f"Threading layer: {numba.config.THREADING_LAYER}")
+    try:
+        import backtester_core
+        click.echo(f"Backend: Rust (backtester_core)")
+        click.echo(f"  NUM_METRICS={backtester_core.NUM_METRICS}, NUM_PL={backtester_core.NUM_PL}")
+    except ImportError:
+        click.echo(f"Backend: NOT BUILT — run: cd rust && bash build.sh")
 
 
 # ---------- Data commands ----------

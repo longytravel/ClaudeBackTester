@@ -8,6 +8,7 @@ mod trade_full;
 use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use rayon::prelude::*;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use constants::*;
 use filter::signal_passes_time_filter;
@@ -95,6 +96,66 @@ fn batch_evaluate<'py>(
     let n_bars = high_s.len();
     let max_trades_usize = max_trades as usize;
 
+    // --- Input validation (catch errors before entering unsafe/parallel code) ---
+    if max_trades_usize == 0 {
+        return Err(pyo3::exceptions::PyValueError::new_err("max_trades must be > 0"));
+    }
+
+    // Signal arrays must all have the same length
+    if sig_direction_s.len() != n_signals
+        || sig_entry_price_s.len() != n_signals
+        || sig_hour_s.len() != n_signals
+        || sig_day_s.len() != n_signals
+        || sig_atr_pips_s.len() != n_signals
+        || sig_swing_sl_s.len() != n_signals
+        || sig_filter_value_s.len() != n_signals
+        || sig_variant_s.len() != n_signals
+    {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Signal arrays must all have the same length"
+        ));
+    }
+
+    // H1-to-sub mapping must match price array length
+    if h1_to_sub_start_s.len() != n_bars || h1_to_sub_end_s.len() != n_bars {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            format!("h1_to_sub mapping length ({},{}) != n_bars ({})",
+                h1_to_sub_start_s.len(), h1_to_sub_end_s.len(), n_bars)
+        ));
+    }
+
+    // Sub-bar arrays must all have the same length
+    let sub_len = sub_high_s.len();
+    if sub_low_s.len() != sub_len || sub_close_s.len() != sub_len || sub_spread_s.len() != sub_len {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Sub-bar arrays must all have the same length"
+        ));
+    }
+
+    // Validate M1 index bounds (prevent OOB in sub-bar loops)
+    if sub_len > 0 {
+        for i in 0..n_bars {
+            let start = h1_to_sub_start_s[i];
+            let end = h1_to_sub_end_s[i];
+            if start < 0 || end < 0 || (end as usize) > sub_len || start > end {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    format!("h1_to_sub[{}] invalid: start={}, end={}, sub_len={}",
+                        i, start, end, sub_len)
+                ));
+            }
+        }
+    }
+
+    // Validate param_layout indices are within bounds
+    for i in 0..param_layout_s.len() {
+        let col = param_layout_s[i];
+        if col >= 0 && col as usize >= n_params {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                format!("param_layout[{}]={} exceeds n_params {}", i, col, n_params)
+            ));
+        }
+    }
+
     // Get mutable access to output arrays
     // SAFETY: We release the GIL below and use Rayon for parallelism.
     // Each trial writes to non-overlapping slices of metrics_out and pnl_buffers.
@@ -119,6 +180,11 @@ fn batch_evaluate<'py>(
             .collect::<Vec<_>>()
             .into_par_iter()
             .for_each(|(trial, (metrics_row, pnl_buffer))| {
+                // Save pointer for zeroing if trial panics
+                let metrics_ptr = metrics_row.as_mut_ptr();
+                let n_metrics = metrics_row.len();
+
+                let result = catch_unwind(AssertUnwindSafe(|| {
                 // Get params for this trial (row-major indexing)
                 let params_offset = trial * n_params;
                 let params = &param_matrix_s[params_offset..params_offset + n_params];
@@ -318,6 +384,14 @@ fn batch_evaluate<'py>(
                     bars_per_year,
                     metrics_row,
                 );
+                })); // end catch_unwind
+
+                if result.is_err() {
+                    // Trial panicked — zero out metrics (optimizer treats as bad trial)
+                    // SAFETY: metrics_ptr points to this trial's non-overlapping slice,
+                    // allocated by Python and valid for the duration of this function.
+                    unsafe { std::ptr::write_bytes(metrics_ptr, 0, n_metrics); }
+                }
             });
     });
 

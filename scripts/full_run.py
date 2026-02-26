@@ -23,7 +23,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger("full_run")
-logging.getLogger("numba").setLevel(logging.WARNING)
 
 # ============================================================
 # PIP values per pair
@@ -814,26 +813,38 @@ def main():
     df = load_and_check_data(pair, timeframe)
 
     from backtester.data.splitting import split_backforward
-    back_df, _ = split_backforward(df, back_pct=0.80)
+    back_df, fwd_df = split_backforward(df, back_pct=0.80)
     data_back = df_to_arrays(back_df)
+    data_fwd = df_to_arrays(fwd_df)
     data_full = df_to_arrays(df)
 
     if use_m1:
         h1_timestamps = df.index.astype(np.int64).to_numpy()
         m1_arrays = load_m1_arrays(pair, h1_timestamps)
         if m1_arrays is not None:
-            # Build back-only M1 mapping for optimizer
-            back_h1_ts = back_df.index.astype(np.int64).to_numpy()
             from backtester.data.timeframes import build_h1_to_m1_mapping
             m1_ts = pd.read_parquet(
                 DATA_DIR / f"{pair.replace('/', '_')}_M1.parquet"
             ).index.astype(np.int64).to_numpy()
+
+            # Back M1 mapping for optimizer
+            back_h1_ts = back_df.index.astype(np.int64).to_numpy()
             back_start, back_end = build_h1_to_m1_mapping(back_h1_ts, m1_ts)
             data_back.update({
                 "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
                 "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
                 "h1_to_m1_start": back_start, "h1_to_m1_end": back_end,
             })
+
+            # Forward M1 mapping for optimizer
+            fwd_h1_ts = fwd_df.index.astype(np.int64).to_numpy()
+            fwd_start, fwd_end = build_h1_to_m1_mapping(fwd_h1_ts, m1_ts)
+            data_fwd.update({
+                "m1_high": m1_arrays["m1_high"], "m1_low": m1_arrays["m1_low"],
+                "m1_close": m1_arrays["m1_close"], "m1_spread": m1_arrays["m1_spread"],
+                "h1_to_m1_start": fwd_start, "h1_to_m1_end": fwd_end,
+            })
+
             data_full.update(m1_arrays)
             print(f"\n  M1 sub-bar:     ACTIVE ({len(m1_arrays['m1_high']):,} M1 bars)")
         else:
@@ -841,16 +852,12 @@ def main():
     else:
         print(f"\n  M1 sub-bar:     DISABLED (--no-m1 flag)")
 
-    del df, back_df  # Free DataFrames, keep numpy arrays
+    del df, back_df, fwd_df  # Free DataFrames, keep numpy arrays
 
     # ---- Section 2: Optimization (in-process, Rust backend handles M1 safely) ----
     from backtester.strategies import registry as strat_reg
     strategy = strat_reg.create(args.strategy)
-    opt_result = run_optimization_backonly(strategy, data_back, preset, pip_value)
-
-    if not opt_result.candidates:
-        print("\n  *** NO CANDIDATES FOUND — optimization failed ***")
-        sys.exit(1)
+    opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
 
     # ---- Sections 3-6: Validation Pipeline ----
     import gc
