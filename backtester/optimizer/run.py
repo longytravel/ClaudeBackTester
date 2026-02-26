@@ -11,7 +11,7 @@ import logging
 import time
 import gc
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -282,6 +282,9 @@ def optimize(
     # Execution cost overrides (default to engine defaults)
     commission_pips: float | None = None,
     max_spread_pips: float | None = None,
+    # Progress callbacks
+    on_batch: Callable | None = None,
+    on_stage: Callable | None = None,
 ) -> OptimizationResult:
     """Run full optimization pipeline.
 
@@ -334,7 +337,7 @@ def optimize(
     logger.info(f"Generated {engine_back.n_signals} signals")
 
     logger.info("Running staged optimization...")
-    staged = StagedOptimizer(engine_back, config)
+    staged = StagedOptimizer(engine_back, config, on_batch=on_batch, on_stage=on_stage)
     staged_result = staged.optimize()
     logger.info(
         f"Staged optimization complete: {staged_result.total_trials} trials, "
@@ -347,10 +350,7 @@ def optimize(
     result.total_trials = staged_result.total_trials
     spec = engine_back.encoding
 
-    # Free back-test engine BEFORE creating forward engine.
-    # On M15+ timeframes the back engine holds 400K+ signal arrays +
-    # Numba NRT pools; keeping it alive while creating a second engine
-    # causes ACCESS_VIOLATION on Windows (peak RSS too high).
+    # Free back-test engine BEFORE creating forward engine to keep peak RSS bounded.
     del staged   # releases staged.engine reference to engine_back
     del engine_back
     gc.collect()

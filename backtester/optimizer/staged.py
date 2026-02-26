@@ -15,6 +15,7 @@ search space exponentially at each stage.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -24,9 +25,11 @@ from backtester.core.dtypes import (
     EXEC_BASIC,
     EXEC_FULL,
     M_QUALITY,
+    M_SHARPE,
     M_TRADES,
     NUM_METRICS,
 )
+from backtester.optimizer.progress import BatchProgress, StageComplete
 from backtester.core.encoding import EncodingSpec, indices_to_values
 from backtester.core.engine import BacktestEngine
 from backtester.optimizer.config import OptimizationConfig
@@ -70,10 +73,14 @@ class StagedOptimizer:
         self,
         engine: BacktestEngine,
         config: OptimizationConfig | None = None,
+        on_batch: Any = None,
+        on_stage: Any = None,
     ):
         self.engine = engine
         self.config = config or OptimizationConfig()
         self.spec = engine.encoding
+        self._on_batch = on_batch
+        self._on_stage = on_stage
 
     def optimize(self) -> StagedResult:
         """Run staged optimization.
@@ -110,6 +117,8 @@ class StagedOptimizer:
                 locked=locked.copy(),
                 exec_mode=exec_mode,
                 trials=self.config.trials_per_stage,
+                stage_index=stage_idx,
+                total_stages=len(stages) + 1,
             )
 
             # Lock best values from this stage (only if stage found passing candidates)
@@ -130,6 +139,22 @@ class StagedOptimizer:
                 f"valid={stage_result.valid_count}/{stage_result.trials_evaluated}"
             )
 
+            if self._on_stage:
+                self._on_stage(StageComplete(
+                    stage_name=stage_name,
+                    stage_index=stage_idx,
+                    total_stages=len(stages) + 1,  # +1 for refinement
+                    best_quality=stage_result.best_quality,
+                    best_metrics={
+                        "sharpe": float(stage_result.best_metrics[M_SHARPE]),
+                        "trades": float(stage_result.best_metrics[M_TRADES]),
+                        "quality": float(stage_result.best_quality),
+                    },
+                    trials_evaluated=stage_result.trials_evaluated,
+                    valid_count=stage_result.valid_count,
+                    elapsed_secs=0.0,
+                ))
+
         # --- Refinement stage: all params active, full mode ---
         refinement_result = self._run_stage(
             stage_name="refinement",
@@ -139,6 +164,8 @@ class StagedOptimizer:
             trials=self.config.refinement_trials,
             use_locked_as_center=True,
             collect_all=True,  # Collect all passing for multi-candidate selection
+            stage_index=len(stages),
+            total_stages=len(stages) + 1,
         )
         result.stages.append(refinement_result)
         result.total_trials += refinement_result.trials_evaluated
@@ -154,6 +181,22 @@ class StagedOptimizer:
         result.refinement_indices = refinement_result.all_passing_indices
         result.refinement_metrics = refinement_result.all_passing_metrics
 
+        if self._on_stage:
+            self._on_stage(StageComplete(
+                stage_name="refinement",
+                stage_index=len(stages),
+                total_stages=len(stages) + 1,
+                best_quality=refinement_result.best_quality,
+                best_metrics={
+                    "sharpe": float(refinement_result.best_metrics[M_SHARPE]),
+                    "trades": float(refinement_result.best_metrics[M_TRADES]),
+                    "quality": float(refinement_result.best_quality),
+                },
+                trials_evaluated=refinement_result.trials_evaluated,
+                valid_count=refinement_result.valid_count,
+                elapsed_secs=0.0,
+            ))
+
         return result
 
     def _run_stage(
@@ -165,6 +208,8 @@ class StagedOptimizer:
         trials: int,
         use_locked_as_center: bool = False,
         collect_all: bool = False,
+        stage_index: int = 0,
+        total_stages: int = 1,
     ) -> StageResult:
         """Run a single optimization stage.
 
@@ -172,6 +217,7 @@ class StagedOptimizer:
             collect_all: When True, accumulate all post-filter passing
                 trials (indices + metrics) for multi-candidate selection.
         """
+        t_stage_start = time.time()
         batch_size = self.config.batch_size
         exploration_budget = int(trials * self.config.exploration_pct)
 
@@ -279,6 +325,52 @@ class StagedOptimizer:
                         f"Stage '{stage_name}' EDA update #{eda.update_count}: "
                         f"lr={eda.effective_lr:.3f}, entropy={ent:.3f}"
                     )
+
+            # Fire progress callback AFTER best update so dashboard sees latest
+            if self._on_batch:
+                elapsed = time.time() - t_stage_start
+                evals_per_sec = total_evaluated / elapsed if elapsed > 0 else 0
+
+                # Determine phase
+                phase = "exploration" if total_evaluated < exploration_budget else "exploitation"
+
+                # Get entropy if in exploitation phase
+                ent = None
+                lr = None
+                if phase == "exploitation":
+                    ent = float(eda.entropy(mask=active_mask))
+                    lr = float(eda.effective_lr)
+
+                # Batch quality stats
+                batch_qualities_all = metrics[:, M_QUALITY]
+                batch_valid_mask = batch_qualities_all > -1e9
+                batch_mean_q = float(np.mean(batch_qualities_all[batch_valid_mask])) if batch_valid_mask.any() else 0.0
+                batch_best_q = float(np.max(batch_qualities_all)) if len(batch_qualities_all) > 0 else 0.0
+
+                # Use ungated best for live display (more responsive than gated)
+                live_best_q = ungated_best_quality if ungated_best_quality > -np.inf else 0.0
+                live_best_sharpe = float(ungated_best_metrics[M_SHARPE]) if ungated_best_quality > -np.inf else 0.0
+                live_best_trades = int(ungated_best_metrics[M_TRADES]) if ungated_best_quality > -np.inf else 0
+
+                self._on_batch(BatchProgress(
+                    stage_name=stage_name,
+                    stage_index=stage_index,
+                    total_stages=total_stages,
+                    trials_done=total_evaluated,
+                    trials_total=trials,
+                    best_quality=live_best_q,
+                    best_sharpe=live_best_sharpe,
+                    best_trades=live_best_trades,
+                    valid_count=total_valid,
+                    valid_rate=total_valid / total_evaluated if total_evaluated > 0 else 0.0,
+                    batch_best_quality=batch_best_q,
+                    batch_mean_quality=batch_mean_q,
+                    phase=phase,
+                    entropy=ent,
+                    effective_lr=lr,
+                    evals_per_sec=evals_per_sec,
+                    elapsed_secs=elapsed,
+                ))
 
         # Build collected arrays
         all_passing_indices = None

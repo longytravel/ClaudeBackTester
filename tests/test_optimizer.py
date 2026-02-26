@@ -846,7 +846,7 @@ class TestOptimizeCleanup:
         from backtester.optimizer import run as run_module
 
         class DummyStagedOptimizer:
-            def __init__(self, engine, config):
+            def __init__(self, engine, config, **kwargs):
                 pass
 
             def optimize(self):

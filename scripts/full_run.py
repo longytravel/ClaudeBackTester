@@ -6,10 +6,14 @@ Usage:
 """
 
 import argparse
+import faulthandler
 import json
 import logging
 import sys
 import time
+
+# Enable faulthandler to get Python traceback on segfaults
+faulthandler.enable()
 from collections import Counter
 from pathlib import Path
 
@@ -52,6 +56,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default=None, help="Output directory (default: results/<pair>_<tf>)")
     parser.add_argument("--no-m1", action="store_true",
                         help="Disable M1 sub-bar simulation (use H1-only identity mapping)")
+    parser.add_argument("--dashboard", action="store_true", default=None,
+                        help="Enable real-time dashboard (default: auto-detect TTY)")
+    parser.add_argument("--no-dashboard", action="store_true",
+                        help="Disable dashboard (for batch/subprocess runs)")
     return parser.parse_args()
 
 
@@ -221,7 +229,8 @@ def run_optimization_backonly(strategy, data_back, preset_name, pip_value):
     return opt_result
 
 
-def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
+def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value,
+                     on_batch=None, on_stage=None):
     from backtester.optimizer.config import get_preset
     from backtester.optimizer.run import optimize
 
@@ -260,6 +269,8 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
         m1_fwd=m1_fwd,
         commission_pips=COMMISSION_PIPS,
         max_spread_pips=MAX_SPREAD_PIPS,
+        on_batch=on_batch,
+        on_stage=on_stage,
     )
     elapsed = time.time() - t0
 
@@ -298,7 +309,8 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value):
 # ============================================================
 # Section 3-6: Validation Pipeline
 # ============================================================
-def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir):
+def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
+                   on_pipeline=None):
     from backtester.pipeline.config import PipelineConfig
     from backtester.pipeline.runner import PipelineRunner
     from backtester.pipeline.types import CandidateResult
@@ -374,6 +386,7 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         pip_value=pip_value,
         slippage_pips=SLIPPAGE_PIPS,
         output_dir=str(output_dir),
+        on_pipeline=on_pipeline,
     )
 
     t0 = time.time()
@@ -807,6 +820,46 @@ def main():
     use_m1 = not getattr(args, 'no_m1', False)
     output_dir = Path(args.output) if args.output else Path(f"./results/{pair.replace('/', '_').lower()}_{timeframe.lower()}")
 
+    # ---- Dashboard setup ----
+    use_dashboard = args.dashboard
+    if use_dashboard is None and not args.no_dashboard:
+        use_dashboard = sys.stdout.isatty()
+    elif args.no_dashboard:
+        use_dashboard = False
+
+    dashboard = None
+    on_batch_cb = None
+    on_stage_cb = None
+    on_pipeline_cb = None
+
+    if use_dashboard:
+        try:
+            from backtester.dashboard.server import DashboardServer
+            from backtester.optimizer.progress import BatchProgress, StageComplete, PipelineProgress
+            from dataclasses import asdict
+
+            static_dir = str(Path(__file__).parent.parent / "dashboard" / "dist")
+            dashboard = DashboardServer(port=8765, static_dir=static_dir)
+            dashboard.start()
+            print(f"\n  Dashboard: http://localhost:8765")
+        except ImportError:
+            logger.warning("Dashboard dependencies not installed (pip install fastapi uvicorn)")
+            use_dashboard = False
+        except Exception as e:
+            logger.warning(f"Dashboard failed to start: {e}")
+            use_dashboard = False
+
+    if dashboard:
+        def on_batch_cb(p: "BatchProgress"):
+            dashboard.broadcast({"type": "batch", **asdict(p)})
+
+        def on_stage_cb(p: "StageComplete"):
+            dashboard.flush()  # Send any pending batch update
+            dashboard.broadcast({"type": "stage_complete", **asdict(p)})
+
+        def on_pipeline_cb(p: "PipelineProgress"):
+            dashboard.broadcast({"type": "pipeline", **asdict(p)})
+
     t_start = time.time()
 
     # ---- Section 1: Load data ----
@@ -857,7 +910,23 @@ def main():
     # ---- Section 2: Optimization (in-process, Rust backend handles M1 safely) ----
     from backtester.strategies import registry as strat_reg
     strategy = strat_reg.create(args.strategy)
-    opt_result = run_optimization(strategy, data_back, data_fwd, preset, pip_value)
+
+    # Send run config to dashboard
+    if dashboard:
+        stages = strategy.optimization_stages() + ["refinement"]
+        dashboard.broadcast({
+            "type": "run_config",
+            "strategy": strategy.name,
+            "pair": pair,
+            "timeframe": timeframe,
+            "preset": preset,
+            "stages": stages,
+        })
+
+    opt_result = run_optimization(
+        strategy, data_back, data_fwd, preset, pip_value,
+        on_batch=on_batch_cb, on_stage=on_stage_cb,
+    )
 
     # ---- Sections 3-6: Validation Pipeline ----
     import gc
@@ -865,6 +934,7 @@ def main():
 
     state, pipe_elapsed = run_validation(
         strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
+        on_pipeline=on_pipeline_cb,
     )
 
     # ---- Section 7: Trade Statistics ----
@@ -874,13 +944,33 @@ def main():
     # ---- Section 8: Verdict ----
     print_verdict(state)
 
+    # ---- Send final report to dashboard ----
+    if dashboard:
+        report_path = output_dir / "report.json"
+        if report_path.exists():
+            import json as _json
+            with open(report_path) as f:
+                report_data = _json.load(f)
+            dashboard.broadcast({"type": "run_complete", "report": report_data})
+
     # ---- Summary Footer ----
     total_elapsed = time.time() - t_start
     print(f"\n{'=' * 70}")
     print(f"  Total elapsed: {total_elapsed:.1f}s "
           f"(optimization: {opt_result.elapsed_seconds:.1f}s, pipeline: {pipe_elapsed:.1f}s)")
     print(f"  Report: {output_dir / 'report.json'}")
+    if use_dashboard:
+        print(f"  Dashboard: http://localhost:8765")
     print(f"{'=' * 70}")
+
+    # Keep server alive so user can view results in browser
+    if dashboard:
+        print(f"\n  Dashboard serving at http://localhost:8765 — press Ctrl+C to stop")
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n  Dashboard stopped.")
 
 
 if __name__ == "__main__":

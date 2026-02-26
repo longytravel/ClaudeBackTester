@@ -15,6 +15,7 @@ import argparse
 import subprocess
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -61,11 +62,64 @@ def parse_args():
         "--skip-existing", action="store_true",
         help="Skip runs that already have a report.json",
     )
+    parser.add_argument(
+        "--parallel", type=int, default=1,
+        help="Number of parallel runs (default: 1, recommend 2-4 with 64GB RAM)",
+    )
     return parser.parse_args()
 
 
 def run_dir_name(strategy: str, pair: str, timeframe: str) -> str:
     return f"{strategy}_{pair.replace('/', '_').lower()}_{timeframe.lower()}"
+
+
+def run_single(strategy: str, pair: str, timeframe: str, preset: str,
+               no_m1: bool, idx: int, n_total: int) -> tuple[str, str, float]:
+    """Run a single strategy/pair combo. Returns (run_name, status, elapsed)."""
+    run_name = run_dir_name(strategy, pair, timeframe)
+    output_dir = Path("results") / run_name
+    log_file = output_dir / "run.log"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        sys.executable, "scripts/full_run.py",
+        "--strategy", strategy,
+        "--pair", pair,
+        "--timeframe", timeframe,
+        "--preset", preset,
+        "--output", str(output_dir),
+        "--no-dashboard",
+    ]
+    if no_m1:
+        cmd.append("--no-m1")
+
+    t_start = time.time()
+    try:
+        with open(log_file, "w") as log_f:
+            proc = subprocess.run(
+                cmd,
+                stdout=log_f,
+                stderr=subprocess.STDOUT,
+                timeout=7200,
+                cwd=str(Path.cwd()),
+            )
+        elapsed = time.time() - t_start
+
+        if proc.returncode == 0:
+            status = "OK"
+        else:
+            status = f"FAIL(rc={proc.returncode})"
+
+    except subprocess.TimeoutExpired:
+        elapsed = time.time() - t_start
+        status = "TIMEOUT"
+
+    except Exception as e:
+        elapsed = time.time() - t_start
+        status = f"ERROR({type(e).__name__})"
+
+    return (run_name, status, elapsed)
 
 
 def main():
@@ -88,71 +142,104 @@ def main():
     print(f"  M1 sub-bars: {'DISABLED' if args.no_m1 else 'ENABLED'}")
     print(f"  Total runs:  {n_total}")
     print(f"  Skip exist:  {args.skip_existing}")
+    print(f"  Parallel:    {args.parallel}")
     print(f"  Started:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
 
     results = []
     t_batch_start = time.time()
 
-    for idx, (strategy, pair) in enumerate(combos, 1):
-        run_name = run_dir_name(strategy, pair, timeframe)
-        output_dir = Path("results") / run_name
-        log_file = output_dir / "run.log"
+    if args.parallel > 1:
+        print(f"\n  Running with {args.parallel} parallel workers")
+        futures = {}
+        with ProcessPoolExecutor(max_workers=args.parallel) as executor:
+            for idx, (strategy, pair) in enumerate(combos, 1):
+                run_name = run_dir_name(strategy, pair, timeframe)
+                output_dir = Path("results") / run_name
 
-        print(f"\n{'-' * 70}")
-        print(f"[{idx}/{n_total}] {strategy} × {pair} × {timeframe}")
-        print(f"  Output: {output_dir}")
+                if args.skip_existing and (output_dir / "report.json").exists():
+                    results.append((run_name, "SKIPPED", 0))
+                    print(f"  [{idx}/{n_total}] {run_name} — SKIPPED")
+                    continue
 
-        # Skip if report already exists
-        if args.skip_existing and (output_dir / "report.json").exists():
-            print(f"  SKIPPED — report.json already exists")
-            results.append((run_name, "SKIPPED", 0))
-            continue
-
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        cmd = [
-            sys.executable, "scripts/full_run.py",
-            "--strategy", strategy,
-            "--pair", pair,
-            "--timeframe", timeframe,
-            "--preset", preset,
-            "--output", str(output_dir),
-        ]
-        if args.no_m1:
-            cmd.append("--no-m1")
-
-        t_start = time.time()
-        try:
-            with open(log_file, "w") as log_f:
-                proc = subprocess.run(
-                    cmd,
-                    stdout=log_f,
-                    stderr=subprocess.STDOUT,
-                    timeout=7200,  # 2 hour max per run
-                    cwd=str(Path.cwd()),
+                future = executor.submit(
+                    run_single, strategy, pair, timeframe, preset,
+                    args.no_m1, idx, n_total,
                 )
-            elapsed = time.time() - t_start
+                futures[future] = (idx, run_name)
 
-            if proc.returncode == 0:
-                status = "OK"
-                print(f"  DONE in {elapsed:.0f}s ({elapsed/60:.1f} min)")
-            else:
-                status = f"FAIL(rc={proc.returncode})"
-                print(f"  FAILED (exit code {proc.returncode}) after {elapsed:.0f}s")
-                print(f"  Check log: {log_file}")
+            for future in as_completed(futures):
+                idx, run_name = futures[future]
+                try:
+                    name, status, elapsed = future.result()
+                    results.append((name, status, elapsed))
+                    emoji = "OK" if status == "OK" else "FAIL"
+                    print(f"  [{idx}/{n_total}] {run_name} — {emoji} ({elapsed:.0f}s)")
+                except Exception as e:
+                    results.append((run_name, f"ERROR({type(e).__name__})", 0))
+                    print(f"  [{idx}/{n_total}] {run_name} — ERROR: {e}")
+    else:
+        # Sequential execution (original behavior)
+        for idx, (strategy, pair) in enumerate(combos, 1):
+            run_name = run_dir_name(strategy, pair, timeframe)
+            output_dir = Path("results") / run_name
+            log_file = output_dir / "run.log"
 
-        except subprocess.TimeoutExpired:
-            elapsed = time.time() - t_start
-            status = "TIMEOUT"
-            print(f"  TIMEOUT after {elapsed:.0f}s")
+            print(f"\n{'-' * 70}")
+            print(f"[{idx}/{n_total}] {strategy} × {pair} × {timeframe}")
+            print(f"  Output: {output_dir}")
 
-        except Exception as e:
-            elapsed = time.time() - t_start
-            status = f"ERROR({type(e).__name__})"
-            print(f"  ERROR: {e}")
+            # Skip if report already exists
+            if args.skip_existing and (output_dir / "report.json").exists():
+                print(f"  SKIPPED — report.json already exists")
+                results.append((run_name, "SKIPPED", 0))
+                continue
 
-        results.append((run_name, status, elapsed))
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            cmd = [
+                sys.executable, "scripts/full_run.py",
+                "--strategy", strategy,
+                "--pair", pair,
+                "--timeframe", timeframe,
+                "--preset", preset,
+                "--output", str(output_dir),
+                "--no-dashboard",
+            ]
+            if args.no_m1:
+                cmd.append("--no-m1")
+
+            t_start = time.time()
+            try:
+                with open(log_file, "w") as log_f:
+                    proc = subprocess.run(
+                        cmd,
+                        stdout=log_f,
+                        stderr=subprocess.STDOUT,
+                        timeout=7200,  # 2 hour max per run
+                        cwd=str(Path.cwd()),
+                    )
+                elapsed = time.time() - t_start
+
+                if proc.returncode == 0:
+                    status = "OK"
+                    print(f"  DONE in {elapsed:.0f}s ({elapsed/60:.1f} min)")
+                else:
+                    status = f"FAIL(rc={proc.returncode})"
+                    print(f"  FAILED (exit code {proc.returncode}) after {elapsed:.0f}s")
+                    print(f"  Check log: {log_file}")
+
+            except subprocess.TimeoutExpired:
+                elapsed = time.time() - t_start
+                status = "TIMEOUT"
+                print(f"  TIMEOUT after {elapsed:.0f}s")
+
+            except Exception as e:
+                elapsed = time.time() - t_start
+                status = f"ERROR({type(e).__name__})"
+                print(f"  ERROR: {e}")
+
+            results.append((run_name, status, elapsed))
 
     # ============================================================
     # SUMMARY

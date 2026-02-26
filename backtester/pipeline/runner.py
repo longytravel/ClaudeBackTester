@@ -24,6 +24,7 @@ import numpy as np
 
 from backtester.pipeline.checkpoint import load_checkpoint, save_checkpoint
 from backtester.pipeline.config import PipelineConfig
+from backtester.optimizer.progress import PipelineProgress
 from backtester.pipeline.types import (
     CandidateResult,
     PipelineState,
@@ -122,10 +123,12 @@ class PipelineRunner:
         pip_value: float = 0.0001,
         slippage_pips: float = 0.5,
         output_dir: str | None = None,
+        on_pipeline: Any = None,
     ):
         self.strategy = strategy
         self.data = data_arrays
         self.config = config or PipelineConfig()
+        self._on_pipeline = on_pipeline
         self.pair = pair
         self.timeframe = timeframe
         self.pip_value = pip_value
@@ -239,6 +242,14 @@ class PipelineRunner:
                 f"Stage {stage_num} complete: "
                 f"{len(active)}/{len(self.state.candidates)} candidates surviving"
             )
+
+            if self._on_pipeline:
+                self._on_pipeline(PipelineProgress(
+                    stage_name=stage_name,
+                    candidates_total=len(self.state.candidates),
+                    candidates_surviving=len(active),
+                    detail=f"{len(active)}/{len(self.state.candidates)} candidates surviving",
+                ))
 
         # Free shared engine after all stages complete
         del self._shared_engine
