@@ -457,7 +457,7 @@ class TestPostfilter:
         metrics[:, M_R_SQUARED] = 0.8
         metrics[:, M_MAX_DD_PCT] = 10.0
 
-        valid = postfilter_results(metrics, min_trades=20)
+        valid = postfilter_results(metrics, min_total_trades=20, min_trades_per_year=0.0)
         assert not valid[0]
         assert valid[1]
         assert valid[2]
@@ -469,7 +469,7 @@ class TestPostfilter:
         metrics[0, M_MAX_DD_PCT] = 35.0  # Too high
         metrics[1, M_MAX_DD_PCT] = 20.0  # OK
 
-        valid = postfilter_results(metrics, max_dd_pct=30.0)
+        valid = postfilter_results(metrics, max_dd_pct=30.0, min_total_trades=1, min_trades_per_year=0.0)
         assert not valid[0]
         assert valid[1]
 
@@ -480,7 +480,7 @@ class TestPostfilter:
         metrics[0, M_R_SQUARED] = 0.3  # Too low
         metrics[1, M_R_SQUARED] = 0.7  # OK
 
-        valid = postfilter_results(metrics, min_r_squared=0.5)
+        valid = postfilter_results(metrics, min_r_squared=0.5, min_total_trades=1, min_trades_per_year=0.0)
         assert not valid[0]
         assert valid[1]
 
@@ -682,7 +682,8 @@ class TestStagedOptimizer:
             trials_per_stage=200,
             refinement_trials=200,
             batch_size=64,
-            min_trades=1,       # Low bar for test data
+            min_total_trades=1,       # Low bar for test data
+            min_trades_per_year=0.0,  # No trade density gate
             min_r_squared=0.0,  # Low bar
             max_dd_pct=100.0,   # No DD filter
         )
@@ -712,7 +713,8 @@ class TestStagedOptimizer:
             trials_per_stage=200,
             refinement_trials=400,
             batch_size=64,
-            min_trades=1,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
             min_r_squared=0.0,
             max_dd_pct=100.0,
         )
@@ -784,7 +786,8 @@ class TestMultiCandidate:
             trials_per_stage=200,
             refinement_trials=400,
             batch_size=64,
-            min_trades=1,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
             min_r_squared=0.0,
             max_dd_pct=100.0,
             top_n_candidates=5,

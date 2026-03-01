@@ -14,15 +14,24 @@ import { formatNumber } from "../../utils/formatters";
 export function ConvergenceLine() {
   const batchHistory = useRunStore((s) => s.batchHistory);
 
-  // Compute running max of best_quality over cumulative evaluations
+  // Compute running max of best_quality over cumulative evaluations.
+  // trials_done resets at each stage boundary, so we accumulate an offset.
   const data: { evals: number; quality: number }[] = [];
   let runningMax = 0;
+  let cumulativeOffset = 0;
+  let lastStageIndex = -1;
+  let lastTrialsDone = 0;
   for (const batch of batchHistory) {
+    if (lastStageIndex !== -1 && batch.stage_index !== lastStageIndex) {
+      cumulativeOffset += lastTrialsDone;
+    }
+    lastStageIndex = batch.stage_index;
+    lastTrialsDone = batch.trials_done;
     if (batch.best_quality > runningMax) {
       runningMax = batch.best_quality;
     }
     data.push({
-      evals: batch.trials_done,
+      evals: cumulativeOffset + batch.trials_done,
       quality: runningMax,
     });
   }

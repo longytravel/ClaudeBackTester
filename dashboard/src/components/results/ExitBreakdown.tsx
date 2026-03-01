@@ -72,7 +72,7 @@ export function ExitBreakdown({ tradeStats }: Props) {
             formatter={(_value, _name, props) => {
               const d = props.payload as { name: string; value: number; pct: number; pnl: number };
               return [
-                `${d.value} trades (${(d.pct * 100).toFixed(1)}%) | ${d.pnl.toFixed(1)} pips`,
+                `${d.value} trades (${d.pct.toFixed(1)}%) | ${d.pnl.toFixed(1)} pips`,
                 d.name,
               ];
             }}

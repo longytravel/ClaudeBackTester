@@ -310,7 +310,7 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value,
 # Section 3-6: Validation Pipeline
 # ============================================================
 def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
-                   on_pipeline=None):
+                   on_pipeline=None, bar_timestamps=None):
     from backtester.pipeline.config import PipelineConfig
     from backtester.pipeline.runner import PipelineRunner
     from backtester.pipeline.types import CandidateResult
@@ -356,6 +356,15 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
     min_window = int(bars_py / 12)
     max_window = int(bars_py * 2)
     wf_window = max(min_window, min(auto_window, max_window))
+
+    # Guard: ensure at least 3 OOS windows fit in forward data
+    forward_bars = total_bars - back_bars
+    step_ratio = 2  # wf_step = wf_window // step_ratio
+    min_oos_windows = 3
+    max_window_for_coverage = forward_bars // (min_oos_windows * step_ratio)
+    if max_window_for_coverage > 0:
+        wf_window = min(wf_window, max(min_window, max_window_for_coverage))
+
     wf_step = wf_window // 2  # 50% overlap (standard)
 
     window_months = wf_window / bars_py * 12
@@ -387,6 +396,7 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         slippage_pips=SLIPPAGE_PIPS,
         output_dir=str(output_dir),
         on_pipeline=on_pipeline,
+        bar_timestamps=bar_timestamps,
     )
 
     t0 = time.time()
@@ -905,7 +915,16 @@ def main():
     else:
         print(f"\n  M1 sub-bar:     DISABLED (--no-m1 flag)")
 
-    del df, back_df, fwd_df  # Free DataFrames, keep numpy arrays
+    del back_df, fwd_df  # Free DataFrames, keep numpy arrays
+
+    # Extract bar timestamps as Unix epoch seconds for equity curve
+    # Use total_seconds() to handle any pandas timestamp resolution (ns, ms, us)
+    bar_timestamps = (
+        (df.index - pd.Timestamp("1970-01-01", tz="UTC"))
+        .total_seconds()
+        .to_numpy(dtype=np.int64)
+    )
+    del df
 
     # ---- Section 2: Optimization (in-process, Rust backend handles M1 safely) ----
     from backtester.strategies import registry as strat_reg
@@ -934,7 +953,7 @@ def main():
 
     state, pipe_elapsed = run_validation(
         strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
-        on_pipeline=on_pipeline_cb,
+        on_pipeline=on_pipeline_cb, bar_timestamps=bar_timestamps,
     )
 
     # ---- Section 7: Trade Statistics ----

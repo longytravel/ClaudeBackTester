@@ -7,7 +7,6 @@ combination (fast, slow, signal period) for JIT filtering.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -107,57 +106,50 @@ class MACDCrossover(Strategy):
 
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        variants = []
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
         for combo in MACD_COMBOS:
             fast_p, slow_p, sig_p = decode_macd_combo(combo)
             macd_line, signal_line, _ = macd(close, fast_p, slow_p, sig_p)
 
             warmup = slow_p + sig_p + 1
-            for i in range(warmup, n - 1):
-                atr_val = float(atr_14[i])
-                if math.isnan(atr_val) or atr_val <= 0:
+            idx = np.arange(warmup, n - 1)
+            if len(idx) == 0:
+                continue
+
+            m_cur = macd_line[idx]
+            m_prev = macd_line[idx - 1]
+            s_cur = signal_line[idx]
+            s_prev = signal_line[idx - 1]
+            a_val = atr_14[idx]
+
+            valid = (np.isfinite(a_val) & (a_val > 0)
+                     & np.isfinite(m_cur) & np.isfinite(m_prev)
+                     & np.isfinite(s_cur) & np.isfinite(s_prev))
+
+            buy = valid & (m_prev <= s_prev) & (m_cur > s_cur)
+            sell = valid & (m_prev >= s_prev) & (m_cur < s_cur)
+
+            for mask, direction in [(buy, Direction.BUY.value),
+                                    (sell, Direction.SELL.value)]:
+                bar_idx = idx[mask]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), direction, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_var.append(np.full(len(bar_idx), combo, dtype=np.int64))
 
-                m_cur = float(macd_line[i])
-                m_prev = float(macd_line[i - 1])
-                s_cur = float(signal_line[i])
-                s_prev = float(signal_line[i - 1])
-
-                if math.isnan(m_cur) or math.isnan(m_prev):
-                    continue
-                if math.isnan(s_cur) or math.isnan(s_prev):
-                    continue
-
-                atr_p = atr_val / pip_value
-
-                # MACD crosses above signal → BUY
-                if m_prev <= s_prev and m_cur > s_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.BUY.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-                # MACD crosses below signal → SELL
-                if m_prev >= s_prev and m_cur < s_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.SELL.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -169,13 +161,13 @@ class MACDCrossover(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

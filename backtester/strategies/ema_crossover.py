@@ -7,7 +7,6 @@ RSI mean reversion, making it suitable for walk-forward validation.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -100,12 +99,6 @@ class EMACrossover(Strategy):
         bar_hour: np.ndarray | None = None,
         bar_day_of_week: np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
-        """Generate EMA crossover signals for all fast/slow period combos.
-
-        For each (fast, slow) pair, generates a BUY signal when fast EMA
-        crosses above slow EMA, and a SELL signal when fast crosses below.
-        The JIT loop uses variant exact-match to filter by ema_combo.
-        """
         n = len(close)
         if bar_hour is None:
             bar_hour = np.zeros(n, dtype=np.int64)
@@ -117,59 +110,53 @@ class EMACrossover(Strategy):
         ema_arrays = {p: ema(close, p) for p in all_periods}
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        variants = []
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
         for combo in EMA_COMBOS:
             fast_p, slow_p = decode_combo(combo)
             ema_fast = ema_arrays[fast_p]
             ema_slow = ema_arrays[slow_p]
 
-            # Start after the slowest indicator is valid
             warmup = slow_p + 1
-            for i in range(warmup, n - 1):
-                atr_val = float(atr_14[i])
-                if math.isnan(atr_val) or atr_val <= 0:
+            idx = np.arange(warmup, n - 1)
+            if len(idx) == 0:
+                continue
+
+            f_cur = ema_fast[idx]
+            f_prev = ema_fast[idx - 1]
+            s_cur = ema_slow[idx]
+            s_prev = ema_slow[idx - 1]
+            a_val = atr_14[idx]
+
+            valid = (np.isfinite(a_val) & (a_val > 0)
+                     & np.isfinite(f_cur) & np.isfinite(f_prev)
+                     & np.isfinite(s_cur) & np.isfinite(s_prev))
+
+            # Golden cross: fast crosses above slow → BUY
+            buy = valid & (f_prev <= s_prev) & (f_cur > s_cur)
+            # Death cross: fast crosses below slow → SELL
+            sell = valid & (f_prev >= s_prev) & (f_cur < s_cur)
+
+            for mask, direction in [(buy, Direction.BUY.value),
+                                    (sell, Direction.SELL.value)]:
+                bar_idx = idx[mask]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), direction, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_var.append(np.full(len(bar_idx), combo, dtype=np.int64))
 
-                fast_cur = float(ema_fast[i])
-                fast_prev = float(ema_fast[i - 1])
-                slow_cur = float(ema_slow[i])
-                slow_prev = float(ema_slow[i - 1])
-
-                if math.isnan(fast_cur) or math.isnan(fast_prev):
-                    continue
-                if math.isnan(slow_cur) or math.isnan(slow_prev):
-                    continue
-
-                atr_p = atr_val / pip_value
-
-                # Golden cross: fast crosses above slow → BUY
-                if fast_prev <= slow_prev and fast_cur > slow_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.BUY.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-                # Death cross: fast crosses below slow → SELL
-                if fast_prev >= slow_prev and fast_cur < slow_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.SELL.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -181,13 +168,13 @@ class EMACrossover(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

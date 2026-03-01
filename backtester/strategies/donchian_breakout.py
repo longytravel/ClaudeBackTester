@@ -7,7 +7,6 @@ Uses ATR for volatility-aware SL/TP sizing.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -87,51 +86,50 @@ class DonchianBreakout(Strategy):
 
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        variants = []
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
         for period in DONCHIAN_PERIODS:
             upper, middle, lower = donchian(high, low, period)
 
             warmup = period + 1
-            for i in range(warmup, n - 1):
-                atr_val = float(atr_14[i])
-                if math.isnan(atr_val) or atr_val <= 0:
+            idx = np.arange(warmup, n - 1)
+            if len(idx) == 0:
+                continue
+
+            c_cur = close[idx]
+            c_prev = close[idx - 1]
+            up_prev = upper[idx - 1]
+            lo_prev = lower[idx - 1]
+            a_val = atr_14[idx]
+
+            valid = (np.isfinite(a_val) & (a_val > 0)
+                     & np.isfinite(up_prev) & np.isfinite(lo_prev))
+
+            # Close breaks above previous upper channel → BUY
+            buy = valid & (c_cur > up_prev) & (c_prev <= up_prev)
+            # Close breaks below previous lower channel → SELL
+            sell = valid & (c_cur < lo_prev) & (c_prev >= lo_prev)
+
+            for mask, direction in [(buy, Direction.BUY.value),
+                                    (sell, Direction.SELL.value)]:
+                bar_idx = idx[mask]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), direction, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_var.append(np.full(len(bar_idx), period, dtype=np.int64))
 
-                up_prev = float(upper[i - 1])
-                lo_prev = float(lower[i - 1])
-                if math.isnan(up_prev) or math.isnan(lo_prev):
-                    continue
-
-                atr_p = atr_val / pip_value
-
-                # Close breaks above previous upper channel → BUY
-                if close[i] > up_prev and close[i - 1] <= up_prev:
-                    bar_indices.append(i)
-                    directions.append(Direction.BUY.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(period)
-
-                # Close breaks below previous lower channel → SELL
-                if close[i] < lo_prev and close[i - 1] >= lo_prev:
-                    bar_indices.append(i)
-                    directions.append(Direction.SELL.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(period)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -143,13 +141,13 @@ class DonchianBreakout(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

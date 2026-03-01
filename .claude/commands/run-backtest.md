@@ -1,161 +1,152 @@
 # /run-backtest — Interactive Optimization + Validation Run
 
-Run a complete backtest pipeline for ANY registered strategy. The workflow is interactive: you ask the user about setup, review parameter ranges together, then run and interpret results.
+Run a complete backtest pipeline for ANY registered strategy with live dashboard monitoring.
 
 ## Usage
 ```
-/run-backtest [PAIR TIMEFRAME PRESET STRATEGY]
+/run-backtest [STRATEGY PAIR TIMEFRAME PRESET]
 ```
 All arguments are optional. If any are missing, ask the user interactively using AskUserQuestion.
 
-## Step 0: Discover Strategies and Gather Setup
+## Environment Setup (ALWAYS run first)
 
-### 0a. List available strategies
+Every bash command in this skill MUST begin with this PATH setup:
 ```bash
-export PATH="/c/Users/ROG/.local/bin:$PATH"
+export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
+```
+
+## Step 0: Gather Setup (FAST — single question if args provided)
+
+### 0a. If ALL 4 args provided, skip to Step 1
+
+### 0b. If any args missing, ask user with AskUserQuestion
+Ask ONLY the missing arguments in a single AskUserQuestion call (up to 4 questions):
+
+1. **Strategy** — run this to list: `uv run python -c "import sys,io; sys.stdout=io.TextIOWrapper(sys.stdout.buffer,encoding='utf-8'); from backtester.strategies import registry; [print(s['name']) for s in registry.list_strategies()]"`
+2. **Pair** — EUR/USD, GBP/USD, USD/JPY, AUD/USD, etc. (data in `G:/My Drive/BackTestData`)
+3. **Timeframe** — H1, H4, M30, M15
+4. **Preset** — turbo (~1 min), standard (~2 min, recommended), deep (~5 min), max (~10 min)
+
+### 0c. Parameter space review — SKIP unless user explicitly asks
+Show parameter space only if user says "show params", "review ranges", etc. Otherwise go straight to running.
+
+### 0d. Budget & candidate review
+Run `compute_stage_budgets()` to check for wasted compute, then ask the user what to do.
+
+```bash
+export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
+cd /c/Users/ROG/Projects/ClaudeBackTester
 uv run python -c "
-import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 from backtester.strategies import registry
-for s in registry.list_strategies():
-    print(f'{s[\"name\"]} ({s[\"stage\"]})')
+from backtester.optimizer.config import get_preset
+from backtester.optimizer.staged import compute_stage_budgets
+
+strategy_cls = registry.get('STRATEGY')
+strategy = strategy_cls()
+config = get_preset('PRESET')
+budgets = compute_stage_budgets(strategy, config)
+
+print(f'Strategy: STRATEGY | Preset: PRESET | Candidates: {config.top_n_candidates}')
+print()
+print(f'{\"Stage\":<14} {\"Unique Combos\":>14} {\"Budget\":>10} {\"Coverage\":>10}')
+print('-' * 52)
+for b in budgets:
+    combos = b['unique_combos']
+    combo_str = f'{combos:,}' if combos < 1_000_000 else f'{combos/1e6:.0f}M' if combos < 1_000_000_000 else f'{combos/1e9:.0f}B'
+    cov = b['coverage']
+    cov_str = f'{cov:,.0f}x' if cov >= 1 else f'<1x'
+    print(f'{b[\"stage\"]:<14} {combo_str:>14} {b[\"budget\"]:>10,} {cov_str:>10}')
 "
 ```
 
-### 0b. Ask user for missing arguments
-Use AskUserQuestion to gather anything not provided in $ARGUMENTS. **ALWAYS ask all 4 questions in a single AskUserQuestion call** (the tool supports up to 4 questions at once):
+Show the table to the user and highlight any stages with coverage >100x (heavy waste) or <1x (under-explored).
 
-1. **Strategy** — which strategy to test (from registry list)
-2. **Pair** — EUR/USD, GBP/USD, USD/JPY, XAU/USD (check what data exists in `G:/My Drive/BackTestData`)
-3. **Timeframe** — H1, H4, M30, M15, D (always ask — never assume H1)
-4. **Preset** — How thorough:
-   - turbo (50K/stage, ~1 min) — quick sanity check
-   - standard (200K/stage, ~2 min) — normal run
-   - deep (500K/stage, ~5 min) — thorough search
-   - max (1M/stage, ~10 min) — exhaustive, uses full hardware
+Then ask via AskUserQuestion with options:
+- **"Run as-is (Recommended)"** — use current preset settings unchanged
+- **"Save time"** — for over-covered stages (>100x), reduce their budget to `unique_combos * 10` (10x coverage is plenty). Show estimated time savings
+- **"Bump candidates"** — increase candidates tested. Current default is 10. User can choose: 25, 50, or top 25% of passing trials. Explain: more candidates = more forward tests + validation runs, adds ~30s per extra candidate
 
-### 0c. Review parameter space with user
-This is the most important interactive step. Load the strategy's param space and show it grouped by optimization stage:
+If user picks "Save time": modify the `full_run.py` command below to pass `--trials-per-stage` with the reduced value. Note: this only makes sense if ALL non-refinement stages are over-covered; otherwise keep the default.
 
-```bash
-export PATH="/c/Users/ROG/.local/bin:$PATH"
-uv run python -c "
-import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-from backtester.strategies import registry
-strat = registry.create('STRATEGY_NAME')
-ps = strat.param_space()
-stages = strat.optimization_stages()
-from collections import defaultdict
-by_group = defaultdict(list)
-total_combos = 1
-for name in ps.names:
-    p = ps.get(name)
-    by_group[p.group].append(p)
-    total_combos *= len(p.values)
-for stage in stages:
-    print(f'\n=== {stage.upper()} stage ===')
-    for p in by_group.get(stage, []):
-        vals = str(p.values)
-        print(f'  {p.name:30s} : {len(p.values):3d} values  {vals}')
-print(f'\nTotal params: {len(ps.names)}, Total combinations: {total_combos:.2e}')
-print(f'Optimization stages: {\" -> \".join(stages)} -> refinement')
-"
-```
+If user picks "Bump candidates": add `--top-n-candidates N` to the command. If they choose percentage, add `--top-n-candidates-pct 0.25`.
 
-Present this to the user as a clear table and ask:
-- **Are these parameter ranges wide enough?** Should any be wider/narrower?
-- **Signal params specifically** — these are strategy-specific and control trade frequency. Wider = more signals to find patterns in. Narrower = focused search on known-good territory.
-- **Risk params** — SL/TP ranges. Current ranges: SL 10-100 pips, TP 10-200 pips. Appropriate for the pair?
-- **Management params** — trailing stops, breakeven, partial close. These are feature toggles (on/off) plus numeric ranges. Usually fine as-is.
-- **Time params** — hour and day filters. 24 hours * 24 hours * 4 day combos = 2,304 combos. Often the tightest filter.
+If user picks "Run as-is": proceed with defaults.
 
-If the user wants to change parameter ranges, edit the strategy file directly (the `param_space()` method or the shared `risk_params()`/`management_params()`/`time_params()` in `backtester/strategies/base.py`).
+## Step 1: Pre-Flight Data Check + Dashboard Startup
 
-**Important context for the user**: The optimizer uses staged search (signal -> time -> risk -> management -> refinement), so it doesn't need to test all combinations at once. Each stage locks the best params before moving to the next. But wider ranges per stage = more exploration needed = higher preset recommended.
-
-## Step 1: Pre-Flight Data Checks
+Run data check and start React dashboard **in parallel**:
 
 ```bash
-export PATH="/c/Users/ROG/.local/bin:$PATH"
+# Data check (replace PAIR/TF)
+export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
 uv run python -c "
-import pandas as pd, numpy as np
-from pathlib import Path
-
-PAIR = 'PAIR_VALUE'
-TF = 'TF_VALUE'
-pair_file = PAIR.replace('/', '_')
-DATA_DIR = Path('G:/My Drive/BackTestData')
-
-m1 = DATA_DIR / f'{pair_file}_M1.parquet'
-print(f'M1 exists: {m1.exists()}')
-if m1.exists():
-    df_m1 = pd.read_parquet(m1)
-    print(f'M1 bars: {len(df_m1):,}')
-
-tf_path = DATA_DIR / f'{pair_file}_{TF}.parquet'
+import pandas as pd; from pathlib import Path
+pair_file = 'PAIR'.replace('/', '_'); DATA = Path('G:/My Drive/BackTestData')
+tf_path = DATA / f'{pair_file}_TF.parquet'
 if tf_path.exists():
     df = pd.read_parquet(tf_path)
-    nan_close = df['close'].isna().sum()
-    nan_spread = df['spread'].isna().sum()
-    print(f'{TF} bars: {len(df):,}, NaN close: {nan_close}, NaN spread: {nan_spread}')
-    print(f'Date range: {df.index[0]} to {df.index[-1]}')
-    if nan_close > 0:
-        print('WARNING: NaN close bars detected! Will rebuild from M1.')
+    print(f'TF bars: {len(df):,}, NaN close: {df[\"close\"].isna().sum()}, Date range: {df.index[0]} to {df.index[-1]}')
 else:
-    print(f'{TF} file not found -- will build from M1')
+    print(f'TF file not found -- will build from M1')
 "
 ```
 
-**If NaN close bars detected OR timeframe file missing**, rebuild:
 ```bash
-uv run python -c "
-from backtester.data.timeframes import convert_timeframes
-convert_timeframes('PAIR_VALUE', 'G:/My Drive/BackTestData', ['TF_VALUE'])
-"
+# Start React dashboard (background, non-blocking)
+cd /c/Users/ROG/Projects/ClaudeBackTester/dashboard && npm run dev &
 ```
 
-## Step 2: Run the Pipeline
-
+**If NaN close bars detected OR timeframe file missing**, rebuild first:
 ```bash
-export PATH="/c/Users/ROG/.local/bin:$PATH"
-uv run python scripts/full_run.py --strategy STRATEGY --pair PAIR --timeframe TIMEFRAME --preset PRESET
+uv run python -c "from backtester.data.timeframes import convert_timeframes; convert_timeframes('PAIR', 'G:/My Drive/BackTestData', ['TF'])"
 ```
 
-The script will:
-1. Load data + check for NaN bars (auto-rebuild if needed)
-2. Split 80/20 back/forward
-3. Run staged optimization (signal -> time -> risk -> management -> refinement)
-4. Run validation pipeline (walk-forward, CPCV, stability, Monte Carlo + regime, confidence)
-5. Run telemetry for trade statistics
-6. Print comprehensive report (with 3b: CPCV, 5b: Regime when enabled)
+## Step 2: Run the Pipeline with Dashboard
+
+**CRITICAL**: Always use `--dashboard` flag. The dashboard server is embedded in full_run.py (NOT standalone).
+
+```bash
+export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
+cd /c/Users/ROG/Projects/ClaudeBackTester
+uv run python scripts/full_run.py \
+  --strategy STRATEGY \
+  --pair PAIR \
+  --timeframe TIMEFRAME \
+  --preset PRESET \
+  --dashboard
+```
+
+Run this as a **foreground** command with `timeout: 600000` (10 min). Do NOT run in background — the server stays alive after completion for the user to view results, and killing the process kills the dashboard.
+
+After launching, tell the user: **"Dashboard is live at http://localhost:5173 — open it to watch progress in real-time."**
+
+Then use the Playwright browser to take a screenshot of the dashboard and show it to the user while the pipeline runs. Navigate to `http://localhost:5173` and take a full-page screenshot.
+
+The pipeline will:
+1. Load data, split 80/20 back/forward
+2. Run staged optimization (signal → time → risk → management → refinement)
+3. Run validation pipeline (walk-forward, CPCV, stability, Monte Carlo + regime, confidence)
+4. Run telemetry for trade statistics
+5. Print report + keep dashboard server alive for browsing
+
+After the pipeline prints results (look for `"Total elapsed"` in output), the server stays alive. Read the output and move to Step 3.
 
 ## Step 3: Interpret Results
 
-After the script completes, read and present the output to the user. Key things to check:
+Read the pipeline output. Key things to check:
 
 ### Red Flags (investigate immediately)
-- **DSR = 0.0** on a strategy with positive Sharpe -> DSR formula regression
-- **0 trades** in forward test -> signal filtering too strict, or data issue
-- **NaN in any metric** -> data quality issue, check spread/close arrays
-- **forward_back_ratio < 0.4** -> strategy is overfit to back-test period
-- **All walk-forward windows fail** -> strategy doesn't generalize
-- **Stability worst_param with ratio < 0.1** -> that param is on a cliff edge
-- **Time or management stage 0 passing** -> too few base signals, widen signal params or use a less selective strategy
+- **0 trades** in forward test → signal filtering too strict or data issue
+- **NaN in any metric** → data quality issue
+- **forward_back_ratio < 0.4** → overfit to back-test period
+- **All walk-forward windows fail** → strategy doesn't generalize
+- **< 50 trades over full period** → statistically meaningless, even if quality score looks good
+- **High win rate (>90%) + mostly breakeven exits** → breakeven trap, not a real edge
 
-### Known Gotchas
-1. **Spread is in price units** not pips (Dukascopy stores ask-bid directly)
-2. **Sharpe from JIT is annualized** using sqrt(trades_per_year)
-3. **PIP_VALUE varies** by pair (see reference below)
-4. **Turbo preset** may miss good params in intermediate stages; refinement rescues
-5. **Walk-forward windows**: at H1, window=8760 bars (~1.45 years), step=4380
-6. **Stability worst_param** is often trailing_mode (discrete param flips)
-7. **Trade frequency matters**: a strategy needs ~10+ trades per WF window to pass. If your strategy only produces 20-50 trades over 15 years, walk-forward will always fail regardless of how good the params are
-
-### Confidence Rating Guide
-- **GREEN (70+)**: All gates passed, strong composite score. Safe to paper trade.
-- **YELLOW (40-69)**: All gates passed but composite score moderate. Needs investigation.
-- **RED (<40 or gate failed)**: At least one hard gate failed. Do NOT trade this.
+### Confidence Rating
+- **GREEN (70+)**: All gates passed, safe to paper trade
+- **YELLOW (40-69)**: Gates passed but moderate score, needs investigation
+- **RED (<40 or gate failed)**: Hard gate failed, do NOT trade
 
 ### Hard Gates (all must pass)
 1. forward_back_ratio >= 0.4
@@ -166,46 +157,62 @@ After the script completes, read and present the output to the user. Key things 
 6. DSR >= 0.95
 7. Permutation p-value <= 0.05
 
-### CPCV Interpretation
-- **pct_positive_sharpe**: Fraction of C(N,k) folds with positive OOS Sharpe
-- **95% CI width**: Narrow CI (< 1.0) = consistent. Wide CI (> 2.0) = high variance
-- **CPCV blending**: 60% WF + 40% CPCV when available, 100% WF when disabled
+## Step 4: Show Dashboard Results
 
-### Regime Analysis Interpretation
-- **4 Regimes**: Trend+Quiet, Trend+Volatile, Range+Quiet, Range+Volatile
-- **Classified by**: ADX(14) with hysteresis (25/20) + NATR percentile (75th = high vol)
-- **Minimum 30 trades** per regime for stats (below = "Insufficient")
-- **Advisory only** -- does NOT affect confidence score
-- **Robust strategy**: profitable in 2+ regimes, no regime with MaxDD > 40%
+After the pipeline completes, take a screenshot of the dashboard and present results to user:
 
-## Step 4: Present Results to User
+1. Navigate browser to `http://localhost:5173`
+2. Take a full-page screenshot
+3. Summarize: verdict (GREEN/YELLOW/RED), key metrics, parameter values, warnings
 
-Summarize the output in a clean format. Include:
-- Verdict (GREEN/YELLOW/RED) prominently
-- Key metrics table (Sharpe, trades, win rate, profit factor, max DD)
-- Parameter values
-- Parameter range review: did the optimizer hit edge values? (best param = min or max of range suggests the range needs widening)
-- Any warnings or concerns
-- Recommendation on next steps
+If the dashboard shows an error or "Connecting", check:
+- Is the full_run.py process still alive? (`tasklist | grep python`)
+- API responding? (`curl http://localhost:8765/api/run/status`)
+- If server died, read `results/{pair}_{tf}/report.json` directly
+
+## Step 5: Cleanup
+
+After user has seen results, kill the pipeline process (it's in a sleep loop keeping the server alive):
+```bash
+# The user will Ctrl+C the foreground process, or we kill it
+taskkill //F //IM python.exe //FI "WINDOWTITLE eq *full_run*" 2>/dev/null
+```
+
+Also stop the Vite dev server if no longer needed.
 
 ## PIP_VALUE Reference
 | Pair | pip_value |
 |------|-----------|
-| EUR/USD, GBP/USD, AUD/USD | 0.0001 |
-| USD/JPY, EUR/JPY, GBP/JPY | 0.01 |
+| EUR/USD, GBP/USD, AUD/USD, NZD/USD | 0.0001 |
+| USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY | 0.01 |
 | XAU/USD | 0.01 |
 
-## Estimated Run Times (i9-14900HX, EUR/USD H1)
-| Preset | Trials/stage | Total trials | Approx time |
-|--------|-------------|-------------|-------------|
-| turbo | 50K | ~350K | ~1 min |
-| standard | 200K | ~1.2M | ~2 min |
-| deep | 500K | ~3.5M | ~5-6 min |
-| max | 1M | ~7M | ~10-12 min |
+## Estimated Run Times (i9-14900HX)
+| Preset | Trials/stage | Approx time |
+|--------|-------------|-------------|
+| turbo | 50K | ~1 min |
+| standard | 200K | ~2-6 min |
+| deep | 500K | ~5-10 min |
+| max | 1M | ~10-15 min |
+
+## Rust Rebuild (only if Rust source changed)
+
+If `rust/src/*.rs` files were modified, rebuild before running:
+```bash
+export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
+cd /c/Users/ROG/Projects/ClaudeBackTester
+.venv/Scripts/maturin.exe develop --release --manifest-path rust/Cargo.toml
+```
 
 ## Bug History (watch for regressions)
+- **Quality score 655 with 40 trades** — Sortino was used raw in quality formula. Fixed: now uses `ln(1+Sortino)` to compress extreme values naturally (Feb 2026)
+- **Equity curve unsorted** — trades listed BUY-first then SELL, not chronological. Dashboard chart crashed. Fixed: sort by exit bar + sort defense in EquityCurve.tsx (Feb 2026)
+- **Dashboard "disappeared"** — EquityCurve component crash (unsorted data) killed entire React tree. No error boundary. Fixed: sort data in component (Feb 2026)
+- **Timezone mismatch** — `pd.Timestamp("1970-01-01")` is tz-naive but data index is tz-aware. Fixed: use `pd.Timestamp("1970-01-01", tz="UTC")` in full_run.py (Feb 2026)
+- **Dashboard not connecting** — Must use `--dashboard` flag when running full_run.py. Dashboard server is embedded, NOT standalone. Do NOT start `backtester/dashboard/server.py` separately (Feb 2026)
 - **DSR formula** was computing `1 - cdf(SR)` instead of `cdf(SR)` (fixed 5f1e2a8)
 - **Timeframe conversion** left NaN weekend bars when M1 had gaps (fixed)
 - **Forward/back ratio** was never computed in optimizer (fixed)
 - **Sell slippage** was missing from JIT and telemetry (fixed)
 - **max_trades_per_trial** default was 5000, caused truncation (increased to 50000)
+- **maturin not in PATH** — use `.venv/Scripts/maturin.exe` directly, and always add `$HOME/.cargo/bin` to PATH for rustc

@@ -254,8 +254,13 @@ def quality_score(
 ) -> float:
     """Combined quality score for ranking strategies.
 
-    Formula: (Sortino * R² * min(PF,5) * sqrt(min(Trades,200))
+    Formula: (ln(1+Sortino) * R² * min(PF,5) * linear_ramp(Trades, 300, 14.14)
               * (1 + clamp(Return%,0,200)/100)) / (Ulcer + MaxDD/2 + 5)
+
+    Uses ln(1+Sortino) instead of raw Sortino to naturally compress extreme
+    values. With near-zero losses, raw Sortino can reach 100+ which would
+    dominate the entire formula. Log scaling preserves ranking while keeping
+    the influence proportional (Sortino 149 → 3.6x vs Sortino 3, not 50x).
 
     Guards:
     - Sortino <= 0 → quality = 0 (losing strategies have no quality)
@@ -264,6 +269,8 @@ def quality_score(
 
     Pre-computed metric values can be passed to avoid recalculation.
     """
+    import math
+
     n = len(pnl)
     if n == 0:
         return 0.0
@@ -280,13 +287,17 @@ def quality_score(
     ret = ret_pct if ret_pct is not None else return_pct(pnl)
     u = ulc if ulc is not None else ulcer_index(pnl)
 
+    # Log-scale Sortino: compresses extreme values (near-zero-loss strategies)
+    # while preserving ranking order
+    so_scaled = math.log(1.0 + so)
+
     # Clamp components
     p_clamped = min(p, 5.0)
-    trades_factor = np.sqrt(min(n, 200))
+    trades_factor = min(n, 300) / 300 * 14.14
     # Return% bonus: only positive returns contribute, clamped to [0, 200]
     ret_factor = 1.0 + max(0.0, min(ret, 200.0)) / 100.0
 
-    numerator = so * r2 * p_clamped * trades_factor * ret_factor
+    numerator = so_scaled * r2 * p_clamped * trades_factor * ret_factor
     denominator = u + dd / 2.0 + 5.0
 
     if denominator <= 0:

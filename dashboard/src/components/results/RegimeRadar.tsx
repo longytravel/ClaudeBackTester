@@ -28,7 +28,7 @@ export function RegimeRadar({ candidate }: Props) {
   const data = Object.entries(dist).map(([name, value]) => ({
     regime: name.replace(/_/g, " "),
     value: typeof value === "number" ? value : 0,
-    fullMark: 1,
+    fullMark: 100,
   }));
 
   return (
@@ -50,7 +50,7 @@ export function RegimeRadar({ candidate }: Props) {
           />
           <PolarRadiusAxis
             angle={90}
-            domain={[0, 1]}
+            domain={[0, 100]}
             tick={{ fill: "#4b5563", fontSize: 9 }}
           />
           <Tooltip

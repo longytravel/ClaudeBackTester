@@ -138,12 +138,29 @@ def select_top_n_diverse(
 
     Returns list of trial indices ensuring diversity across
     trade frequency and quality tiers.
-    """
-    archive = DiversityArchive()
 
+    Bins are computed adaptively from actual data percentiles so
+    candidates spread across the grid regardless of score scale.
+    """
     candidates = np.arange(metrics.shape[0])
     if valid_mask is not None:
         candidates = candidates[valid_mask]
+
+    if len(candidates) == 0:
+        return []
+
+    # Extract quality and trade counts for valid candidates
+    quality_vals = metrics[candidates, M_QUALITY]
+    trade_vals = metrics[candidates, M_TRADES]
+
+    # Compute adaptive bins from actual data percentiles
+    quality_bins = list(np.percentile(quality_vals, [25, 50, 75]))
+    trade_freq_bins = list(np.percentile(trade_vals, [33, 67]))
+
+    archive = DiversityArchive(
+        trade_freq_bins=trade_freq_bins,
+        quality_bins=quality_bins,
+    )
 
     for idx in candidates:
         p = params[idx] if params is not None else None

@@ -124,11 +124,13 @@ class PipelineRunner:
         slippage_pips: float = 0.5,
         output_dir: str | None = None,
         on_pipeline: Any = None,
+        bar_timestamps: np.ndarray | None = None,
     ):
         self.strategy = strategy
         self.data = data_arrays
         self.config = config or PipelineConfig()
         self._on_pipeline = on_pipeline
+        self._bar_timestamps = bar_timestamps
         self.pair = pair
         self.timeframe = timeframe
         self.pip_value = pip_value
@@ -272,6 +274,36 @@ class PipelineRunner:
         n_bars = len(self.data["close"])
         opt_end = int(n_bars * 0.8)
 
+        # Trade density pre-check: eliminate candidates with insufficient trade frequency
+        back_bars = int(n_bars * 0.8)
+        n_years = back_bars / self.config.bars_per_year
+        effective_min = max(
+            self.config.min_total_trades,
+            int(self.config.min_trades_per_year * n_years),
+        )
+        for candidate in active:
+            trades = candidate.back_trades or 0
+            trades_per_year = trades / n_years if n_years > 0 else 0
+            if trades < effective_min:
+                candidate.eliminated = True
+                candidate.eliminated_at_stage = "trade_density"
+                candidate.elimination_reason = (
+                    f"Insufficient trade frequency: {trades} back-period trades "
+                    f"({trades_per_year:.1f}/yr) — minimum {effective_min} "
+                    f"({self.config.min_trades_per_year:.0f}/yr × {n_years:.1f}yr, "
+                    f"floor {self.config.min_total_trades})"
+                )
+                logger.warning(
+                    "Candidate %d eliminated (trade density): %d trades (%.1f/yr) < %d required",
+                    candidate.candidate_index, trades, trades_per_year, effective_min,
+                )
+
+        # Re-filter active after density check
+        active = [c for c in self.state.candidates if not c.eliminated]
+        if not active:
+            logger.warning("All candidates eliminated by trade density pre-check")
+            return
+
         param_dicts = [c.params for c in active]
         results = walk_forward_validate(
             self.strategy, param_dicts, self.data,
@@ -323,12 +355,16 @@ class PipelineRunner:
                 )
 
     def _run_stability(self) -> None:
-        """Stage 4: Parameter stability analysis."""
+        """Stage 4: Parameter stability analysis.
+
+        Runs on ALL candidates (including eliminated) for diagnostic purposes.
+        Stability is advisory only — no elimination.
+        """
         from backtester.pipeline.stability import run_stability
 
-        active = [c for c in self.state.candidates if not c.eliminated]
-        if not active:
-            logger.warning("No active candidates for stability")
+        all_candidates = self.state.candidates
+        if not all_candidates:
+            logger.warning("No candidates for stability")
             return
 
         # Use shared engine with windowed evaluation for forward portion
@@ -341,7 +377,7 @@ class PipelineRunner:
             window_start = None
             window_end = None
 
-        param_dicts = [c.params for c in active]
+        param_dicts = [c.params for c in all_candidates]
         results = run_stability(
             self.strategy, param_dicts, self.data, self.config,
             pip_value=self.pip_value, slippage_pips=self.slippage_pips,
@@ -349,20 +385,29 @@ class PipelineRunner:
             window_start=window_start, window_end=window_end,
         )
 
-        for candidate, stab_result in zip(active, results):
+        for candidate, stab_result in zip(all_candidates, results):
             candidate.stability = stab_result
             # Stability is advisory only — no elimination
 
     def _run_monte_carlo(self) -> None:
-        """Stage 5: Monte Carlo simulation + regime analysis."""
+        """Stage 5: Monte Carlo simulation + regime analysis.
+
+        Runs on ALL candidates (including eliminated) for diagnostic purposes.
+        Only eliminates candidates that were NOT already eliminated before this stage.
+        """
         from backtester.pipeline.monte_carlo import run_monte_carlo
         from backtester.core.telemetry import run_telemetry
         from backtester.core.dtypes import EXEC_FULL
 
-        active = [c for c in self.state.candidates if not c.eliminated]
-        if not active:
-            logger.warning("No active candidates for Monte Carlo")
+        all_candidates = self.state.candidates
+        if not all_candidates:
+            logger.warning("No candidates for Monte Carlo")
             return
+
+        # Track which candidates were already eliminated before this stage
+        previously_eliminated = {
+            c.candidate_index for c in all_candidates if c.eliminated
+        }
 
         # Use shared engine for telemetry (no new engine creation)
         engine = self._shared_engine
@@ -383,7 +428,7 @@ class PipelineRunner:
             )
             logger.info("Regime labels computed for %d bars", len(regime_labels))
 
-        for candidate in active:
+        for candidate in all_candidates:
             # Get per-trade PnL via telemetry
             telemetry = run_telemetry(engine, candidate.params, EXEC_FULL)
             pnl = np.array(
@@ -405,7 +450,8 @@ class PipelineRunner:
                 telemetry.trades, self.state.pair
             )
 
-            if not mc_result.passed_gate:
+            # Only eliminate candidates that were NOT already eliminated
+            if not mc_result.passed_gate and candidate.candidate_index not in previously_eliminated:
                 candidate.eliminated = True
                 candidate.eliminated_at_stage = "monte_carlo"
                 candidate.elimination_reason = (
@@ -422,12 +468,15 @@ class PipelineRunner:
                 )
 
     def _run_confidence(self) -> None:
-        """Stage 6: Confidence scoring."""
+        """Stage 6: Confidence scoring.
+
+        Runs on ALL candidates (including eliminated) for diagnostic purposes.
+        Eliminated candidates still get a confidence score but their rating
+        reflects advisory-only status.
+        """
         from backtester.pipeline.confidence import compute_confidence
 
         for candidate in self.state.candidates:
-            if candidate.eliminated:
-                continue
             candidate.confidence = compute_confidence(candidate, self.config)
 
     def _run_report(self) -> None:
@@ -435,7 +484,7 @@ class PipelineRunner:
         from backtester.core.telemetry import run_telemetry
         from backtester.core.dtypes import EXEC_FULL
 
-        # Compute trade_stats for any candidate that doesn't have it yet
+        # Compute trade_stats + equity_curve for any candidate that doesn't have it yet
         # (e.g. eliminated before Monte Carlo stage)
         for candidate in self.state.candidates:
             if candidate.trade_stats is None:
@@ -445,6 +494,26 @@ class PipelineRunner:
                 candidate.trade_stats = _compute_trade_stats(
                     telemetry.trades, self.state.pair
                 )
+
+            # Build equity curve from telemetry trades
+            if not hasattr(candidate, '_equity_curve') or candidate._equity_curve is None:
+                telemetry = run_telemetry(
+                    self._shared_engine, candidate.params, EXEC_FULL
+                )
+                bar_timestamps = self._bar_timestamps
+                eq_curve = []
+                cumulative = 0.0
+                if bar_timestamps is not None and len(bar_timestamps) > 0:
+                    eq_curve.append({"timestamp": int(bar_timestamps[0]), "equity": 0.0})
+                    sorted_trades = sorted(telemetry.trades, key=lambda t: t.bar_exit)
+                    for trade in sorted_trades:
+                        cumulative += trade.pnl_pips
+                        idx = min(trade.bar_exit, len(bar_timestamps) - 1)
+                        eq_curve.append({
+                            "timestamp": int(bar_timestamps[idx]),
+                            "equity": round(cumulative, 2),
+                        })
+                candidate._equity_curve = eq_curve
 
         os.makedirs(self.output_dir, exist_ok=True)
         report_path = os.path.join(self.output_dir, "report.json")
@@ -467,6 +536,12 @@ class PipelineRunner:
             reverse=True,
         )
 
+        # Map stage names to their numeric order for advisory detection
+        _stage_order = {
+            "trade_density": 3, "walk_forward": 3, "cpcv": 3,
+            "stability": 4, "monte_carlo": 5, "confidence": 6,
+        }
+
         for c in sorted_candidates:
             entry: dict[str, Any] = {
                 "index": c.candidate_index,
@@ -479,6 +554,17 @@ class PipelineRunner:
             if c.eliminated:
                 entry["eliminated_at"] = c.eliminated_at_stage
                 entry["elimination_reason"] = c.elimination_reason
+                # Flag which later stages ran in advisory mode
+                elim_stage = _stage_order.get(c.eliminated_at_stage, 0)
+                advisory_stages = []
+                if c.stability and elim_stage < 4:
+                    advisory_stages.append("stability")
+                if c.monte_carlo and elim_stage < 5:
+                    advisory_stages.append("monte_carlo")
+                if c.confidence and elim_stage < 6:
+                    advisory_stages.append("confidence")
+                if advisory_stages:
+                    entry["advisory_stages"] = advisory_stages
             if c.confidence:
                 entry["composite_score"] = c.confidence.composite_score
                 entry["rating"] = c.confidence.rating.value
@@ -506,6 +592,8 @@ class PipelineRunner:
                 entry["per_regime_stats"] = [asdict(rs) for rs in c.regime.per_regime]
             if c.trade_stats:
                 entry["trade_stats"] = c.trade_stats
+            if hasattr(c, '_equity_curve') and c._equity_curve:
+                entry["equity_curve"] = c._equity_curve
 
             report["candidates"].append(entry)
 

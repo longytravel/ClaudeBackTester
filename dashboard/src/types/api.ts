@@ -84,6 +84,7 @@ export interface CandidateReport {
   regime_distribution?: Record<string, number>;
   regime_robustness_score?: number;
   trade_stats?: TradeStats;
+  equity_curve?: { timestamp: number; equity: number }[];
 }
 
 export interface TradeStats {
@@ -106,7 +107,7 @@ export interface RunSummary {
   timeframe: string;
   rating?: string;
   composite_score?: number;
-  timestamp?: string;
+  timestamp?: number;
 }
 
 export interface Snapshot {
@@ -115,6 +116,7 @@ export interface Snapshot {
   stage_results: StageComplete[];
   pipeline_results: PipelineUpdate[];
   last_state: BatchUpdate | null;
+  batch_history?: BatchUpdate[];
   final_report: Report | null;
 }
 

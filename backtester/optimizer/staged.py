@@ -30,13 +30,63 @@ from backtester.core.dtypes import (
     NUM_METRICS,
 )
 from backtester.optimizer.progress import BatchProgress, StageComplete
-from backtester.core.encoding import EncodingSpec, indices_to_values
+from backtester.core.encoding import EncodingSpec, build_encoding_spec, indices_to_values
 from backtester.core.engine import BacktestEngine
 from backtester.optimizer.config import OptimizationConfig
 from backtester.optimizer.prefilter import postfilter_results, prefilter_invalid_combos
 from backtester.optimizer.sampler import EDASampler, RandomSampler, SobolSampler
+from backtester.strategies.base import Strategy
 
 logger = logging.getLogger(__name__)
+
+
+def compute_stage_budgets(
+    strategy: Strategy,
+    config: OptimizationConfig,
+) -> list[dict]:
+    """Compute per-stage unique combo counts vs budget for reporting.
+
+    Returns a list of dicts, one per stage (including refinement):
+        [{"stage": "signal", "unique_combos": 75, "budget": 200000, "coverage": 2667.0}, ...]
+    """
+    ps = strategy.param_space()
+    stages = strategy.optimization_stages()
+    spec = build_encoding_spec(ps)
+
+    results = []
+    for stage_name in stages:
+        group_indices = spec.group_indices(stage_name)
+        if not group_indices:
+            continue
+
+        # Count unique combos = product of value counts for all params in group
+        unique_combos = 1
+        for idx in group_indices:
+            unique_combos *= len(spec.columns[idx].values)
+
+        budget = config.trials_per_stage
+        coverage = budget / unique_combos if unique_combos > 0 else 0.0
+
+        results.append({
+            "stage": stage_name,
+            "unique_combos": unique_combos,
+            "budget": budget,
+            "coverage": coverage,
+        })
+
+    # Refinement: all params active
+    ref_combos = 1
+    for col in spec.columns:
+        ref_combos *= len(col.values)
+
+    results.append({
+        "stage": "refinement",
+        "unique_combos": ref_combos,
+        "budget": config.refinement_trials,
+        "coverage": config.refinement_trials / ref_combos if ref_combos > 0 else 0.0,
+    })
+
+    return results
 
 
 @dataclass
@@ -111,6 +161,7 @@ class StagedOptimizer:
             for idx in group_indices:
                 active_mask[idx] = True
 
+            t_stage = time.time()
             stage_result = self._run_stage(
                 stage_name=stage_name,
                 active_mask=active_mask,
@@ -152,10 +203,11 @@ class StagedOptimizer:
                     },
                     trials_evaluated=stage_result.trials_evaluated,
                     valid_count=stage_result.valid_count,
-                    elapsed_secs=0.0,
+                    elapsed_secs=time.time() - t_stage,
                 ))
 
         # --- Refinement stage: all params active, full mode ---
+        t_stage = time.time()
         refinement_result = self._run_stage(
             stage_name="refinement",
             active_mask=np.ones(self.spec.num_params, dtype=np.bool_),
@@ -194,7 +246,7 @@ class StagedOptimizer:
                 },
                 trials_evaluated=refinement_result.trials_evaluated,
                 valid_count=refinement_result.valid_count,
-                elapsed_secs=0.0,
+                elapsed_secs=time.time() - t_stage,
             ))
 
         return result
@@ -217,6 +269,19 @@ class StagedOptimizer:
             collect_all: When True, accumulate all post-filter passing
                 trials (indices + metrics) for multi-candidate selection.
         """
+        # Log unique combos vs budget for this stage
+        active_indices = [i for i in range(self.spec.num_params) if active_mask[i]]
+        unique_combos = 1
+        for idx in active_indices:
+            n_vals = len(self.spec.columns[idx].values)
+            if locked[idx] == -1:  # Only count unlocked params
+                unique_combos *= n_vals
+        coverage = trials / unique_combos if unique_combos > 0 else 0.0
+        logger.info(
+            f"Stage '{stage_name}': {unique_combos:,} unique combos, "
+            f"{trials:,} budget ({coverage:,.1f}x coverage)"
+        )
+
         t_stage_start = time.time()
         batch_size = self.config.batch_size
         exploration_budget = int(trials * self.config.exploration_pct)
@@ -254,6 +319,9 @@ class StagedOptimizer:
                 if active_mask[i]:
                     stage_locked[i] = -1  # Unlock for sampling
 
+        # Compute once — doesn't change per batch
+        n_years = self.engine.n_bars / self.engine.bars_per_year
+
         while total_evaluated < trials:
             remaining = trials - total_evaluated
             n = min(batch_size, remaining)
@@ -289,7 +357,9 @@ class StagedOptimizer:
             # Post-filter
             valid_post = postfilter_results(
                 metrics,
-                min_trades=self.config.min_trades,
+                min_trades_per_year=self.config.min_trades_per_year,
+                min_total_trades=self.config.min_total_trades,
+                n_years=n_years,
                 max_dd_pct=self.config.max_dd_pct,
                 min_r_squared=self.config.min_r_squared,
             )
@@ -341,16 +411,18 @@ class StagedOptimizer:
                     ent = float(eda.entropy(mask=active_mask))
                     lr = float(eda.effective_lr)
 
-                # Batch quality stats
+                # Batch quality stats (cap to prevent inf/garbage from
+                # combos with 1-2 trades producing infinite Sharpe/PF)
                 batch_qualities_all = metrics[:, M_QUALITY]
-                batch_valid_mask = batch_qualities_all > -1e9
+                batch_valid_mask = (batch_qualities_all > -1e9) & (batch_qualities_all < 1e6)
                 batch_mean_q = float(np.mean(batch_qualities_all[batch_valid_mask])) if batch_valid_mask.any() else 0.0
-                batch_best_q = float(np.max(batch_qualities_all)) if len(batch_qualities_all) > 0 else 0.0
+                batch_best_q = float(np.max(batch_qualities_all[batch_valid_mask])) if batch_valid_mask.any() else 0.0
 
-                # Use ungated best for live display (more responsive than gated)
-                live_best_q = ungated_best_quality if ungated_best_quality > -np.inf else 0.0
-                live_best_sharpe = float(ungated_best_metrics[M_SHARPE]) if ungated_best_quality > -np.inf else 0.0
-                live_best_trades = int(ungated_best_metrics[M_TRADES]) if ungated_best_quality > -np.inf else 0
+                # Use gated best (post-filtered) — ungated can produce absurd
+                # values from combos with 1-2 trades (infinite Sharpe/PF)
+                live_best_q = float(best_quality) if best_quality > -np.inf else 0.0
+                live_best_sharpe = float(best_metrics[M_SHARPE]) if best_quality > -np.inf else 0.0
+                live_best_trades = int(best_metrics[M_TRADES]) if best_quality > -np.inf else 0
 
                 self._on_batch(BatchProgress(
                     stage_name=stage_name,

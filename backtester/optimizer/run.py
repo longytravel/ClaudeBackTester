@@ -150,7 +150,16 @@ def _add_multi_candidates(
         logger.info("No refinement passing trials for multi-candidate selection")
         return False
 
-    n_candidates = min(config.top_n_candidates, len(ref_indices))
+    n_candidates = config.top_n_candidates
+    if config.top_n_candidates_pct is not None:
+        pct_count = int(len(ref_indices) * config.top_n_candidates_pct)
+        n_candidates = max(n_candidates, pct_count)
+        n_candidates = min(n_candidates, 1000)  # Cap to prevent OOM
+        logger.info(
+            f"Multi-candidate: selecting top {config.top_n_candidates_pct:.0%} "
+            f"= {n_candidates:,} of {len(ref_indices):,} passing trials"
+        )
+    n_candidates = min(n_candidates, len(ref_indices))
     logger.info(
         f"Multi-candidate: {len(ref_indices)} passing trials, "
         f"selecting top {n_candidates} diverse"

@@ -25,7 +25,8 @@ class OptimizationConfig:
     elite_pct: float = 0.1        # Top 10% used as elites for EDA update
 
     # --- Post-filter thresholds ---
-    min_trades: int = 20
+    min_trades_per_year: float = 30.0   # Minimum annual trade frequency (timeframe-agnostic)
+    min_total_trades: int = 200          # Absolute floor — ensures statistical significance
     max_dd_pct: float = 30.0
     min_r_squared: float = 0.5
 
@@ -33,6 +34,7 @@ class OptimizationConfig:
     forward_weight: float = 1.5
     min_forward_back_ratio: float = 0.4
     top_n_candidates: int = 10
+    top_n_candidates_pct: float | None = None  # e.g. 0.25 for top 25% of passing
 
     # --- DSR ---
     dsr_threshold: float = 0.95   # DSR must exceed this to be "significant"

@@ -98,13 +98,6 @@ export function OptimizationRun() {
         </div>
       )}
 
-      {/* Pipeline section */}
-      {pipelineStages.length > 0 && (
-        <div className="px-6 pb-6">
-          <PipelineFunnel stages={pipelineStages} />
-        </div>
-      )}
-
       {/* Results section */}
       {hasResults && report && (
         <div className="px-6 pb-8 space-y-4">
@@ -121,6 +114,9 @@ export function OptimizationRun() {
                 compositeScore={bestSurvivor.composite_score ?? 0}
                 rating={bestSurvivor.rating ?? "UNKNOWN"}
                 gatesPassed={bestSurvivor.gates_passed}
+                eliminated={bestSurvivor.eliminated}
+                eliminatedAt={bestSurvivor.eliminated_at}
+                eliminationReason={bestSurvivor.elimination_reason}
               />
             )}
             <PipelineFunnel stages={pipelineStages} />

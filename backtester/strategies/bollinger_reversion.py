@@ -7,7 +7,6 @@ Uses ATR for volatility-aware SL/TP sizing.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -102,59 +101,54 @@ class BollingerReversion(Strategy):
 
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        variants = []
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
         for combo in BB_COMBOS:
             period, std_dev = decode_bb_combo(combo)
             upper, middle, lower = bollinger_bands(close, period, std_dev)
 
             warmup = period + 1
-            for i in range(warmup, n - 1):
-                atr_val = float(atr_14[i])
-                if math.isnan(atr_val) or atr_val <= 0:
+            idx = np.arange(warmup, n - 1)
+            if len(idx) == 0:
+                continue
+
+            c_cur = close[idx]
+            c_prev = close[idx - 1]
+            lo_cur = lower[idx]
+            lo_prev = lower[idx - 1]
+            up_cur = upper[idx]
+            up_prev = upper[idx - 1]
+            a_val = atr_14[idx]
+
+            valid = (np.isfinite(a_val) & (a_val > 0)
+                     & np.isfinite(lo_cur) & np.isfinite(lo_prev)
+                     & np.isfinite(up_cur) & np.isfinite(up_prev))
+
+            # Price crosses below lower band → BUY (mean reversion)
+            buy = valid & (c_prev >= lo_prev) & (c_cur < lo_cur)
+            # Price crosses above upper band → SELL (mean reversion)
+            sell = valid & (c_prev <= up_prev) & (c_cur > up_cur)
+
+            for mask, direction in [(buy, Direction.BUY.value),
+                                    (sell, Direction.SELL.value)]:
+                bar_idx = idx[mask]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), direction, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_var.append(np.full(len(bar_idx), combo, dtype=np.int64))
 
-                c_cur = close[i]
-                c_prev = close[i - 1]
-                lo_cur = float(lower[i])
-                lo_prev = float(lower[i - 1])
-                up_cur = float(upper[i])
-                up_prev = float(upper[i - 1])
-
-                if math.isnan(lo_cur) or math.isnan(up_cur):
-                    continue
-                if math.isnan(lo_prev) or math.isnan(up_prev):
-                    continue
-
-                atr_p = atr_val / pip_value
-
-                # Price crosses below lower band → BUY (mean reversion)
-                if c_prev >= lo_prev and c_cur < lo_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.BUY.value)
-                    entry_prices.append(c_cur)
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-                # Price crosses above upper band → SELL (mean reversion)
-                if c_prev <= up_prev and c_cur > up_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.SELL.value)
-                    entry_prices.append(c_cur)
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -166,13 +160,13 @@ class BollingerReversion(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

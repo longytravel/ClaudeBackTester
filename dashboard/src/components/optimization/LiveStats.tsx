@@ -88,9 +88,9 @@ export function LiveStats() {
           value={percentString(validRate)}
           hint="% of combos that made trades"
           color={
-            validRate > 5
+            validRate > 0.05
               ? "#22c55e"
-              : validRate > 1
+              : validRate > 0.01
                 ? "#eab308"
                 : "#ef4444"
           }

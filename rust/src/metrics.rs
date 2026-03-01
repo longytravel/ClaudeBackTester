@@ -182,12 +182,15 @@ pub fn compute_metrics_inline(
     // Ulcer Index
     metrics_row[M_ULCER] = (sum_sq_dd / n as f64).sqrt();
 
-    // Quality Score
+    // Quality Score — uses ln(1+Sortino) to compress extreme values naturally.
+    // With near-zero losses, raw Sortino can reach 100+ which would dominate
+    // the formula. Log scaling preserves ranking while keeping influence proportional.
     let so = metrics_row[M_SORTINO];
     if so > 0.0 {
+        let so_scaled = (1.0 + so).ln();
         let r2 = metrics_row[M_R_SQUARED];
         let pf_c = pf.min(5.0);
-        let trades_f = (n as f64).min(200.0).sqrt();
+        let trades_f = (n as f64).min(300.0) / 300.0 * 14.14;
         let ret = metrics_row[M_RETURN_PCT];
         let ret_clamped = ret.min(200.0).max(0.0);
         let ret_f = 1.0 + ret_clamped / 100.0;
@@ -196,7 +199,7 @@ pub fn compute_metrics_inline(
 
         let denom = ulc + dd_pct / 2.0 + 5.0;
         if denom > 0.0 {
-            metrics_row[M_QUALITY] = (so * r2 * pf_c * trades_f * ret_f) / denom;
+            metrics_row[M_QUALITY] = (so_scaled * r2 * pf_c * trades_f * ret_f) / denom;
         }
     }
 }

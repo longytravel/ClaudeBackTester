@@ -64,21 +64,27 @@ def prefilter_invalid_combos(
 
 def postfilter_results(
     metrics: np.ndarray,
-    min_trades: int = 20,
+    min_trades_per_year: float = 30.0,
+    min_total_trades: int = 200,
+    n_years: float = 0.0,
     max_dd_pct: float = 30.0,
     min_r_squared: float = 0.5,
 ) -> np.ndarray:
     """Return boolean mask: True = passes hard gates, False = rejected.
 
     Hard rejection criteria:
-    - Fewer than min_trades trades
+    - Fewer than effective minimum trades (timeframe-agnostic density gate)
     - Max drawdown exceeds max_dd_pct
     - R-squared below min_r_squared
+
+    n_years = engine.n_bars / engine.bars_per_year — pass this for
+    timeframe-agnostic trade frequency gating.
     """
     n = metrics.shape[0]
     valid = np.ones(n, dtype=np.bool_)
 
-    valid &= metrics[:, M_TRADES] >= min_trades
+    effective_min = max(min_total_trades, int(min_trades_per_year * n_years)) if n_years > 0 else min_total_trades
+    valid &= metrics[:, M_TRADES] >= effective_min
     valid &= metrics[:, M_MAX_DD_PCT] <= max_dd_pct
     valid &= metrics[:, M_R_SQUARED] >= min_r_squared
 

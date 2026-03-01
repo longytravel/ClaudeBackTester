@@ -7,7 +7,6 @@ Variant encodes K/D period combo, filter_value encodes zone threshold.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -104,66 +103,68 @@ class StochasticCrossover(Strategy):
 
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        filter_values = []
-        variants = []
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_filt: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
         for combo in STOCH_COMBOS:
             k_period, d_period = decode_stoch_combo(combo)
             k_line, d_line = stochastic(high, low, close, k_period, d_period)
 
             warmup = k_period + d_period + 1
-            for i in range(warmup, n - 1):
-                atr_val = float(atr_14[i])
-                if math.isnan(atr_val) or atr_val <= 0:
+            idx = np.arange(warmup, n - 1)
+            if len(idx) == 0:
+                continue
+
+            k_cur = k_line[idx]
+            k_prev = k_line[idx - 1]
+            d_cur = d_line[idx]
+            d_prev = d_line[idx - 1]
+            a_val = atr_14[idx]
+
+            valid = (np.isfinite(a_val) & (a_val > 0)
+                     & np.isfinite(k_cur) & np.isfinite(k_prev)
+                     & np.isfinite(d_cur) & np.isfinite(d_prev))
+
+            cross_up = valid & (k_prev <= d_prev) & (k_cur > d_cur)
+            cross_down = valid & (k_prev >= d_prev) & (k_cur < d_cur)
+
+            # Bullish crossover + oversold threshold filter
+            for thresh in OVERSOLD_THRESHOLDS:
+                buy = cross_up & (k_cur < thresh)
+                bar_idx = idx[buy]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), Direction.BUY.value, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_filt.append(np.full(len(bar_idx), float(thresh)))
+                parts_var.append(np.full(len(bar_idx), combo, dtype=np.int64))
 
-                k_cur = float(k_line[i])
-                k_prev = float(k_line[i - 1])
-                d_cur = float(d_line[i])
-                d_prev = float(d_line[i - 1])
-
-                if math.isnan(k_cur) or math.isnan(k_prev):
+            # Bearish crossover + overbought threshold filter
+            for thresh in OVERBOUGHT_THRESHOLDS:
+                sell = cross_down & (k_cur > thresh)
+                bar_idx = idx[sell]
+                if len(bar_idx) == 0:
                     continue
-                if math.isnan(d_cur) or math.isnan(d_prev):
-                    continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), Direction.SELL.value, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_filt.append(np.full(len(bar_idx), float(thresh)))
+                parts_var.append(np.full(len(bar_idx), combo, dtype=np.int64))
 
-                atr_p = atr_val / pip_value
-
-                # Bullish crossover: %K crosses above %D
-                if k_prev <= d_prev and k_cur > d_cur:
-                    # Generate BUY at each oversold threshold where K is below
-                    for thresh in OVERSOLD_THRESHOLDS:
-                        if k_cur < thresh:
-                            bar_indices.append(i)
-                            directions.append(Direction.BUY.value)
-                            entry_prices.append(close[i])
-                            hours_list.append(int(bar_hour[i]))
-                            days_list.append(int(bar_day_of_week[i]))
-                            atr_pips_list.append(atr_p)
-                            filter_values.append(float(thresh))
-                            variants.append(combo)
-
-                # Bearish crossover: %K crosses below %D
-                if k_prev >= d_prev and k_cur < d_cur:
-                    # Generate SELL at each overbought threshold where K is above
-                    for thresh in OVERBOUGHT_THRESHOLDS:
-                        if k_cur > thresh:
-                            bar_indices.append(i)
-                            directions.append(Direction.SELL.value)
-                            entry_prices.append(close[i])
-                            hours_list.append(int(bar_hour[i]))
-                            days_list.append(int(bar_day_of_week[i]))
-                            atr_pips_list.append(atr_p)
-                            filter_values.append(float(thresh))
-                            variants.append(combo)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -176,14 +177,14 @@ class StochasticCrossover(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "filter_value": np.array(filter_values, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "filter_value": np.concatenate(parts_filt),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

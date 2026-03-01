@@ -24,7 +24,7 @@ export function CandidateTable({ candidates, onSelect, selectedIndex }: Props) {
           <tr className="text-xs text-gray-500 uppercase tracking-wider">
             <th className="text-left py-2 px-2">#</th>
             <th className="text-right py-2 px-2">Quality</th>
-            <th className="text-right py-2 px-2">Sharpe</th>
+            <th className="text-right py-2 px-2">PF</th>
             <th className="text-right py-2 px-2">Trades</th>
             <th className="text-right py-2 px-2">Fwd Quality</th>
             <th className="text-right py-2 px-2">FB Ratio</th>

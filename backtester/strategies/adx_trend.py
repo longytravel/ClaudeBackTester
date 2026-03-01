@@ -7,7 +7,6 @@ Uses ATR for volatility-aware SL/TP sizing.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -100,62 +99,57 @@ class ADXTrend(Strategy):
 
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        variants = []
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
         for combo in ADX_COMBOS:
             adx_period, adx_threshold = decode_adx_combo(combo)
             adx_line, plus_di, minus_di = adx(high, low, close, adx_period)
 
             warmup = adx_period * 3 + 1
-            for i in range(warmup, n - 1):
-                atr_val = float(atr_14[i])
-                if math.isnan(atr_val) or atr_val <= 0:
+            idx = np.arange(warmup, n - 1)
+            if len(idx) == 0:
+                continue
+
+            adx_cur = adx_line[idx]
+            pdi_cur = plus_di[idx]
+            pdi_prev = plus_di[idx - 1]
+            mdi_cur = minus_di[idx]
+            mdi_prev = minus_di[idx - 1]
+            a_val = atr_14[idx]
+
+            valid = (np.isfinite(a_val) & (a_val > 0)
+                     & np.isfinite(adx_cur) & np.isfinite(pdi_cur)
+                     & np.isfinite(pdi_prev) & np.isfinite(mdi_cur)
+                     & np.isfinite(mdi_prev))
+
+            # ADX must be above threshold (strong trend)
+            strong = valid & (adx_cur >= adx_threshold)
+
+            # +DI crosses above -DI → BUY
+            buy = strong & (pdi_prev <= mdi_prev) & (pdi_cur > mdi_cur)
+            # -DI crosses above +DI → SELL
+            sell = strong & (mdi_prev <= pdi_prev) & (mdi_cur > pdi_cur)
+
+            for mask, direction in [(buy, Direction.BUY.value),
+                                    (sell, Direction.SELL.value)]:
+                bar_idx = idx[mask]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), direction, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_var.append(np.full(len(bar_idx), combo, dtype=np.int64))
 
-                adx_cur = float(adx_line[i])
-                pdi_cur = float(plus_di[i])
-                pdi_prev = float(plus_di[i - 1])
-                mdi_cur = float(minus_di[i])
-                mdi_prev = float(minus_di[i - 1])
-
-                if math.isnan(adx_cur) or math.isnan(pdi_cur) or math.isnan(mdi_cur):
-                    continue
-                if math.isnan(pdi_prev) or math.isnan(mdi_prev):
-                    continue
-
-                # ADX must be above threshold (strong trend)
-                if adx_cur < adx_threshold:
-                    continue
-
-                atr_p = atr_val / pip_value
-
-                # +DI crosses above -DI → BUY (bullish trend)
-                if pdi_prev <= mdi_prev and pdi_cur > mdi_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.BUY.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-                # -DI crosses above +DI → SELL (bearish trend)
-                if mdi_prev <= pdi_prev and mdi_cur > pdi_cur:
-                    bar_indices.append(i)
-                    directions.append(Direction.SELL.value)
-                    entry_prices.append(close[i])
-                    hours_list.append(int(bar_hour[i]))
-                    days_list.append(int(bar_day_of_week[i]))
-                    atr_pips_list.append(atr_p)
-                    variants.append(combo)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -167,13 +161,13 @@ class ADXTrend(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

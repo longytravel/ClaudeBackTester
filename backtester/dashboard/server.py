@@ -30,11 +30,12 @@ class DashboardServer:
         self._clients: list[Any] = []  # WebSocket connections
         self._lock = threading.Lock()
         self._last_broadcast_time = 0.0
-        self._throttle_interval = 0.2  # 200ms min between broadcasts
+        self._throttle_interval = 0.1  # 100ms min between broadcasts
         self._pending_msg: dict | None = None  # Holds throttled message
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._state_snapshot: dict | None = None  # Latest full state for new connections
+        self._batch_history: list[dict] = []  # All batch updates for reconnect replay
         self._run_config: dict | None = None
         self._stage_results: list[dict] = []
         self._pipeline_results: list[dict] = []
@@ -156,6 +157,7 @@ class DashboardServer:
             "stage_results": self._stage_results,
             "pipeline_results": self._pipeline_results,
             "last_state": self._state_snapshot,
+            "batch_history": self._batch_history,
             "final_report": self._final_report,
         }
 
@@ -172,11 +174,13 @@ class DashboardServer:
         msg_type = msg.get("type")
         if msg_type == "run_config":
             self._run_config = msg
+            self._batch_history = []
             self._stage_results = []
             self._pipeline_results = []
             self._final_report = None
         elif msg_type == "batch":
             self._state_snapshot = msg
+            self._batch_history.append(msg)
         elif msg_type == "stage_complete":
             self._stage_results.append(msg)
         elif msg_type == "pipeline":

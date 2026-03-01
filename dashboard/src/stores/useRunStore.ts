@@ -83,7 +83,12 @@ const initialState = {
 export const useRunStore = create<RunState>((set, get) => ({
   ...initialState,
 
-  setStatus: (status) => set({ status }),
+  setStatus: (status) => {
+    // Never downgrade from "complete" to "connecting" (server shutdown after run)
+    const current = get().status;
+    if (current === "complete" && status === "connecting") return;
+    set({ status });
+  },
 
   reset: () => set(initialState),
 
@@ -105,8 +110,13 @@ export const useRunStore = create<RunState>((set, get) => ({
           }
         }
 
-        // Replay last batch state
-        if (snap.last_state) {
+        // Replay full batch history for charts (not just last state)
+        if (snap.batch_history && snap.batch_history.length > 0) {
+          for (const batch of snap.batch_history) {
+            get().handleMessage(batch);
+          }
+        } else if (snap.last_state) {
+          // Fallback: replay just the last batch state
           get().handleMessage(snap.last_state);
         }
 
@@ -151,15 +161,21 @@ export const useRunStore = create<RunState>((set, get) => ({
         const m = msg as BatchUpdate;
         const state = get();
 
-        // Update stages array
+        // Update stages array — don't overwrite "complete" back to "active"
         const stages = [...state.stages];
         for (let i = 0; i < stages.length; i++) {
           if (i < m.stage_index)
             stages[i] = { ...stages[i], status: "complete" };
           else if (i === m.stage_index)
-            stages[i] = { ...stages[i], status: "active" };
+            stages[i] = { ...stages[i], status: stages[i].status === "complete" ? "complete" : "active" };
           else stages[i] = { ...stages[i], status: "pending" };
         }
+
+        // Cumulative trials: sum completed stage trials + current stage trials_done
+        const completedTrials = stages
+          .filter((s) => s.status === "complete" && s.trials_evaluated)
+          .reduce((sum, s) => sum + (s.trials_evaluated ?? 0), 0);
+        const cumulativeEvaluated = completedTrials + m.trials_done;
 
         set({
           stages,
@@ -168,7 +184,7 @@ export const useRunStore = create<RunState>((set, get) => ({
           bestQuality: m.best_quality,
           bestSharpe: m.best_sharpe,
           bestTrades: m.best_trades,
-          totalEvaluated: m.trials_done,
+          totalEvaluated: cumulativeEvaluated,
           evalsPerSecond: m.evals_per_sec,
           elapsedSecs: m.elapsed_secs,
           currentPhase: m.phase,

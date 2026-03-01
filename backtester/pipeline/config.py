@@ -20,6 +20,10 @@ class PipelineConfig:
     # --- Bars per year (set from timeframe for correct Sharpe annualization) ---
     bars_per_year: float = 6048.0   # Default H1; override for other timeframes
 
+    # --- Trade density gates (must match optimizer defaults) ---
+    min_trades_per_year: float = 30.0   # Minimum annual trade frequency
+    min_total_trades: int = 200          # Absolute floor for statistical significance
+
     # --- General ---
     output_dir: str = "pipeline_output"
     n_candidates: int = 20  # Number of candidates to validate from optimizer

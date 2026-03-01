@@ -6,7 +6,6 @@ Uses ATR for volatility-aware SL/TP sizing.
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 import numpy as np
@@ -89,13 +88,6 @@ class RSIMeanReversion(Strategy):
         bar_hour: np.ndarray | None = None,
         bar_day_of_week: np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
-        """Generate RSI crossover signals for all RSI periods and thresholds.
-
-        For each RSI period, generates a separate signal at each threshold
-        crossing (20, 25, 30, 35 for oversold; 65, 70, 75, 80 for overbought).
-        The JIT loop uses exact-match filtering: only signals whose threshold
-        matches the trial's rsi_oversold/rsi_overbought are accepted.
-        """
         n = len(close)
         if bar_hour is None:
             bar_hour = np.zeros(n, dtype=np.int64)
@@ -105,53 +97,69 @@ class RSIMeanReversion(Strategy):
         rsi_arrays = {p: rsi(close, p) for p in RSI_PERIODS}
         atr_14 = atr(high, low, close, 14)
 
-        bar_indices = []
-        directions = []
-        entry_prices = []
-        hours_list = []
-        days_list = []
-        atr_pips_list = []
-        filter_values = []   # threshold value that was crossed (for exact match)
-        variants = []         # RSI period value (7, 9, 14, 21) matching rsi_period param
+        warmup = max(RSI_PERIODS) + 1
+        idx = np.arange(warmup, n - 1)
 
-        for i in range(max(RSI_PERIODS) + 1, n - 1):
-            atr_val = float(atr_14[i])
-            if math.isnan(atr_val) or atr_val <= 0:
-                continue
+        parts_idx: list[np.ndarray] = []
+        parts_dir: list[np.ndarray] = []
+        parts_price: list[np.ndarray] = []
+        parts_hour: list[np.ndarray] = []
+        parts_day: list[np.ndarray] = []
+        parts_atr: list[np.ndarray] = []
+        parts_filt: list[np.ndarray] = []
+        parts_var: list[np.ndarray] = []
 
-            atr_p = atr_val / pip_value
+        if len(idx) == 0:
+            return {
+                "bar_index": np.array([], dtype=np.int64),
+                "direction": np.array([], dtype=np.int64),
+                "entry_price": np.array([], dtype=np.float64),
+                "hour": np.array([], dtype=np.int64),
+                "day_of_week": np.array([], dtype=np.int64),
+                "atr_pips": np.array([], dtype=np.float64),
+                "filter_value": np.array([], dtype=np.float64),
+                "variant": np.array([], dtype=np.int64),
+            }
 
-            for rp in RSI_PERIODS:
-                r_cur = float(rsi_arrays[rp][i])
-                r_prev = float(rsi_arrays[rp][i - 1])
-                if math.isnan(r_cur) or math.isnan(r_prev):
+        a_val = atr_14[idx]
+        valid_atr = np.isfinite(a_val) & (a_val > 0)
+
+        for rp in RSI_PERIODS:
+            r_cur = rsi_arrays[rp][idx]
+            r_prev = rsi_arrays[rp][idx - 1]
+            valid = valid_atr & np.isfinite(r_cur) & np.isfinite(r_prev)
+
+            # Buy signals: RSI crosses below each oversold threshold
+            for thresh in OVERSOLD_THRESHOLDS:
+                buy = valid & (r_cur < thresh) & (r_prev >= thresh)
+                bar_idx = idx[buy]
+                if len(bar_idx) == 0:
                     continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), Direction.BUY.value, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_filt.append(np.full(len(bar_idx), float(thresh)))
+                parts_var.append(np.full(len(bar_idx), rp, dtype=np.int64))
 
-                # Buy signals: generate at EACH oversold threshold crossing
-                for thresh in OVERSOLD_THRESHOLDS:
-                    if r_cur < thresh and r_prev >= thresh:
-                        bar_indices.append(i)
-                        directions.append(Direction.BUY.value)
-                        entry_prices.append(close[i])
-                        hours_list.append(int(bar_hour[i]))
-                        days_list.append(int(bar_day_of_week[i]))
-                        atr_pips_list.append(atr_p)
-                        filter_values.append(float(thresh))
-                        variants.append(rp)
+            # Sell signals: RSI crosses above each overbought threshold
+            for thresh in OVERBOUGHT_THRESHOLDS:
+                sell = valid & (r_cur > thresh) & (r_prev <= thresh)
+                bar_idx = idx[sell]
+                if len(bar_idx) == 0:
+                    continue
+                parts_idx.append(bar_idx)
+                parts_dir.append(np.full(len(bar_idx), Direction.SELL.value, dtype=np.int64))
+                parts_price.append(close[bar_idx])
+                parts_hour.append(bar_hour[bar_idx])
+                parts_day.append(bar_day_of_week[bar_idx])
+                parts_atr.append(atr_14[bar_idx] / pip_value)
+                parts_filt.append(np.full(len(bar_idx), float(thresh)))
+                parts_var.append(np.full(len(bar_idx), rp, dtype=np.int64))
 
-                # Sell signals: generate at EACH overbought threshold crossing
-                for thresh in OVERBOUGHT_THRESHOLDS:
-                    if r_cur > thresh and r_prev <= thresh:
-                        bar_indices.append(i)
-                        directions.append(Direction.SELL.value)
-                        entry_prices.append(close[i])
-                        hours_list.append(int(bar_hour[i]))
-                        days_list.append(int(bar_day_of_week[i]))
-                        atr_pips_list.append(atr_p)
-                        filter_values.append(float(thresh))
-                        variants.append(rp)
-
-        if not bar_indices:
+        if not parts_idx:
             return {
                 "bar_index": np.array([], dtype=np.int64),
                 "direction": np.array([], dtype=np.int64),
@@ -164,14 +172,14 @@ class RSIMeanReversion(Strategy):
             }
 
         return {
-            "bar_index": np.array(bar_indices, dtype=np.int64),
-            "direction": np.array(directions, dtype=np.int64),
-            "entry_price": np.array(entry_prices, dtype=np.float64),
-            "hour": np.array(hours_list, dtype=np.int64),
-            "day_of_week": np.array(days_list, dtype=np.int64),
-            "atr_pips": np.array(atr_pips_list, dtype=np.float64),
-            "filter_value": np.array(filter_values, dtype=np.float64),
-            "variant": np.array(variants, dtype=np.int64),
+            "bar_index": np.concatenate(parts_idx),
+            "direction": np.concatenate(parts_dir),
+            "entry_price": np.concatenate(parts_price),
+            "hour": np.concatenate(parts_hour),
+            "day_of_week": np.concatenate(parts_day),
+            "atr_pips": np.concatenate(parts_atr),
+            "filter_value": np.concatenate(parts_filt),
+            "variant": np.concatenate(parts_var),
         }
 
     def filter_signals(

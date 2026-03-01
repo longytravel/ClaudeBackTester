@@ -345,7 +345,15 @@ def walk_forward_validate(
         n_passed = sum(1 for wr in window_results if wr.passed)
 
         pass_rate = n_passed / n_oos if n_oos > 0 else 0.0
-        mean_sharpe = float(np.mean(oos_sharpes)) if oos_sharpes else 0.0
+        valid_sharpes = [wr.sharpe for wr in window_results if wr.n_trades >= config.wf_min_trades_per_window]
+        mean_sharpe = float(np.mean(valid_sharpes)) if valid_sharpes else 0.0
+        if not valid_sharpes:
+            avg_trades = float(np.mean([wr.n_trades for wr in window_results])) if window_results else 0
+            logger.warning(
+                "All %d OOS windows had insufficient trades (avg %.1f trades vs min %d required). "
+                "Strategy fires too infrequently for walk-forward validation.",
+                n_oos, avg_trades, config.wf_min_trades_per_window,
+            )
         mean_quality = float(np.mean(oos_qualities)) if oos_qualities else 0.0
 
         # Geometric mean of quality scores from passed OOS windows
