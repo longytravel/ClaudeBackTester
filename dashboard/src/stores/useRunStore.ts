@@ -230,9 +230,17 @@ export const useRunStore = create<RunState>((set, get) => ({
 
       case "run_complete": {
         const m = msg as { type: "run_complete"; report: Report };
+        // Force ALL stages to "complete" — safety net in case a
+        // stage_complete message was lost (e.g. WebSocket disconnect)
+        const state = get();
+        const stages = state.stages.map((s) => ({
+          ...s,
+          status: "complete" as const,
+        }));
         set({
           status: "complete",
           report: m.report,
+          stages,
         });
         break;
       }

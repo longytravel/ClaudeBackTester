@@ -12,9 +12,55 @@ Samplers:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from backtester.core.encoding import EncodingSpec
+
+
+@dataclass
+class NeighborhoodSpec:
+    """Defines per-parameter index bounds for neighborhood sampling.
+
+    Used in refinement to constrain sampling to a local region around
+    the locked best values from previous stages.
+    """
+    min_bounds: np.ndarray   # (P,) int — min index per param
+    max_bounds: np.ndarray   # (P,) int — max index per param
+
+
+def build_neighborhood(
+    spec: EncodingSpec,
+    locked: np.ndarray,
+    radius: int,
+) -> NeighborhoodSpec:
+    """Build neighborhood bounds centered on locked values.
+
+    Args:
+        spec: Encoding spec with parameter value lists.
+        locked: (P,) int64 — locked index per param (-1 = unlocked, full range).
+        radius: Number of index steps to explore in each direction.
+
+    Returns:
+        NeighborhoodSpec with per-param [min, max] index bounds.
+    """
+    p = spec.num_params
+    min_bounds = np.zeros(p, dtype=np.int64)
+    max_bounds = np.zeros(p, dtype=np.int64)
+
+    for col in spec.columns:
+        n_vals = len(col.values)
+        if locked[col.index] >= 0:
+            center = int(locked[col.index])
+            min_bounds[col.index] = max(0, center - radius)
+            max_bounds[col.index] = min(n_vals - 1, center + radius)
+        else:
+            # Unlocked param: full range
+            min_bounds[col.index] = 0
+            max_bounds[col.index] = n_vals - 1
+
+    return NeighborhoodSpec(min_bounds=min_bounds, max_bounds=max_bounds)
 
 
 class RandomSampler:
@@ -29,6 +75,7 @@ class RandomSampler:
         n: int,
         mask: np.ndarray | None = None,
         locked: np.ndarray | None = None,
+        neighborhood: NeighborhoodSpec | None = None,
     ) -> np.ndarray:
         """Generate (N, P) index matrix.
 
@@ -38,6 +85,7 @@ class RandomSampler:
                 inactive+unlocked columns get uniform random (noise averaging).
             locked: (P,) int64 — locked column values override sampling.
                 Set to -1 for unlocked columns. Checked BEFORE mask.
+            neighborhood: When set, constrains sampling to [min, max] per param.
         """
         p = self.spec.num_params
         matrix = np.zeros((n, p), dtype=np.int64)
@@ -47,9 +95,14 @@ class RandomSampler:
             if locked is not None and locked[col.index] >= 0:
                 matrix[:, col.index] = locked[col.index]
                 continue
-            # Both active and inactive+unlocked get random samples
-            num_vals = len(col.values)
-            matrix[:, col.index] = self.rng.integers(0, num_vals, size=n)
+            # Apply neighborhood bounds if provided
+            if neighborhood is not None:
+                lo = int(neighborhood.min_bounds[col.index])
+                hi = int(neighborhood.max_bounds[col.index])
+                matrix[:, col.index] = self.rng.integers(lo, hi + 1, size=n)
+            else:
+                num_vals = len(col.values)
+                matrix[:, col.index] = self.rng.integers(0, num_vals, size=n)
 
         return matrix
 
@@ -79,6 +132,7 @@ class SobolSampler:
         n: int,
         mask: np.ndarray | None = None,
         locked: np.ndarray | None = None,
+        neighborhood: NeighborhoodSpec | None = None,
     ) -> np.ndarray:
         """Generate (N, P) index matrix using Sobol sequence.
 
@@ -100,12 +154,21 @@ class SobolSampler:
                 if locked is not None and locked[col.index] >= 0:
                     matrix[:, col.index] = locked[col.index]
                     continue
-                # Both active and inactive+unlocked get Sobol coverage
-                num_vals = len(col.values)
-                matrix[:, col.index] = np.clip(
-                    (raw[:, col.index] * num_vals).astype(np.int64),
-                    0, num_vals - 1,
-                )
+                if neighborhood is not None:
+                    # Scale Sobol [0,1) to [lo, hi] integer range
+                    lo = int(neighborhood.min_bounds[col.index])
+                    hi = int(neighborhood.max_bounds[col.index])
+                    span = hi - lo + 1
+                    matrix[:, col.index] = np.clip(
+                        (raw[:, col.index] * span).astype(np.int64) + lo,
+                        lo, hi,
+                    )
+                else:
+                    num_vals = len(col.values)
+                    matrix[:, col.index] = np.clip(
+                        (raw[:, col.index] * num_vals).astype(np.int64),
+                        0, num_vals - 1,
+                    )
         else:
             # Fallback to random
             rng = np.random.default_rng(self.seed)
@@ -114,8 +177,13 @@ class SobolSampler:
                 if locked is not None and locked[col.index] >= 0:
                     matrix[:, col.index] = locked[col.index]
                     continue
-                num_vals = len(col.values)
-                matrix[:, col.index] = rng.integers(0, num_vals, size=n)
+                if neighborhood is not None:
+                    lo = int(neighborhood.min_bounds[col.index])
+                    hi = int(neighborhood.max_bounds[col.index])
+                    matrix[:, col.index] = rng.integers(lo, hi + 1, size=n)
+                else:
+                    num_vals = len(col.values)
+                    matrix[:, col.index] = rng.integers(0, num_vals, size=n)
 
         return matrix
 
@@ -173,6 +241,7 @@ class EDASampler:
         n: int,
         mask: np.ndarray | None = None,
         locked: np.ndarray | None = None,
+        neighborhood: NeighborhoodSpec | None = None,
     ) -> np.ndarray:
         """Sample from current probability distribution.
 
@@ -191,15 +260,34 @@ class EDASampler:
 
             if mask is not None and not mask[col.index]:
                 # Inactive + unlocked: uniform random for noise averaging
-                num_vals = len(col.values)
-                matrix[:, col.index] = self.rng.integers(0, num_vals, size=n)
+                if neighborhood is not None:
+                    lo = int(neighborhood.min_bounds[col.index])
+                    hi = int(neighborhood.max_bounds[col.index])
+                    matrix[:, col.index] = self.rng.integers(lo, hi + 1, size=n)
+                else:
+                    num_vals = len(col.values)
+                    matrix[:, col.index] = self.rng.integers(0, num_vals, size=n)
                 continue
 
             # Active + unlocked: sample from EDA probability distribution
             probs = self.prob_tables[col.index]
-            matrix[:, col.index] = self.rng.choice(
-                len(probs), size=n, p=probs,
-            )
+            if neighborhood is not None:
+                # Slice probability table to neighborhood and renormalize
+                lo = int(neighborhood.min_bounds[col.index])
+                hi = int(neighborhood.max_bounds[col.index])
+                sliced = probs[lo:hi + 1].copy()
+                sliced_sum = sliced.sum()
+                if sliced_sum > 0:
+                    sliced /= sliced_sum
+                else:
+                    sliced = np.full(len(sliced), 1.0 / len(sliced))
+                matrix[:, col.index] = self.rng.choice(
+                    len(sliced), size=n, p=sliced,
+                ) + lo
+            else:
+                matrix[:, col.index] = self.rng.choice(
+                    len(probs), size=n, p=probs,
+                )
 
         return matrix
 

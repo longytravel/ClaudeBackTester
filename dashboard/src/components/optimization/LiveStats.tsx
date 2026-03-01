@@ -86,7 +86,7 @@ export function LiveStats() {
         <StatCard
           label="Valid Rate"
           value={percentString(validRate)}
-          hint="% of combos that made trades"
+          hint="% passing quality gates"
           color={
             validRate > 0.05
               ? "#22c55e"

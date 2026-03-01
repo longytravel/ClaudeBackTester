@@ -39,6 +39,9 @@ class OptimizationConfig:
     # --- DSR ---
     dsr_threshold: float = 0.95   # DSR must exceed this to be "significant"
 
+    # --- Refinement ---
+    refinement_neighborhood_radius: int = 2  # ±2 index steps around locked best
+
     # --- Execution ---
     # PnL buffer = batch_size × max_trades × 8 bytes. At batch_size=4096:
     #   50K → 1.6GB (segfaults on Windows), 25K → 781MB (safe).

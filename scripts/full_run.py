@@ -350,6 +350,7 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         trades_per_bar = median_trades / back_bars
         auto_window = int(TARGET_TRADES_PER_WINDOW / trades_per_bar) if trades_per_bar > 0 else int(bars_py * 0.5)
     else:
+        trades_per_bar = 0.0
         auto_window = int(bars_py * 0.5)
 
     # Clamp: min 1 month, max 2 years
@@ -357,10 +358,19 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
     max_window = int(bars_py * 2)
     wf_window = max(min_window, min(auto_window, max_window))
 
-    # Guard: ensure at least 3 OOS windows fit in forward data
+    # Guard: ensure enough OOS windows fit in forward data
     forward_bars = total_bars - back_bars
     step_ratio = 2  # wf_step = wf_window // step_ratio
-    min_oos_windows = 3
+    # Slow strategies (< 0.01 trades/bar): accept 2 OOS windows to preserve
+    # window size and trade count per window
+    if trades_per_bar > 0 and trades_per_bar < 0.01:
+        min_oos_windows = 2
+        logger.info(
+            f"Slow strategy ({trades_per_bar:.4f} trades/bar), "
+            f"using min_oos_windows=2"
+        )
+    else:
+        min_oos_windows = 3
     max_window_for_coverage = forward_bars // (min_oos_windows * step_ratio)
     if max_window_for_coverage > 0:
         wf_window = min(wf_window, max(min_window, max_window_for_coverage))
@@ -368,9 +378,16 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
     wf_step = wf_window // 2  # 50% overlap (standard)
 
     window_months = wf_window / bars_py * 12
+    expected_trades = trades_per_bar * wf_window if trades_per_bar > 0 else 0
+    if expected_trades > 0 and expected_trades < TARGET_TRADES_PER_WINDOW * 0.5:
+        logger.warning(
+            f"WF window will have ~{expected_trades:.0f} trades "
+            f"(target was {TARGET_TRADES_PER_WINDOW})"
+        )
     logger.info(
         f"Walk-forward auto-sized: {wf_window:,} bars ({window_months:.1f} months), "
         f"step={wf_step:,}, target={TARGET_TRADES_PER_WINDOW} trades/window"
+        f"{f', expected ~{expected_trades:.0f}' if expected_trades > 0 else ''}"
     )
 
     pipeline_config = PipelineConfig(

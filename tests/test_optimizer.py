@@ -880,3 +880,127 @@ class TestOptimizeCleanup:
 
         assert result.total_trials == 1
         assert len(result.candidates) == 0
+
+
+# ---------------------------------------------------------------------------
+# Neighborhood sampling tests
+# ---------------------------------------------------------------------------
+
+class TestNeighborhoodSampling:
+    def _make_spec(self):
+        ps = ParamSpace([
+            ParamDef("a", list(range(10))),   # 10 values: 0-9
+            ParamDef("b", list(range(20))),   # 20 values: 0-19
+        ])
+        return build_encoding_spec(ps)
+
+    def test_build_neighborhood_locked(self):
+        from backtester.optimizer.sampler import build_neighborhood
+        spec = self._make_spec()
+        locked = np.array([5, 10], dtype=np.int64)
+        nb = build_neighborhood(spec, locked, radius=2)
+        # a: center=5, range=[3, 7]
+        assert nb.min_bounds[0] == 3
+        assert nb.max_bounds[0] == 7
+        # b: center=10, range=[8, 12]
+        assert nb.min_bounds[1] == 8
+        assert nb.max_bounds[1] == 12
+
+    def test_build_neighborhood_edge_clamp(self):
+        from backtester.optimizer.sampler import build_neighborhood
+        spec = self._make_spec()
+        locked = np.array([0, 18], dtype=np.int64)  # Near edges
+        nb = build_neighborhood(spec, locked, radius=3)
+        # a: center=0, min clamped to 0
+        assert nb.min_bounds[0] == 0
+        assert nb.max_bounds[0] == 3
+        # b: center=18, max clamped to 19
+        assert nb.min_bounds[1] == 15
+        assert nb.max_bounds[1] == 19
+
+    def test_build_neighborhood_unlocked_full_range(self):
+        from backtester.optimizer.sampler import build_neighborhood
+        spec = self._make_spec()
+        locked = np.array([5, -1], dtype=np.int64)  # b unlocked
+        nb = build_neighborhood(spec, locked, radius=2)
+        # a: constrained
+        assert nb.min_bounds[0] == 3
+        assert nb.max_bounds[0] == 7
+        # b: unlocked = full range
+        assert nb.min_bounds[1] == 0
+        assert nb.max_bounds[1] == 19
+
+    def test_random_sampler_with_neighborhood(self):
+        from backtester.optimizer.sampler import NeighborhoodSpec
+        spec = self._make_spec()
+        sampler = RandomSampler(spec, seed=42)
+        nb = NeighborhoodSpec(
+            min_bounds=np.array([3, 8], dtype=np.int64),
+            max_bounds=np.array([7, 12], dtype=np.int64),
+        )
+        matrix = sampler.sample(1000, neighborhood=nb)
+        assert matrix[:, 0].min() >= 3
+        assert matrix[:, 0].max() <= 7
+        assert matrix[:, 1].min() >= 8
+        assert matrix[:, 1].max() <= 12
+
+    def test_sobol_sampler_with_neighborhood(self):
+        from backtester.optimizer.sampler import NeighborhoodSpec
+        spec = self._make_spec()
+        sampler = SobolSampler(spec, seed=42)
+        nb = NeighborhoodSpec(
+            min_bounds=np.array([3, 8], dtype=np.int64),
+            max_bounds=np.array([7, 12], dtype=np.int64),
+        )
+        matrix = sampler.sample(128, neighborhood=nb)
+        assert matrix[:, 0].min() >= 3
+        assert matrix[:, 0].max() <= 7
+        assert matrix[:, 1].min() >= 8
+        assert matrix[:, 1].max() <= 12
+
+    def test_eda_sampler_with_neighborhood(self):
+        from backtester.optimizer.sampler import NeighborhoodSpec
+        spec = self._make_spec()
+        eda = EDASampler(spec, seed=42)
+        nb = NeighborhoodSpec(
+            min_bounds=np.array([3, 8], dtype=np.int64),
+            max_bounds=np.array([7, 12], dtype=np.int64),
+        )
+        mask = np.array([True, True], dtype=bool)
+        matrix = eda.sample(1000, mask=mask, neighborhood=nb)
+        assert matrix[:, 0].min() >= 3
+        assert matrix[:, 0].max() <= 7
+        assert matrix[:, 1].min() >= 8
+        assert matrix[:, 1].max() <= 12
+
+
+class TestBudgetAutoCap:
+    def test_compute_stage_budgets_caps_small_space(self):
+        """Budget should be capped when space is much smaller than budget."""
+        from backtester.optimizer.staged import compute_stage_budgets
+
+        # Simple strategy with 3×3 = 9 signal combos
+        strategy = OptimizerTestStrategy()
+        config = OptimizationConfig(
+            trials_per_stage=50_000,
+            refinement_trials=100_000,
+        )
+        budgets = compute_stage_budgets(strategy, config)
+        signal_stage = next(b for b in budgets if b["stage"] == "signal")
+        # 9 combos × 10x = 90, so budget should be capped to 90
+        assert signal_stage["budget"] == 90
+        assert signal_stage["unique_combos"] == 9
+
+    def test_budget_not_capped_for_large_space(self):
+        """Budget should not be capped when space is larger than budget."""
+        from backtester.optimizer.staged import compute_stage_budgets
+
+        strategy = OptimizerTestStrategy()
+        config = OptimizationConfig(
+            trials_per_stage=50,  # Very small budget
+            refinement_trials=100,
+        )
+        budgets = compute_stage_budgets(strategy, config)
+        signal_stage = next(b for b in budgets if b["stage"] == "signal")
+        # 9 combos × 10x = 90 > 50, so no cap
+        assert signal_stage["budget"] == 50

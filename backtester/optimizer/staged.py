@@ -34,7 +34,9 @@ from backtester.core.encoding import EncodingSpec, build_encoding_spec, indices_
 from backtester.core.engine import BacktestEngine
 from backtester.optimizer.config import OptimizationConfig
 from backtester.optimizer.prefilter import postfilter_results, prefilter_invalid_combos
-from backtester.optimizer.sampler import EDASampler, RandomSampler, SobolSampler
+from backtester.optimizer.sampler import (
+    EDASampler, NeighborhoodSpec, RandomSampler, SobolSampler, build_neighborhood,
+)
 from backtester.strategies.base import Strategy
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,10 @@ def compute_stage_budgets(
             unique_combos *= len(spec.columns[idx].values)
 
         budget = config.trials_per_stage
+        # Apply auto-cap (mirrors _run_stage logic)
+        max_coverage = 10
+        if unique_combos > 0 and budget > unique_combos * max_coverage:
+            budget = unique_combos * max_coverage
         coverage = budget / unique_combos if unique_combos > 0 else 0.0
 
         results.append({
@@ -74,10 +80,19 @@ def compute_stage_budgets(
             "coverage": coverage,
         })
 
-    # Refinement: all params active
-    ref_combos = 1
-    for col in spec.columns:
-        ref_combos *= len(col.values)
+    # Refinement: neighborhood-constrained combos
+    radius = config.refinement_neighborhood_radius
+    if radius > 0:
+        ref_combos = 1
+        for col in spec.columns:
+            n_vals = len(col.values)
+            # Neighborhood span: min(2*radius+1, n_vals)
+            span = min(2 * radius + 1, n_vals)
+            ref_combos *= span
+    else:
+        ref_combos = 1
+        for col in spec.columns:
+            ref_combos *= len(col.values)
 
     results.append({
         "stage": "refinement",
@@ -215,6 +230,7 @@ class StagedOptimizer:
             exec_mode=EXEC_FULL,
             trials=self.config.refinement_trials,
             use_locked_as_center=True,
+            neighborhood_radius=self.config.refinement_neighborhood_radius,
             collect_all=True,  # Collect all passing for multi-candidate selection
             stage_index=len(stages),
             total_stages=len(stages) + 1,
@@ -259,6 +275,7 @@ class StagedOptimizer:
         exec_mode: int,
         trials: int,
         use_locked_as_center: bool = False,
+        neighborhood_radius: int = 0,
         collect_all: bool = False,
         stage_index: int = 0,
         total_stages: int = 1,
@@ -268,14 +285,55 @@ class StagedOptimizer:
         Args:
             collect_all: When True, accumulate all post-filter passing
                 trials (indices + metrics) for multi-candidate selection.
+            neighborhood_radius: When >0 and use_locked_as_center=True,
+                constrain sampling to ±radius index steps around locked values
+                instead of unlocking to full range.
         """
-        # Log unique combos vs budget for this stage
+        # For refinement with neighborhood, build constrained bounds instead of
+        # unlocking to full range. For normal stages, no neighborhood.
+        neighborhood: NeighborhoodSpec | None = None
+        stage_locked = locked.copy()
+
+        if use_locked_as_center and neighborhood_radius > 0:
+            # Build neighborhood bounds — keeps params locked but constrains range
+            neighborhood = build_neighborhood(
+                self.spec, locked, neighborhood_radius,
+            )
+            # Unlock active params so samplers will sample within neighborhood
+            for i in range(self.spec.num_params):
+                if active_mask[i]:
+                    stage_locked[i] = -1
+        elif use_locked_as_center:
+            # Legacy fallback: unlock to full range (no neighborhood)
+            for i in range(self.spec.num_params):
+                if active_mask[i]:
+                    stage_locked[i] = -1
+
+        # Compute unique combos AFTER stage_locked/neighborhood are set (Fix 5)
         active_indices = [i for i in range(self.spec.num_params) if active_mask[i]]
-        unique_combos = 1
-        for idx in active_indices:
-            n_vals = len(self.spec.columns[idx].values)
-            if locked[idx] == -1:  # Only count unlocked params
-                unique_combos *= n_vals
+        if neighborhood is not None:
+            unique_combos = 1
+            for idx in active_indices:
+                if stage_locked[idx] == -1:
+                    span = int(neighborhood.max_bounds[idx]) - int(neighborhood.min_bounds[idx]) + 1
+                    unique_combos *= span
+        else:
+            unique_combos = 1
+            for idx in active_indices:
+                n_vals = len(self.spec.columns[idx].values)
+                if stage_locked[idx] == -1:  # Only count unlocked params
+                    unique_combos *= n_vals
+
+        # Fix 2: Auto-cap budget for non-refinement stages when space is small
+        max_coverage = 10
+        if not use_locked_as_center and unique_combos > 0 and trials > unique_combos * max_coverage:
+            capped_trials = unique_combos * max_coverage
+            logger.info(
+                f"Stage '{stage_name}': budget capped {trials:,} -> {capped_trials:,} "
+                f"({unique_combos:,} combos x {max_coverage}x)"
+            )
+            trials = capped_trials
+
         coverage = trials / unique_combos if unique_combos > 0 else 0.0
         logger.info(
             f"Stage '{stage_name}': {unique_combos:,} unique combos, "
@@ -311,14 +369,6 @@ class StagedOptimizer:
         all_indices_list: list[np.ndarray] = []
         all_metrics_list: list[np.ndarray] = []
 
-        # For refinement, unlock all but use locked values as starting point
-        stage_locked = locked.copy()
-        if use_locked_as_center:
-            # Unlock active params but keep locked values as reference
-            for i in range(self.spec.num_params):
-                if active_mask[i]:
-                    stage_locked[i] = -1  # Unlock for sampling
-
         # Compute once — doesn't change per batch
         n_years = self.engine.n_bars / self.engine.bars_per_year
 
@@ -328,9 +378,13 @@ class StagedOptimizer:
 
             # Choose sampler: exploration phase uses Sobol, exploitation uses EDA
             if total_evaluated < exploration_budget:
-                index_batch = sobol.sample(n, mask=active_mask, locked=stage_locked)
+                index_batch = sobol.sample(
+                    n, mask=active_mask, locked=stage_locked, neighborhood=neighborhood,
+                )
             else:
-                index_batch = eda.sample(n, mask=active_mask, locked=stage_locked)
+                index_batch = eda.sample(
+                    n, mask=active_mask, locked=stage_locked, neighborhood=neighborhood,
+                )
 
             # Pre-filter invalid combinations
             valid_pre = prefilter_invalid_combos(index_batch, self.spec)
@@ -418,11 +472,22 @@ class StagedOptimizer:
                 batch_mean_q = float(np.mean(batch_qualities_all[batch_valid_mask])) if batch_valid_mask.any() else 0.0
                 batch_best_q = float(np.max(batch_qualities_all[batch_valid_mask])) if batch_valid_mask.any() else 0.0
 
-                # Use gated best (post-filtered) — ungated can produce absurd
-                # values from combos with 1-2 trades (infinite Sharpe/PF)
-                live_best_q = float(best_quality) if best_quality > -np.inf else 0.0
-                live_best_sharpe = float(best_metrics[M_SHARPE]) if best_quality > -np.inf else 0.0
-                live_best_trades = int(best_metrics[M_TRADES]) if best_quality > -np.inf else 0
+                # Prefer gated best (post-filtered). If no gated trials pass,
+                # fall back to ungated best so the dashboard shows quality
+                # progression during early stages (where post-filter is strict
+                # because non-active params are random).
+                if best_quality > -np.inf:
+                    live_best_q = float(best_quality)
+                    live_best_sharpe = float(best_metrics[M_SHARPE])
+                    live_best_trades = int(best_metrics[M_TRADES])
+                elif ungated_best_quality > -np.inf:
+                    live_best_q = float(ungated_best_quality)
+                    live_best_sharpe = float(ungated_best_metrics[M_SHARPE])
+                    live_best_trades = int(ungated_best_metrics[M_TRADES])
+                else:
+                    live_best_q = 0.0
+                    live_best_sharpe = 0.0
+                    live_best_trades = 0
 
                 self._on_batch(BatchProgress(
                     stage_name=stage_name,

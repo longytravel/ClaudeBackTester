@@ -87,17 +87,25 @@ function StagePill({ stage, isLast }: { stage: StageInfo; isLast: boolean }) {
 
 export function StageProgress() {
   const stages = useRunStore((s) => s.stages);
+  const runStatus = useRunStore((s) => s.status);
 
   if (stages.length === 0) return null;
+
+  // When run is complete, override all stage statuses to "complete"
+  // in case a stage_complete message was missed
+  const displayStages =
+    runStatus === "complete"
+      ? stages.map((s) => ({ ...s, status: "complete" as const }))
+      : stages;
 
   return (
     <div className="px-6 py-4">
       <div className="flex items-center flex-wrap gap-y-2">
-        {stages.map((stage, i) => (
+        {displayStages.map((stage, i) => (
           <StagePill
             key={stage.name}
             stage={stage}
-            isLast={i === stages.length - 1}
+            isLast={i === displayStages.length - 1}
           />
         ))}
       </div>
