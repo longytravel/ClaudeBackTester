@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 
-def find_strategies(results_dir: str) -> list[dict]:
+def find_strategies(results_dir: str, testing: bool = False) -> list[dict]:
     """Find all checkpoint.json files and extract strategy info."""
     strategies = []
     results_path = Path(results_dir)
@@ -30,9 +30,9 @@ def find_strategies(results_dir: str) -> list[dict]:
             if not candidates:
                 continue
 
-            # Skip eliminated candidates
+            # Skip eliminated candidates (unless testing mode)
             first = candidates[0]
-            if first.get("eliminated", False):
+            if not testing and first.get("eliminated", False):
                 continue
 
             strategy_name = data.get("strategy_name", "")
@@ -42,24 +42,42 @@ def find_strategies(results_dir: str) -> list[dict]:
             if not strategy_name or not pair:
                 continue
 
+            # Check report for rating and validation
+            report = checkpoint.parent / "report.json"
+            rating = ""
+            composite_score = 0
+            n_trades = 0
+            gates_passed = {}
+            if report.exists():
+                with open(report) as f:
+                    rdata = json.load(f)
+                rcands = rdata.get("candidates", [])
+                if rcands:
+                    best = rcands[0]
+                    rating = best.get("rating", "")
+                    composite_score = best.get("composite_score") or 0
+                    n_trades = (best.get("trade_stats") or {}).get("n_trades", 0)
+                    gates_passed = best.get("gates_passed") or {}
+
+            # Safety: skip results with no trades, no score, or no gates
+            # In testing mode, only require n_trades > 0
+            if testing:
+                if n_trades == 0:
+                    continue
+            else:
+                if n_trades == 0 or composite_score == 0 or not gates_passed:
+                    continue
+
             strategies.append({
                 "strategy": strategy_name,
                 "pair": pair,
                 "timeframe": timeframe,
                 "checkpoint": str(checkpoint),
                 "quality": first.get("back_quality", 0),
-                "rating": "",  # will check report if exists
+                "rating": rating,
+                "composite_score": composite_score,
                 "dir_name": checkpoint.parent.name,
             })
-
-            # Check report for rating
-            report = checkpoint.parent / "report.json"
-            if report.exists():
-                with open(report) as f:
-                    rdata = json.load(f)
-                rcands = rdata.get("candidates", [])
-                if rcands:
-                    strategies[-1]["rating"] = rcands[0].get("rating", "")
 
         except (json.JSONDecodeError, KeyError, IndexError):
             continue
@@ -98,8 +116,13 @@ def get_running_strategies() -> set[str]:
 
 def main():
     mode = "practice"  # Default to demo account
-    if len(sys.argv) > 1:
-        mode = sys.argv[1]
+    testing = False
+    args = sys.argv[1:]
+    if "--testing" in args:
+        testing = True
+        args.remove("--testing")
+    if args:
+        mode = args[0]
 
     if mode == "live":
         print("\n" + "=" * 60)
@@ -115,7 +138,7 @@ def main():
     state_base = root / "state"
     state_base.mkdir(exist_ok=True)
 
-    strategies = find_strategies(str(results_dir))
+    strategies = find_strategies(str(results_dir), testing=testing)
 
     if not strategies:
         print("\nNo validated strategies found in results/")
@@ -128,7 +151,7 @@ def main():
     print(f"\n{'='*60}")
     print(f"  Found {len(strategies)} strategy(ies)")
     print(f"  Already running: {len(already_running)}")
-    print(f"  Mode: {mode.upper()}")
+    print(f"  Mode: {mode.upper()}{' (TESTING — all ratings)' if testing else ''}")
     print(f"{'='*60}\n")
 
     launched = 0
@@ -143,9 +166,9 @@ def main():
         dir_name = s["dir_name"]
         state_dir = str(state_base / dir_name)
 
-        # Only launch GREEN or AMBER rated strategies
-        if rating and rating not in ("GREEN", "AMBER"):
-            print(f"  SKIP:    {name} / {pair} / {tf}  [{rating}] — not GREEN/AMBER")
+        # Only launch GREEN or YELLOW rated strategies (unless testing mode)
+        if not testing and rating and rating not in ("GREEN", "YELLOW"):
+            print(f"  SKIP:    {name} / {pair} / {tf}  [{rating}] — not GREEN/YELLOW")
             skipped_rating += 1
             continue
 

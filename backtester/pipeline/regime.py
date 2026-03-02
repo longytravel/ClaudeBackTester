@@ -85,42 +85,65 @@ def classify_bars(
     valid_close = close != 0
     natr[valid_close] = atr_vals[valid_close] / close[valid_close]
 
-    # NATR percentile rank (causal: expanding window with min_periods)
+    # NATR percentile rank — VECTORIZED (avoids Python for-loop over 300K+ bars)
+    # Original loop created millions of temporary numpy arrays, causing CPython heap corruption
     natr_pctile = np.full(n, np.nan)
-    for i in range(n):
-        if np.isnan(natr[i]):
-            continue
-        # Expanding window with min_periods = natr_percentile_lookback
-        start = max(0, i - natr_percentile_lookback + 1)
-        window = natr[start:i + 1]
-        valid = window[~np.isnan(window)]
-        if len(valid) < natr_percentile_lookback:
-            continue
-        # Percentile rank: fraction of values <= current value
-        natr_pctile[i] = np.sum(valid <= natr[i]) / len(valid) * 100.0
+    natr_valid_mask = ~np.isnan(natr)
+    first_valid = int(np.argmax(natr_valid_mask)) if np.any(natr_valid_mask) else n
 
-    # Classify each bar
-    is_trending = False  # hysteresis state
+    if first_valid + natr_percentile_lookback <= n:
+        natr_slice = natr[first_valid:]
+        has_nan_after_warmup = np.any(np.isnan(natr_slice))
 
-    for i in range(n):
-        if np.isnan(adx_vals[i]) or np.isnan(natr_pctile[i]):
-            continue
-
-        # Trend/range with hysteresis
-        if adx_vals[i] >= adx_trending_threshold:
-            is_trending = True
-        elif adx_vals[i] < adx_ranging_threshold:
-            is_trending = False
-        # else: maintain previous state
-
-        # Volatility
-        is_volatile = natr_pctile[i] >= natr_high_percentile
-
-        # Combine
-        if is_trending:
-            labels[i] = REGIME_TREND_VOLATILE if is_volatile else REGIME_TREND_QUIET
+        if not has_nan_after_warmup:
+            # Fast path (common): no NaN after warmup — use sliding_window_view
+            from numpy.lib.stride_tricks import sliding_window_view
+            windows = sliding_window_view(natr_slice, natr_percentile_lookback)
+            current_vals = windows[:, -1:]  # shape (n_windows, 1)
+            pctiles = np.sum(windows <= current_vals, axis=1).astype(np.float64)
+            pctiles = pctiles / natr_percentile_lookback * 100.0
+            start_idx = first_valid + natr_percentile_lookback - 1
+            natr_pctile[start_idx:start_idx + len(pctiles)] = pctiles
         else:
-            labels[i] = REGIME_RANGE_VOLATILE if is_volatile else REGIME_RANGE_QUIET
+            # Slow fallback: NaN present after warmup (rare edge case)
+            from numpy.lib.stride_tricks import sliding_window_view
+            windows = sliding_window_view(natr_slice, natr_percentile_lookback)
+            for j in range(len(windows)):
+                w = windows[j]
+                valid = w[~np.isnan(w)]
+                if len(valid) < natr_percentile_lookback:
+                    continue
+                idx = first_valid + natr_percentile_lookback - 1 + j
+                natr_pctile[idx] = np.sum(valid <= w[-1]) / len(valid) * 100.0
+
+    # Classify bars — VECTORIZED with minimal Python loop
+    # Pre-compute validity mask to avoid per-element np.isnan calls
+    both_valid = ~np.isnan(adx_vals) & ~np.isnan(natr_pctile)
+    valid_indices = np.where(both_valid)[0]
+
+    if len(valid_indices) > 0:
+        adx_at_valid = adx_vals[valid_indices]
+        pctile_at_valid = natr_pctile[valid_indices]
+
+        # Hysteresis requires sequential state — use extracted Python floats (not numpy scalars)
+        trend_state = np.zeros(len(valid_indices), dtype=np.bool_)
+        is_trending = False
+        for j in range(len(valid_indices)):
+            av = float(adx_at_valid[j])
+            if av >= adx_trending_threshold:
+                is_trending = True
+            elif av < adx_ranging_threshold:
+                is_trending = False
+            trend_state[j] = is_trending
+
+        # Volatility + combine: fully vectorized
+        is_volatile = pctile_at_valid >= natr_high_percentile
+        regime_vals = np.where(
+            trend_state,
+            np.where(is_volatile, REGIME_TREND_VOLATILE, REGIME_TREND_QUIET),
+            np.where(is_volatile, REGIME_RANGE_VOLATILE, REGIME_RANGE_QUIET),
+        )
+        labels[valid_indices] = regime_vals
 
     # Apply min_regime_bars cooldown: suppress transitions shorter than threshold
     if min_regime_bars > 1:

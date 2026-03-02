@@ -216,7 +216,8 @@ class LiveTrader:
         # 4. Sync with broker — detect SL/TP hits
         self._sync_with_broker()
 
-        # 5. Generate signals on latest bar
+        # 5. Generate signals on latest bar (vectorized — all strategies
+        #    only implement generate_signals_vectorized, not generate_signals)
         open_arr = candles["open"].values
         high_arr = candles["high"].values
         low_arr = candles["low"].values
@@ -227,14 +228,20 @@ class LiveTrader:
         point = symbol_info["point"] if symbol_info else 0.00001
         spread_arr = candles["spread_points"].values * point
 
-        signals = self.strategy.generate_signals(
+        # Extract bar hours and day-of-week from UTC timestamps
+        bar_hour = np.array([ts.hour for ts in candles.index], dtype=np.int64)
+        bar_dow = np.array([ts.weekday() for ts in candles.index], dtype=np.int64)
+
+        sig_arrays = self.strategy.generate_signals_vectorized(
             open_arr, high_arr, low_arr, close_arr, volume_arr, spread_arr,
+            pip_value=self._pip_value,
+            bar_hour=bar_hour,
+            bar_day_of_week=bar_dow,
         )
 
-        # Filter signals — only take the last bar's signal
-        filtered = self.strategy.filter_signals(signals, self.params)
+        # Filter vectorized signals by deployed params, convert to Signal objects
         last_bar_idx = len(candles) - 1
-        new_signals = [s for s in filtered if s.bar_index == last_bar_idx]
+        new_signals = self._filter_vectorized_signals(sig_arrays, last_bar_idx)
 
         # Dedup by signal bar time
         if self.state.last_signal_time == latest_bar_time:
@@ -255,6 +262,112 @@ class LiveTrader:
             positions=len(self.state.positions),
             signals_found=len(new_signals),
         )
+
+    # ------------------------------------------------------------------
+    # Signal filtering (replicates Rust engine filter for live trading)
+    # ------------------------------------------------------------------
+
+    # Param names that map to Rust filter mechanisms
+    _VARIANT_PARAMS = frozenset({
+        "rsi_period", "ema_combo", "macd_combo", "bb_combo",
+        "stoch_combo", "donchian_period", "adx_combo", "signal_variant",
+    })
+    _BUY_FILTER_PARAMS = frozenset({
+        "rsi_oversold", "stoch_oversold", "buy_filter_max",
+    })
+    _SELL_FILTER_PARAMS = frozenset({
+        "rsi_overbought", "stoch_overbought", "sell_filter_min",
+    })
+
+    def _filter_vectorized_signals(
+        self,
+        sig_arrays: dict[str, np.ndarray],
+        last_bar_idx: int,
+    ) -> list:
+        """Filter vectorized signals by deployed params, return Signal objects.
+
+        Replicates the Rust engine's filter logic (variant, filter_value,
+        time, day-of-week) so that live trading matches backtested behavior.
+        Only returns signals on last_bar_idx.
+        """
+        from backtester.strategies.base import Direction, Signal
+
+        n = len(sig_arrays.get("bar_index", np.array([])))
+        if n == 0:
+            return []
+
+        bar_indices = sig_arrays["bar_index"]
+
+        # Start with only last-bar signals
+        mask = bar_indices == last_bar_idx
+        if not np.any(mask):
+            return []
+
+        # 1. Variant filter — exact match
+        if "variant" in sig_arrays:
+            for key in self._VARIANT_PARAMS:
+                if key in self.params:
+                    mask &= sig_arrays["variant"] == int(self.params[key])
+                    break
+
+        # 2. Filter value — exact match per direction (mirrors Rust filter.rs)
+        if "filter_value" in sig_arrays:
+            buy_thresh = None
+            sell_thresh = None
+            for key in self._BUY_FILTER_PARAMS:
+                if key in self.params:
+                    buy_thresh = float(self.params[key])
+                    break
+            for key in self._SELL_FILTER_PARAMS:
+                if key in self.params:
+                    sell_thresh = float(self.params[key])
+                    break
+
+            if buy_thresh is not None:
+                is_buy = sig_arrays["direction"] == Direction.BUY.value
+                mask &= ~is_buy | (sig_arrays["filter_value"] == buy_thresh)
+            if sell_thresh is not None:
+                is_sell = sig_arrays["direction"] == Direction.SELL.value
+                mask &= ~is_sell | (sig_arrays["filter_value"] == sell_thresh)
+
+        # 3. Time filter — allowed_hours (mirrors Rust signal_passes_time_filter)
+        hours_start = self.params.get("allowed_hours_start")
+        hours_end = self.params.get("allowed_hours_end")
+        if hours_start is not None and hours_end is not None:
+            hours = sig_arrays["hour"]
+            if int(hours_start) <= int(hours_end):
+                mask &= (hours >= int(hours_start)) & (hours <= int(hours_end))
+            else:
+                # Wrap-around: e.g., 22-06 means 22,23,0,1,2,3,4,5,6
+                mask &= (hours >= int(hours_start)) | (hours <= int(hours_end))
+
+        # 4. Day filter — allowed_days list
+        allowed_days = self.params.get("allowed_days")
+        if allowed_days is not None and isinstance(allowed_days, list):
+            days = sig_arrays["day_of_week"]
+            day_mask = np.zeros(n, dtype=bool)
+            for d in allowed_days:
+                day_mask |= (days == int(d))
+            mask &= day_mask
+
+        # Convert passing signals to Signal objects
+        indices = np.where(mask)[0]
+        signals = []
+        for i in indices:
+            attrs = {}
+            if "filter_value" in sig_arrays:
+                attrs["filter_value"] = float(sig_arrays["filter_value"][i])
+            signals.append(Signal(
+                bar_index=int(sig_arrays["bar_index"][i]),
+                direction=Direction(int(sig_arrays["direction"][i])),
+                entry_price=float(sig_arrays["entry_price"][i]),
+                hour=int(sig_arrays["hour"][i]),
+                day_of_week=int(sig_arrays["day_of_week"][i]),
+                atr_pips=float(sig_arrays["atr_pips"][i]),
+                attrs=attrs,
+            ))
+
+        return signals
 
     # ------------------------------------------------------------------
     # Signal processing
