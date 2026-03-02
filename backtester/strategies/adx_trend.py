@@ -112,7 +112,7 @@ class ADXTrend(Strategy):
             adx_line, plus_di, minus_di = adx(high, low, close, adx_period)
 
             warmup = adx_period * 3 + 1
-            idx = np.arange(warmup, n - 1)
+            idx = np.arange(warmup, n)
             if len(idx) == 0:
                 continue
 

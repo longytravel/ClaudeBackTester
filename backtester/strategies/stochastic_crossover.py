@@ -117,7 +117,7 @@ class StochasticCrossover(Strategy):
             k_line, d_line = stochastic(high, low, close, k_period, d_period)
 
             warmup = k_period + d_period + 1
-            idx = np.arange(warmup, n - 1)
+            idx = np.arange(warmup, n)
             if len(idx) == 0:
                 continue
 

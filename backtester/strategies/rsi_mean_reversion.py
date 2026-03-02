@@ -98,7 +98,7 @@ class RSIMeanReversion(Strategy):
         atr_14 = atr(high, low, close, 14)
 
         warmup = max(RSI_PERIODS) + 1
-        idx = np.arange(warmup, n - 1)
+        idx = np.arange(warmup, n)
 
         parts_idx: list[np.ndarray] = []
         parts_dir: list[np.ndarray] = []

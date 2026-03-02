@@ -119,7 +119,7 @@ class MACDCrossover(Strategy):
             macd_line, signal_line, _ = macd(close, fast_p, slow_p, sig_p)
 
             warmup = slow_p + sig_p + 1
-            idx = np.arange(warmup, n - 1)
+            idx = np.arange(warmup, n)
             if len(idx) == 0:
                 continue
 

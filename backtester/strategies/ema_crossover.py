@@ -124,7 +124,7 @@ class EMACrossover(Strategy):
             ema_slow = ema_arrays[slow_p]
 
             warmup = slow_p + 1
-            idx = np.arange(warmup, n - 1)
+            idx = np.arange(warmup, n)
             if len(idx) == 0:
                 continue
 
