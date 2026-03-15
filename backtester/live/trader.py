@@ -342,6 +342,16 @@ class LiveTrader:
                 is_sell = sig_arrays["direction"] == Direction.SELL.value
                 mask &= ~is_sell | (sig_arrays["filter_value"] == sell_thresh)
 
+        # 2b. Generic signal filters (PL_SIGNAL_P0..P9) — for expanded strategies
+        if hasattr(self.strategy, "signal_pl_mapping"):
+            from backtester.core.rust_loop import PL_SIGNAL_P0
+            for param_name, pl_slot in self.strategy.signal_pl_mapping().items():
+                if param_name in self.params:
+                    filter_idx = pl_slot - PL_SIGNAL_P0
+                    filter_key = f"sig_filter_{filter_idx}"
+                    if filter_key in sig_arrays:
+                        mask &= sig_arrays[filter_key] == int(self.params[param_name])
+
         # 3. Time filter — allowed_hours (mirrors Rust signal_passes_time_filter)
         hours_start = self.params.get("allowed_hours_start")
         hours_end = self.params.get("allowed_hours_end")

@@ -293,6 +293,17 @@ class BacktestEngine:
         else:
             self.sig_variant = np.full(self.n_signals, -1, dtype=np.int64)
 
+        # Generic signal filter arrays (for PL_SIGNAL_P0..P9)
+        # Shape: (NUM_SIGNAL_PARAMS, n_signals), int64, -1 = no filter
+        from backtester.core.rust_loop import NUM_SIGNAL_PARAMS
+        self.sig_filters = np.full(
+            (NUM_SIGNAL_PARAMS, self.n_signals), -1, dtype=np.int64
+        )
+        for i in range(NUM_SIGNAL_PARAMS):
+            key = f"sig_filter_{i}"
+            if key in sig_dict:
+                self.sig_filters[i] = sig_dict[key]
+
         # Store attr keys for telemetry
         self.attr_keys = [k[5:] for k in sig_dict if k.startswith("attr_")]
         self.sig_attrs = {k: sig_dict[f"attr_{k}"] for k in self.attr_keys}
@@ -328,6 +339,7 @@ class BacktestEngine:
             self.sig_bar_index, self.sig_direction, self.sig_entry_price,
             self.sig_hour, self.sig_day, self.sig_atr_pips, self.sig_swing_sl,
             self.sig_filter_value, self.sig_variant,
+            self.sig_filters,
             param_matrix, self.param_layout, exec_mode,
             metrics_out, self.max_trades, self.bars_per_year,
             self.commission_pips, self.max_spread_pips,
@@ -383,6 +395,7 @@ class BacktestEngine:
         sig_swing_sl = self.sig_swing_sl[mask]
         sig_filter_value = self.sig_filter_value[mask]
         sig_variant = self.sig_variant[mask]
+        sig_filters = self.sig_filters[:, mask].copy()  # (10, n_window_signals)
 
         # Slice data arrays to window (numpy views — no copy)
         high = self.high[window_start:window_end]
@@ -403,6 +416,7 @@ class BacktestEngine:
             sig_bar_index, sig_direction, sig_entry_price,
             sig_hour, sig_day, sig_atr_pips, sig_swing_sl,
             sig_filter_value, sig_variant,
+            sig_filters,
             param_matrix, self.param_layout, exec_mode,
             metrics_out, self.max_trades, self.bars_per_year,
             self.commission_pips, self.max_spread_pips,

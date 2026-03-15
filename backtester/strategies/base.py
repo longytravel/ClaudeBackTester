@@ -322,6 +322,18 @@ class Strategy(ABC):
                 seen.add(mod.group)
         return stages
 
+    def signal_pl_mapping(self) -> dict[str, int]:
+        """Map signal param names to PL_SIGNAL_P* slot indices.
+
+        Override to use the expanded signal filter slots (PL_SIGNAL_P0-P9)
+        instead of combo encoding. Each entry maps a param name to its
+        PL_SIGNAL_P* constant. The strategy's generate_signals_vectorized()
+        must return corresponding 'sig_filter_N' arrays.
+
+        Default: empty dict (use legacy combo encoding via variant/filter slots).
+        """
+        return {}
+
     def validate_params(self, params: dict[str, Any]) -> list[str]:
         """Validate a parameter combination, returning list of error strings.
 

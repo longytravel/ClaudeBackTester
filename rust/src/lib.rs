@@ -42,6 +42,9 @@ fn batch_evaluate<'py>(
     sig_swing_sl: PyReadonlyArray1<'py, f64>,
     sig_filter_value: PyReadonlyArray1<'py, f64>,
     sig_variant: PyReadonlyArray1<'py, i64>,
+    // Generic signal filter arrays — shape (NUM_SIGNAL_PARAMS, n_signals), int64
+    // Each row corresponds to PL_SIGNAL_P0..P9. Values of -1 mean "no filter".
+    sig_filters: PyReadonlyArray2<'py, i64>,
     // Parameter matrix
     param_matrix: PyReadonlyArray2<'py, f64>,
     param_layout: PyReadonlyArray1<'py, i64>,
@@ -83,6 +86,10 @@ fn batch_evaluate<'py>(
     let param_matrix_s = param_matrix.as_slice()?;
     let param_layout_s = param_layout.as_slice()?;
 
+    let sig_filters_s = sig_filters.as_slice()?;
+    let n_filter_rows = sig_filters.shape()[0];
+    let n_filter_cols = sig_filters.shape()[1];
+
     let sub_high_s = sub_high.as_slice()?;
     let sub_low_s = sub_low.as_slice()?;
     let sub_close_s = sub_close.as_slice()?;
@@ -113,6 +120,18 @@ fn batch_evaluate<'py>(
     {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "Signal arrays must all have the same length"
+        ));
+    }
+
+    // Generic signal filter array must be (NUM_SIGNAL_PARAMS, n_signals)
+    if n_filter_rows != NUM_SIGNAL_PARAMS {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            format!("sig_filters rows ({}) != NUM_SIGNAL_PARAMS ({})", n_filter_rows, NUM_SIGNAL_PARAMS)
+        ));
+    }
+    if n_filter_cols != n_signals {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            format!("sig_filters cols ({}) != n_signals ({})", n_filter_cols, n_signals)
         ));
     }
 
@@ -237,10 +256,19 @@ fn batch_evaluate<'py>(
                     -1.0
                 };
 
+                // Extract generic signal filter trial values (PL_SIGNAL_P0..P9)
+                let mut trial_sig_filters: [i64; NUM_SIGNAL_PARAMS] = [-1; NUM_SIGNAL_PARAMS];
+                for f in 0..NUM_SIGNAL_PARAMS {
+                    let col = param_layout_s[PL_SIGNAL_P0 + f];
+                    if col >= 0 {
+                        trial_sig_filters[f] = params[col as usize] as i64;
+                    }
+                }
+
                 let mut trade_count = 0usize;
                 let mut total_sl_pips = 0.0_f64;
 
-                for si in 0..n_signals {
+                'signal_loop: for si in 0..n_signals {
                     // Signal variant filter
                     if trial_variant >= 0 && sig_variant_s[si] >= 0 {
                         if sig_variant_s[si] != trial_variant {
@@ -258,6 +286,16 @@ fn batch_evaluate<'py>(
                     if sell_filter_min >= 0.0 && direction == DIR_SELL {
                         if sig_filter_value_s[si] != sell_filter_min {
                             continue;
+                        }
+                    }
+
+                    // Generic signal param filters (PL_SIGNAL_P0..P9)
+                    for f in 0..NUM_SIGNAL_PARAMS {
+                        if trial_sig_filters[f] >= 0 {
+                            let sig_val = sig_filters_s[f * n_filter_cols + si];
+                            if sig_val >= 0 && sig_val != trial_sig_filters[f] {
+                                continue 'signal_loop;
+                            }
                         }
                     }
 
