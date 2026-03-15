@@ -153,11 +153,13 @@ class EMACrossover(Strategy):
             for mask, direction in [(buy, Direction.BUY.value),
                                     (sell, Direction.SELL.value)]:
                 bar_idx = idx[mask]
+                # Filter out signals on the last bar (no next-bar open available)
+                bar_idx = bar_idx[bar_idx < (n - 1)]
                 if len(bar_idx) == 0:
                     continue
                 parts_idx.append(bar_idx)
                 parts_dir.append(np.full(len(bar_idx), direction, dtype=np.int64))
-                parts_price.append(close[bar_idx])
+                parts_price.append(open[bar_idx + 1])
                 parts_hour.append(bar_hour[bar_idx])
                 parts_day.append(bar_day_of_week[bar_idx])
                 parts_atr.append(atr_14[bar_idx] / pip_value)

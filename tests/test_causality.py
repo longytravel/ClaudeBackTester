@@ -241,15 +241,19 @@ class TestFuturePerturbation:
             bar_day_of_week=bar_dow,
         )
 
-        # Compare signals at bars <= t
-        orig_mask = orig_sig["bar_index"] <= t
-        pert_mask = pert_sig["bar_index"] <= t
+        # Compare signals at bars < t (not <= t).
+        # Signals at bar t have entry_price = open[t+1], which is in the
+        # perturbed region (data after t was changed). The signal *detection*
+        # at bar t is still causal, but entry_price legitimately depends on
+        # the next bar's open, so we exclude bar t from the comparison.
+        orig_mask = orig_sig["bar_index"] < t
+        pert_mask = pert_sig["bar_index"] < t
 
         orig_subset = _signal_arrays_at_mask(orig_sig, orig_mask)
         pert_subset = _signal_arrays_at_mask(pert_sig, pert_mask)
 
         assert _signals_match(orig_subset, pert_subset), (
-            f"{strategy.name}: future perturbation affected signals at bars <= {t}. "
+            f"{strategy.name}: future perturbation affected signals at bars < {t}. "
             f"Original has {orig_mask.sum()} signals, "
             f"perturbed has {pert_mask.sum()} signals."
         )

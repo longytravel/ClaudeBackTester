@@ -117,7 +117,7 @@ class BreakevenModule(ManagementModule):
         return [
             ParamDef("breakeven_enabled", [False, True], group=self.group),
             ParamDef("breakeven_trigger_pips", [7, 10, 15, 20, 30], group=self.group),
-            ParamDef("breakeven_offset_pips", [2, 3, 5, 7, 10], group=self.group),
+            ParamDef("breakeven_offset_pips", [0, 1, 2, 3], group=self.group),
         ]
 
     def pl_mapping(self) -> dict[str, int]:

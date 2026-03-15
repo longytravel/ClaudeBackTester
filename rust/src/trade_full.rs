@@ -266,11 +266,23 @@ pub fn simulate_trade_full(
                     partial_done = true;
                     let close_pct = partial_pct / 100.0;
                     let partial_pnl = if is_buy {
-                        (sb_close - actual_entry) / pip_value * close_pct
+                        (sb_close - slippage_price - actual_entry) / pip_value * close_pct
                     } else {
-                        (actual_entry - sb_close) / pip_value * close_pct
+                        (actual_entry - sb_close - slippage_price) / pip_value * close_pct
                     };
-                    realized_pnl_pips += partial_pnl;
+                    // Deduct proportional sell spread for partial close
+                    let partial_spread_cost = if !is_buy {
+                        let sb_spread = if sb < sub_spread.len() {
+                            let s = sub_spread[sb];
+                            if s.is_nan() { 0.0 } else { s }
+                        } else {
+                            0.0
+                        };
+                        sb_spread / pip_value * close_pct
+                    } else {
+                        0.0
+                    };
+                    realized_pnl_pips += partial_pnl - partial_spread_cost;
                     position_pct -= close_pct;
                 }
             }
@@ -340,7 +352,7 @@ pub fn simulate_trade_full(
         final_pnl = realized_pnl_pips + pnl;
     }
 
-    // Apply execution costs
+    // Apply execution costs — sell spread proportional to remaining position
     if !is_buy {
         let sell_spread = if exit_sub_idx >= 0 && (exit_sub_idx as usize) < sub_spread.len() {
             let s = sub_spread[exit_sub_idx as usize];
@@ -351,7 +363,7 @@ pub fn simulate_trade_full(
         } else {
             0.0
         };
-        final_pnl -= sell_spread / pip_value;
+        final_pnl -= sell_spread / pip_value * position_pct;
     }
     final_pnl -= commission_pips;
 

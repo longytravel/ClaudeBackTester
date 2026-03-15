@@ -398,11 +398,19 @@ def run_telemetry(
                         if float_pnl >= partial_trig:
                             partial_done = True
                             close_pct = partial_pct / 100.0
+                            slippage_price = slippage * pip
                             if is_buy:
-                                partial_pnl = (sb_c - actual_entry) / pip * close_pct
+                                partial_pnl = (sb_c - slippage_price - actual_entry) / pip * close_pct
                             else:
-                                partial_pnl = (actual_entry - sb_c) / pip * close_pct
-                            realized_pnl_pips += partial_pnl
+                                partial_pnl = (actual_entry - sb_c - slippage_price) / pip * close_pct
+                            # Deduct proportional sell spread for partial close
+                            partial_spread_cost = 0.0
+                            if not is_buy:
+                                if sb < len(sub_spread):
+                                    sb_spread = sub_spread[sb]
+                                    if not np.isnan(sb_spread):
+                                        partial_spread_cost = sb_spread / pip * close_pct
+                            realized_pnl_pips += partial_pnl - partial_spread_cost
                             position_pct -= close_pct
 
                     # Check SL/TP on sub-bar (using current_sl, not pending)
@@ -512,7 +520,7 @@ def run_telemetry(
                 sell_spread = 0.0
             if np.isnan(sell_spread):
                 sell_spread = 0.0
-            pnl -= sell_spread / pip
+            pnl -= sell_spread / pip * position_pct
         # Commission applied to all trades
         pnl -= engine.commission_pips
 
