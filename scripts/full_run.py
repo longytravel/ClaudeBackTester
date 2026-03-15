@@ -1030,6 +1030,19 @@ def main():
                 "optimizer_funnel": opt_result.optimizer_funnel,
             })
 
+    # ---- Auto-save baseline for leaderboard/comparison ----
+    import datetime
+    report_path = output_dir / "report.json"
+    if report_path.exists():
+        baselines_dir = output_dir / "baselines"
+        baselines_dir.mkdir(exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        baseline_name = f"{strategy.name}_{preset}_{ts}.json"
+        import shutil
+        baseline_path = baselines_dir / baseline_name
+        shutil.copy2(report_path, baseline_path)
+        print(f"\n  Baseline saved: {baseline_path}")
+
     # ---- Summary Footer ----
     total_elapsed = time.time() - t_start
     print(f"\n{'=' * 70}")
