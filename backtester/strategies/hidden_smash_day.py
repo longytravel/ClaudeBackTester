@@ -192,12 +192,16 @@ class HiddenSmashDay(Strategy):
                     bull_confirmed = bull_smash & (close[confirm_idx] > high[smash_bars])
 
                     bar_idx = confirm_idx[bull_confirmed]
-                    # Filter out signals on the last bar (no next-bar open available)
-                    bar_idx = bar_idx[bar_idx < (n - 1)]
                     if len(bar_idx) > 0:
+                        # Use next-bar open for entry, fall back to close for last bar
+                        # (live trading needs last-bar signals)
+                        next_idx = np.minimum(bar_idx + 1, n - 1)
+                        entry_price = np.where(
+                            bar_idx < (n - 1), open[next_idx], close[bar_idx]
+                        )
                         parts_idx.append(bar_idx)
                         parts_dir.append(np.full(len(bar_idx), Direction.BUY.value, dtype=np.int64))
-                        parts_price.append(open[bar_idx + 1])
+                        parts_price.append(entry_price)
                         parts_hour.append(bar_hour[bar_idx])
                         parts_day.append(bar_day_of_week[bar_idx])
                         parts_atr.append(atr_vals[bar_idx] / pip_value)
@@ -219,12 +223,16 @@ class HiddenSmashDay(Strategy):
                     bear_confirmed = bear_smash & (close[confirm_idx] < low[smash_bars])
 
                     bar_idx = confirm_idx[bear_confirmed]
-                    # Filter out signals on the last bar (no next-bar open available)
-                    bar_idx = bar_idx[bar_idx < (n - 1)]
                     if len(bar_idx) > 0:
+                        # Use next-bar open for entry, fall back to close for last bar
+                        # (live trading needs last-bar signals)
+                        next_idx = np.minimum(bar_idx + 1, n - 1)
+                        entry_price = np.where(
+                            bar_idx < (n - 1), open[next_idx], close[bar_idx]
+                        )
                         parts_idx.append(bar_idx)
                         parts_dir.append(np.full(len(bar_idx), Direction.SELL.value, dtype=np.int64))
-                        parts_price.append(open[bar_idx + 1])
+                        parts_price.append(entry_price)
                         parts_hour.append(bar_hour[bar_idx])
                         parts_day.append(bar_day_of_week[bar_idx])
                         parts_atr.append(atr_vals[bar_idx] / pip_value)
