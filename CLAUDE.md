@@ -53,13 +53,23 @@ Fully automated forex trading system that discovers, validates, deploys, and mon
 - Refinement stage: all params active with narrow range around locked best values
 
 ## Extensibility Patterns
-- **New exit mechanism**: pre-compute signal attrs + add exit code in `dtypes.py` + add if-block in `_simulate_trade_full()` + add `ParamDef` to `management_params()`
+- **New management module**: create class in `strategies/modules.py` (name, group, param_defs, pl_mapping) + add Rust PL constant if new behavior + add trade logic in `trade_full.rs`. Auto-available to all strategies via `management_modules()`
+- **New exit mechanism**: pre-compute signal attrs + add exit code in `dtypes.py` + add if-block in `_simulate_trade_full()` + create ManagementModule in `modules.py`
 - **New SL/TP mode**: add constant in `dtypes.py` + add elif in `_compute_sl_tp()` + add value to `risk_params()`
 - **New indicator**: add numpy function to `indicators.py` + use in strategy's `generate_signals()`
 - **New fitness function**: add numeric code to `dtypes.py` + elif in metrics section
-- **New param group**: add `group="my_group"` to `ParamDef` + add group to strategy's `optimization_stages()` list
-- **New strategy**: subclass `Strategy`, implement `generate_signals/filter_signals/calc_sl_tp`, register with `@register`
+- **New strategy (expanded signals)**: subclass `Strategy`, implement `generate_signals_vectorized`, override `signal_pl_mapping()` to map params to `PL_SIGNAL_P0-P9`, return `sig_filter_N` arrays from signals, register with `@register`
+- **New strategy (legacy combo)**: subclass `Strategy`, use combo encoding into variant/filter_value slots, register with `@register`
 - Principle: the framework adapts to strategy needs, not the other way around
+
+## Management Module System
+- All modules in `backtester/strategies/modules.py` — single file for review
+- Corresponding Rust logic in `rust/src/trade_full.rs` — two-file review scope
+- 5 built-in modules: TrailingStop (exit_trailing), Breakeven (exit_protection), PartialClose (exit_protection), MaxBars (exit_time), StaleExit (exit_time)
+- Each module declares its own optimization group → auto-generates staged optimizer stages
+- Strategies compose modules via `management_modules()`, can add/remove per strategy
+- `optimization_stages()` auto-generates from module groups (no more hardcoded "management")
+- Rust NUM_PL = 64 (was 27): slots 0-26 existing, 27-36 signal params (PL_SIGNAL_P0-P9), 37-63 future modules
 
 ## Key Interfaces
 - `BacktestEngine.evaluate_batch(param_matrix, exec_mode) -> metrics_matrix` — (N,P) → (N,10), exec_mode=EXEC_BASIC or EXEC_FULL
@@ -105,7 +115,10 @@ backtester/
   config/         # Configuration management, defaults
   cli/            # CLI entry points
 scripts/          # Operational scripts (download, deploy, live trading, benchmarks)
-Research/         # Strategy research papers and documents
+Research/         # Strategy research pipeline
+  mql5_catalogue.json              #   Master list of ~1,380 MQL5 articles (crawled)
+  articles/                        #   Full scraped article content (per article .md)
+  strategies/                      #   Extracted strategy specs (per article .json)
 tests/            # Unit and integration tests (533 tests)
 DEPLOY.bat        # One-click VPS deployment (git pull + start traders)
 STATUS.bat        # Check running trader status
@@ -126,6 +139,15 @@ STOP.bat          # Stop all running traders
 - `CURRENT_TASK.md` — What to do next (exact steps, blockers, last completed)
 - `pyproject.toml` — Python project config and dependencies
 - `.env` — Credentials (gitignored, NEVER committed)
+- `Research/mql5_catalogue.json` — Master catalogue of MQL5 articles
+- `scripts/crawl_mql5_articles.py` — MQL5 article listing crawler
+
+## Strategy Research Pipeline
+- **Source**: MQL5.com articles (~1,380 articles across 69 pages)
+- **Catalogue**: `Research/mql5_catalogue.json` — master list with title, URL, description, category, status
+- **Categories**: STRATEGY (tradeable signals), MODULE (exit/management technique), INDICATOR (new indicator), SYSTEM (infrastructure improvement), SKIP (not applicable)
+- **Per-article flow**: Scrape full content → extract rules → build strategy class → Codex review → fix → optimizer + pipeline test
+- **Crawl script**: `uv run python scripts/crawl_mql5_articles.py --pages 69 --delay 1.5`
 
 ## Session Continuity Protocol
 On every new session or after /clear:
