@@ -125,12 +125,18 @@ class PipelineRunner:
         output_dir: str | None = None,
         on_pipeline: Any = None,
         bar_timestamps: np.ndarray | None = None,
+        back_forward_split_ts: int = 0,
+        optimizer_funnel: dict | None = None,
+        run_metadata: dict | None = None,
     ):
         self.strategy = strategy
         self.data = data_arrays
         self.config = config or PipelineConfig()
         self._on_pipeline = on_pipeline
         self._bar_timestamps = bar_timestamps
+        self.back_forward_split_ts = back_forward_split_ts
+        self.optimizer_funnel = optimizer_funnel or {}
+        self.run_metadata = run_metadata or {}
         self.pair = pair
         self.timeframe = timeframe
         self.pip_value = pip_value
@@ -238,19 +244,36 @@ class PipelineRunner:
             if self.config.checkpoint_enabled:
                 save_checkpoint(self.state, self.checkpoint_path)
 
-            # Log survivors
+            # Log survivors with per-candidate elimination details
             active = [c for c in self.state.candidates if not c.eliminated]
+            # Match elimination stages: Walk-Forward also includes trade_density and cpcv sub-stages
+            stage_key = stage_name.lower().replace("-", "_")
+            stage_match_keys = {stage_key}
+            if stage_key == "walk_forward":
+                stage_match_keys.update({"trade_density", "cpcv"})
+            eliminated_this_stage = [
+                c for c in self.state.candidates
+                if c.eliminated and c.eliminated_at_stage in stage_match_keys
+            ]
             logger.info(
                 f"Stage {stage_num} complete: "
                 f"{len(active)}/{len(self.state.candidates)} candidates surviving"
             )
 
             if self._on_pipeline:
+                detail = f"{len(active)}/{len(self.state.candidates)} surviving"
+                if eliminated_this_stage:
+                    elim_parts = []
+                    for ec in eliminated_this_stage[:5]:  # Cap at 5 to avoid overwhelming
+                        elim_parts.append(f"#{ec.candidate_index} ({ec.elimination_reason})")
+                    detail += " | Eliminated: " + ", ".join(elim_parts)
+                    if len(eliminated_this_stage) > 5:
+                        detail += f" (+{len(eliminated_this_stage) - 5} more)"
                 self._on_pipeline(PipelineProgress(
                     stage_name=stage_name,
                     candidates_total=len(self.state.candidates),
                     candidates_surviving=len(active),
-                    detail=f"{len(active)}/{len(self.state.candidates)} candidates surviving",
+                    detail=detail,
                 ))
 
         # Free shared engine after all stages complete
@@ -258,6 +281,7 @@ class PipelineRunner:
         gc.collect()
 
         elapsed = time.time() - t0
+        self.run_metadata["pipeline_seconds"] = round(elapsed, 1)
         logger.info(f"Pipeline complete in {elapsed:.1f}s")
         return self.state
 
@@ -515,14 +539,50 @@ class PipelineRunner:
                         })
                 candidate._equity_curve = eq_curve
 
+        import datetime
+
         os.makedirs(self.output_dir, exist_ok=True)
         report_path = os.path.join(self.output_dir, "report.json")
+
+        # Summarize results for quick reading
+        active = [c for c in self.state.candidates if not c.eliminated]
+        best_rating = "RED"
+        best_score = 0.0
+        for c in self.state.candidates:
+            if c.confidence:
+                if c.confidence.composite_score > best_score:
+                    best_score = c.confidence.composite_score
+                    best_rating = c.confidence.rating.value
 
         report = {
             "strategy": self.state.strategy_name,
             "version": self.state.strategy_version,
             "pair": self.state.pair,
             "timeframe": self.state.timeframe,
+            "run_date": datetime.datetime.now().isoformat(),
+            "verdict": {
+                "rating": best_rating,
+                "best_composite_score": round(best_score, 1),
+                "candidates_total": len(self.state.candidates),
+                "candidates_survived": len(active),
+            },
+            "data_summary": {
+                "total_bars": len(self.data["close"]),
+                "back_bars": int(len(self.data["close"]) * 0.8),
+                "forward_bars": len(self.data["close"]) - int(len(self.data["close"]) * 0.8),
+            },
+            "run_config": {
+                "preset": self.run_metadata.get("preset", "unknown"),
+                "total_trials": self.run_metadata.get("total_trials", 0),
+                "evals_per_second": self.run_metadata.get("evals_per_second", 0),
+                "optimization_seconds": self.run_metadata.get("optimization_seconds", 0),
+                "pipeline_seconds": self.run_metadata.get("pipeline_seconds", "in_progress"),
+                "commission_pips": self.config.commission_pips,
+                "max_spread_pips": self.config.max_spread_pips,
+                "slippage_pips": self.slippage_pips,
+            },
+            "back_forward_split_timestamp": self.back_forward_split_ts,
+            "optimizer_funnel": self.optimizer_funnel,
             "candidates": [],
         }
 
@@ -538,7 +598,7 @@ class PipelineRunner:
 
         # Map stage names to their numeric order for advisory detection
         _stage_order = {
-            "trade_density": 3, "walk_forward": 3, "cpcv": 3,
+            "forward_gate": 2, "trade_density": 3, "walk_forward": 3, "cpcv": 3,
             "stability": 4, "monte_carlo": 5, "confidence": 6,
         }
 
@@ -569,6 +629,14 @@ class PipelineRunner:
                 entry["composite_score"] = c.confidence.composite_score
                 entry["rating"] = c.confidence.rating.value
                 entry["gates_passed"] = c.confidence.gates_passed
+                entry["confidence_breakdown"] = {
+                    "walk_forward": round(c.confidence.walk_forward_score, 1),
+                    "monte_carlo": round(c.confidence.monte_carlo_score, 1),
+                    "forward_back": round(c.confidence.forward_back_score, 1),
+                    "stability": round(c.confidence.stability_score, 1),
+                    "dsr": round(c.confidence.dsr_score, 1),
+                    "backtest_quality": round(c.confidence.backtest_quality_score, 1),
+                }
             if c.walk_forward:
                 entry["wf_pass_rate"] = c.walk_forward.pass_rate
                 entry["wf_mean_sharpe"] = c.walk_forward.mean_sharpe

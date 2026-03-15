@@ -84,6 +84,51 @@ def main():
             lookback_bars=args.lookback,
         )
 
+    # --- Candidate validation gate ---
+    # Check rating and elimination status from pipeline checkpoint
+    rating = None
+    eliminated = False
+    elimination_reason = ""
+    if config.pipeline_json:
+        try:
+            with open(config.pipeline_json) as f:
+                checkpoint_data = json.load(f)
+            candidates = checkpoint_data.get("candidates", [])
+            if config.candidate_index < len(candidates):
+                cand = candidates[config.candidate_index]
+                # Check confidence rating
+                conf = cand.get("confidence", {})
+                rating = conf.get("rating", None)
+                eliminated = cand.get("eliminated", False)
+                if eliminated:
+                    elimination_reason = cand.get("elimination_reason", "unknown")
+        except (json.JSONDecodeError, OSError):
+            pass  # If we can't read checkpoint, warn but continue
+
+    if eliminated or rating == "RED":
+        print("\n" + "!" * 60)
+        print("  WARNING: This candidate has ISSUES")
+        print("!" * 60)
+        if eliminated:
+            print(f"  Eliminated at: {cand.get('eliminated_at_stage', 'unknown')}")
+            print(f"  Reason: {elimination_reason}")
+        if rating:
+            composite = cand.get("confidence", {}).get("composite_score", 0)
+            print(f"  Rating: {rating} (score: {composite:.1f}/100)")
+            gates = cand.get("confidence", {}).get("gates_passed", {})
+            failed = [g for g, p in gates.items() if not p]
+            if failed:
+                print(f"  Failed gates: {', '.join(failed)}")
+        print()
+        if config.mode == TradingMode.LIVE:
+            print("  BLOCKED: Cannot deploy RED/eliminated candidate to LIVE.")
+            print("  Use --mode practice for testing, or choose a better candidate.")
+            sys.exit(1)
+        elif config.mode == TradingMode.PRACTICE:
+            print("  Proceeding to PRACTICE mode (demo account).")
+            print("  This candidate failed validation — use for testing only.")
+        print()
+
     # LIVE mode safety gate
     if config.mode == TradingMode.LIVE:
         print("\n" + "=" * 60)
@@ -102,6 +147,8 @@ def main():
     print(f"  Mode:      {config.mode.value}")
     print(f"  Pipeline:  {config.pipeline_json}")
     print(f"  Candidate: {config.candidate_index}")
+    if rating:
+        print(f"  Rating:    {rating}")
     print(f"  Risk:      {config.risk_pct}%")
     print(f"  State dir: {config.state_dir}")
     print()

@@ -56,6 +56,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default=None, help="Output directory (default: results/<pair>_<tf>)")
     parser.add_argument("--no-m1", action="store_true",
                         help="Disable M1 sub-bar simulation (use H1-only identity mapping)")
+    parser.add_argument("--param-width", default="1.0",
+                        choices=["1.0", "1.5", "2.0", "3.0", "auto"],
+                        help="Widen numeric param ranges (1.0=as-is, auto=fill budget)")
     parser.add_argument("--dashboard", action="store_true", default=None,
                         help="Enable real-time dashboard (default: auto-detect TTY)")
     parser.add_argument("--no-dashboard", action="store_true",
@@ -310,7 +313,9 @@ def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value,
 # Section 3-6: Validation Pipeline
 # ============================================================
 def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
-                   on_pipeline=None, bar_timestamps=None):
+                   on_pipeline=None, bar_timestamps=None,
+                   back_forward_split_ts=0, optimizer_funnel=None,
+                   run_metadata=None):
     from backtester.pipeline.config import PipelineConfig
     from backtester.pipeline.runner import PipelineRunner
     from backtester.pipeline.types import CandidateResult
@@ -330,6 +335,14 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
             back_trades=int(cand.back_metrics.get("trades", 0)),
             n_trials=opt_result.total_trials,
         )
+        # Pre-eliminate candidates that failed the forward gate (advisory pipeline stages still run)
+        if not cand.forward_gate_passed:
+            cr.eliminated = True
+            cr.eliminated_at_stage = "forward_gate"
+            cr.elimination_reason = (
+                f"Forward/back ratio {fb_ratio:.3f} below threshold "
+                f"(back_q={back_q:.2f}, fwd_q={fwd_q:.2f})"
+            )
         candidate_results.append(cr)
 
     # Auto-size walk-forward windows from the candidate's actual trade frequency.
@@ -414,6 +427,9 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
         output_dir=str(output_dir),
         on_pipeline=on_pipeline,
         bar_timestamps=bar_timestamps,
+        back_forward_split_ts=back_forward_split_ts,
+        optimizer_funnel=optimizer_funnel or {},
+        run_metadata=run_metadata or {},
     )
 
     t0 = time.time()
@@ -894,6 +910,8 @@ def main():
 
     from backtester.data.splitting import split_backforward
     back_df, fwd_df = split_backforward(df, back_pct=0.80)
+    split_idx = int(len(df) * 0.80)
+    back_forward_split_ts = int(df.index[split_idx].timestamp()) if split_idx < len(df) else 0
     data_back = df_to_arrays(back_df)
     data_fwd = df_to_arrays(fwd_df)
     data_full = df_to_arrays(df)
@@ -947,6 +965,22 @@ def main():
     from backtester.strategies import registry as strat_reg
     strategy = strat_reg.create(args.strategy)
 
+    # Apply parameter widening if requested
+    param_width = getattr(args, 'param_width', '1.0')
+    if param_width != "1.0":
+        from backtester.strategies.param_widening import apply_widening
+        _, width_summary = apply_widening(strategy, param_width, preset)
+        print(f"\n  Parameter widening: mode={param_width}")
+        print(f"  {'Group':<14} {'Before':>10} {'After':>10} {'Factor':>8}")
+        print(f"  {'-' * 44}")
+        for grp, info in width_summary.get("groups", {}).items():
+            b = info["before"]
+            a = info["after"]
+            b_str = f"{b:,}" if b < 1_000_000 else f"{b/1e6:.0f}M"
+            a_str = f"{a:,}" if a < 1_000_000 else f"{a/1e6:.0f}M"
+            print(f"  {grp:<14} {b_str:>10} {a_str:>10} {info['factor']:>7.1f}x")
+        sys.stdout.flush()
+
     # Send run config to dashboard
     if dashboard:
         stages = strategy.optimization_stages() + ["refinement"]
@@ -971,6 +1005,14 @@ def main():
     state, pipe_elapsed = run_validation(
         strategy, data_full, opt_result, pair, timeframe, pip_value, output_dir,
         on_pipeline=on_pipeline_cb, bar_timestamps=bar_timestamps,
+        back_forward_split_ts=back_forward_split_ts,
+        optimizer_funnel=opt_result.optimizer_funnel,
+        run_metadata={
+            "preset": preset,
+            "total_trials": opt_result.total_trials,
+            "evals_per_second": round(opt_result.evals_per_second, 0),
+            "optimization_seconds": round(opt_result.elapsed_seconds, 1),
+        },
     )
 
     # ---- Section 7: Trade Statistics ----
@@ -987,7 +1029,12 @@ def main():
             import json as _json
             with open(report_path) as f:
                 report_data = _json.load(f)
-            dashboard.broadcast({"type": "run_complete", "report": report_data})
+            dashboard.broadcast({
+                "type": "run_complete",
+                "report": report_data,
+                "back_forward_split_timestamp": back_forward_split_ts,
+                "optimizer_funnel": opt_result.optimizer_funnel,
+            })
 
     # ---- Summary Footer ----
     total_elapsed = time.time() - t_start

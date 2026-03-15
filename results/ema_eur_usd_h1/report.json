@@ -1,0 +1,7205 @@
+{
+  "strategy": "ema_crossover",
+  "version": "1.0.0",
+  "pair": "EUR/USD",
+  "timeframe": "H1",
+  "run_date": "2026-03-15T12:33:38.825672",
+  "verdict": {
+    "rating": "RED",
+    "best_composite_score": 16.7,
+    "candidates_total": 2,
+    "candidates_survived": 0
+  },
+  "data_summary": {
+    "total_bars": 96262,
+    "back_bars": 77009,
+    "forward_bars": 19253
+  },
+  "run_config": {
+    "preset": "turbo",
+    "total_trials": 200840,
+    "evals_per_second": 2208.0,
+    "optimization_seconds": 91.0,
+    "pipeline_seconds": "in_progress",
+    "commission_pips": 0.7,
+    "max_spread_pips": 3.0,
+    "slippage_pips": 0.5
+  },
+  "back_forward_split_timestamp": 1674079200,
+  "optimizer_funnel": {
+    "total_trials": 200840,
+    "refinement_passing": 38786,
+    "diverse_selected": 2,
+    "forward_tested": 2,
+    "forward_gate_passed_count": 0,
+    "sent_to_pipeline": 2
+  },
+  "candidates": [
+    {
+      "index": 1,
+      "params": {
+        "ema_combo": 13300,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 35,
+        "sl_atr_mult": 0.75,
+        "tp_mode": "fixed_pips",
+        "tp_rr_ratio": 1.5,
+        "tp_atr_mult": 2.0,
+        "tp_fixed_pips": 150,
+        "trailing_mode": "off",
+        "trail_activate_pips": 30,
+        "trail_distance_pips": 10,
+        "trail_atr_mult": 3.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 7,
+        "partial_close_enabled": false,
+        "partial_close_pct": 70,
+        "partial_close_trigger_pips": 20,
+        "max_bars": 0,
+        "stale_exit_enabled": true,
+        "stale_exit_bars": 20,
+        "stale_exit_atr_threshold": 1.0,
+        "allowed_hours_start": 0,
+        "allowed_hours_end": 23,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "back_quality": 0.3674103891534842,
+      "forward_quality": 0.0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "forward_gate",
+      "elimination_reason": "Forward/back ratio 0.000 below threshold (back_q=0.37, fwd_q=0.00)",
+      "advisory_stages": [
+        "stability",
+        "monte_carlo",
+        "confidence"
+      ],
+      "composite_score": 16.666541398660847,
+      "rating": "RED",
+      "gates_passed": {
+        "forward_back_ratio": false,
+        "wf_pass_rate": false,
+        "wf_mean_sharpe": false,
+        "dsr": false,
+        "permutation_p": false
+      },
+      "confidence_breakdown": {
+        "walk_forward": 0.0,
+        "monte_carlo": 43.5,
+        "forward_back": 0.0,
+        "stability": 27.8,
+        "dsr": 0.0,
+        "backtest_quality": 30.2
+      },
+      "dsr": 4.695859741778015e-05,
+      "permutation_p": 0.154,
+      "stability_rating": "MODERATE",
+      "stability_mean_ratio": 0.6382884399550228,
+      "regime_distribution": {
+        "Trend + Quiet": 43.182527301092044,
+        "Trend + Volatile": 18.960998439937597,
+        "Range + Quiet": 32.315132605304214,
+        "Range + Volatile": 5.541341653666146
+      },
+      "regime_robustness_score": 45.78624065515213,
+      "regime_advisory": "Catastrophic drawdown in Trend + Volatile (302.2% MaxDD). Strategy underperforms in: Trend + Volatile.",
+      "per_regime_stats": [
+        {
+          "regime": 0,
+          "regime_name": "Trend + Quiet",
+          "n_bars": 41520,
+          "bar_pct": 43.182527301092044,
+          "n_trades": 266,
+          "sharpe": 0.7780087123113897,
+          "profit_factor": 1.1810376203552182,
+          "max_dd_pct": 51.483041454242915,
+          "win_rate": 68.42105263157895,
+          "mean_pnl_pips": 2.0569548872165604,
+          "sufficient_data": true
+        },
+        {
+          "regime": 1,
+          "regime_name": "Trend + Volatile",
+          "n_bars": 18231,
+          "bar_pct": 18.960998439937597,
+          "n_trades": 220,
+          "sharpe": -0.41548277165396535,
+          "profit_factor": 0.909164882226835,
+          "max_dd_pct": 302.23023203441784,
+          "win_rate": 71.36363636363636,
+          "mean_pnl_pips": -0.9640909090925214,
+          "sufficient_data": true
+        },
+        {
+          "regime": 2,
+          "regime_name": "Range + Quiet",
+          "n_bars": 31071,
+          "bar_pct": 32.315132605304214,
+          "n_trades": 274,
+          "sharpe": 1.0871266475437062,
+          "profit_factor": 1.267924419498527,
+          "max_dd_pct": 40.729866789622484,
+          "win_rate": 74.45255474452554,
+          "mean_pnl_pips": 2.543521897808778,
+          "sufficient_data": true
+        },
+        {
+          "regime": 3,
+          "regime_name": "Range + Volatile",
+          "n_bars": 5328,
+          "bar_pct": 5.541341653666146,
+          "n_trades": 88,
+          "sharpe": 0.40730214036742207,
+          "profit_factor": 1.1564798963585377,
+          "max_dd_pct": 52.17853347504894,
+          "win_rate": 65.9090909090909,
+          "mean_pnl_pips": 1.921590909089354,
+          "sufficient_data": true
+        }
+      ],
+      "trade_stats": {
+        "n_trades": 848,
+        "total_pnl_pips": 1201.07,
+        "total_pnl_usd": 120.11,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 70.9,
+        "profit_factor": 1.13,
+        "avg_pnl_pips": 1.42,
+        "median_pnl_pips": 5.55,
+        "best_trade_pips": 148.7,
+        "worst_trade_pips": -40.7,
+        "std_dev_pips": 39.76,
+        "avg_bars_held": 16.6,
+        "exit_breakdown": {
+          "breakeven": {
+            "count": 538,
+            "pct": 63.4,
+            "pnl_pips": 3000.15,
+            "pnl_usd": 300.01
+          },
+          "stop_loss": {
+            "count": 243,
+            "pct": 28.7,
+            "pnl_pips": -9020.65,
+            "pnl_usd": -902.07
+          },
+          "take_profit": {
+            "count": 41,
+            "pct": 4.8,
+            "pnl_pips": 6080.65,
+            "pnl_usd": 608.06
+          },
+          "stale_exit": {
+            "count": 26,
+            "pct": 3.1,
+            "pnl_pips": 1140.92,
+            "pnl_usd": 114.09
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 421,
+            "win_rate": 71.3,
+            "total_pnl_pips": 790.5,
+            "total_pnl_usd": 79.05
+          },
+          "SELL": {
+            "n_trades": 427,
+            "win_rate": 70.5,
+            "total_pnl_pips": 410.57,
+            "total_pnl_usd": 41.06
+          }
+        }
+      },
+      "equity_curve": [
+        {
+          "timestamp": 1167609600,
+          "equity": 0.0
+        },
+        {
+          "timestamp": 1169798400,
+          "equity": 4.6
+        },
+        {
+          "timestamp": 1170230400,
+          "equity": -32.85
+        },
+        {
+          "timestamp": 1170234000,
+          "equity": -28.55
+        },
+        {
+          "timestamp": 1170270000,
+          "equity": -22.75
+        },
+        {
+          "timestamp": 1170921600,
+          "equity": -16.95
+        },
+        {
+          "timestamp": 1171353600,
+          "equity": -55.2
+        },
+        {
+          "timestamp": 1171378800,
+          "equity": -49.4
+        },
+        {
+          "timestamp": 1173106800,
+          "equity": -44.6
+        },
+        {
+          "timestamp": 1173340800,
+          "equity": -82.8
+        },
+        {
+          "timestamp": 1173445200,
+          "equity": -120.4
+        },
+        {
+          "timestamp": 1173456000,
+          "equity": -116.15
+        },
+        {
+          "timestamp": 1173646800,
+          "equity": -156.85
+        },
+        {
+          "timestamp": 1173711600,
+          "equity": -151.05
+        },
+        {
+          "timestamp": 1178114400,
+          "equity": -188.75
+        },
+        {
+          "timestamp": 1178175600,
+          "equity": -182.95
+        },
+        {
+          "timestamp": 1178258400,
+          "equity": -178.15
+        },
+        {
+          "timestamp": 1178690400,
+          "equity": -173.35
+        },
+        {
+          "timestamp": 1179316800,
+          "equity": -211.75
+        },
+        {
+          "timestamp": 1179500400,
+          "equity": -206.95
+        },
+        {
+          "timestamp": 1327042800,
+          "equity": -201.15
+        },
+        {
+          "timestamp": 1327064400,
+          "equity": -196.25
+        },
+        {
+          "timestamp": 1327323600,
+          "equity": -190.45
+        },
+        {
+          "timestamp": 1328083200,
+          "equity": -185.45
+        },
+        {
+          "timestamp": 1328169600,
+          "equity": -179.65
+        },
+        {
+          "timestamp": 1328511600,
+          "equity": -174.8
+        },
+        {
+          "timestamp": 1328608800,
+          "equity": -169.0
+        },
+        {
+          "timestamp": 1329199200,
+          "equity": -164.05
+        },
+        {
+          "timestamp": 1330603200,
+          "equity": -159.15
+        },
+        {
+          "timestamp": 1331272800,
+          "equity": -196.6
+        },
+        {
+          "timestamp": 1331380800,
+          "equity": -107.4
+        },
+        {
+          "timestamp": 1332000000,
+          "equity": -110.05
+        },
+        {
+          "timestamp": 1333616400,
+          "equity": 37.8
+        },
+        {
+          "timestamp": 1334304000,
+          "equity": -0.7
+        },
+        {
+          "timestamp": 1334401200,
+          "equity": 70.5
+        },
+        {
+          "timestamp": 1334718000,
+          "equity": 75.5
+        },
+        {
+          "timestamp": 1334732400,
+          "equity": 37.95
+        },
+        {
+          "timestamp": 1334732400,
+          "equity": -0.05
+        },
+        {
+          "timestamp": 1334732400,
+          "equity": 4.95
+        },
+        {
+          "timestamp": 1334833200,
+          "equity": -32.45
+        },
+        {
+          "timestamp": 1334840400,
+          "equity": -27.45
+        },
+        {
+          "timestamp": 1334880000,
+          "equity": -21.65
+        },
+        {
+          "timestamp": 1335211200,
+          "equity": -59.2
+        },
+        {
+          "timestamp": 1335376800,
+          "equity": -53.4
+        },
+        {
+          "timestamp": 1335967200,
+          "equity": -48.55
+        },
+        {
+          "timestamp": 1338876000,
+          "equity": -86.15
+        },
+        {
+          "timestamp": 1338886800,
+          "equity": -81.1
+        },
+        {
+          "timestamp": 1339023600,
+          "equity": -75.3
+        },
+        {
+          "timestamp": 1339160400,
+          "equity": -70.25
+        },
+        {
+          "timestamp": 1339473600,
+          "equity": -108.0
+        },
+        {
+          "timestamp": 1339635600,
+          "equity": -102.2
+        },
+        {
+          "timestamp": 1340348400,
+          "equity": -97.3
+        },
+        {
+          "timestamp": 1340967600,
+          "equity": -91.5
+        },
+        {
+          "timestamp": 1341486000,
+          "equity": -86.8
+        },
+        {
+          "timestamp": 1343311200,
+          "equity": -81.0
+        },
+        {
+          "timestamp": 1343894400,
+          "equity": -119.0
+        },
+        {
+          "timestamp": 1343908800,
+          "equity": -113.2
+        },
+        {
+          "timestamp": 1343916000,
+          "equity": -108.2
+        },
+        {
+          "timestamp": 1344078000,
+          "equity": -66.35
+        },
+        {
+          "timestamp": 1344582000,
+          "equity": -61.35
+        },
+        {
+          "timestamp": 1344866400,
+          "equity": -55.55
+        },
+        {
+          "timestamp": 1345096800,
+          "equity": -50.8
+        },
+        {
+          "timestamp": 1345194000,
+          "equity": -45.0
+        },
+        {
+          "timestamp": 1348484400,
+          "equity": -39.85
+        },
+        {
+          "timestamp": 1349182800,
+          "equity": -34.05
+        },
+        {
+          "timestamp": 1349330400,
+          "equity": -71.3
+        },
+        {
+          "timestamp": 1349330400,
+          "equity": -108.55
+        },
+        {
+          "timestamp": 1349337600,
+          "equity": -102.75
+        },
+        {
+          "timestamp": 1349442000,
+          "equity": 45.45
+        },
+        {
+          "timestamp": 1349776800,
+          "equity": 50.7
+        },
+        {
+          "timestamp": 1350054000,
+          "equity": 13.4
+        },
+        {
+          "timestamp": 1350284400,
+          "equity": -23.85
+        },
+        {
+          "timestamp": 1350309600,
+          "equity": -61.05
+        },
+        {
+          "timestamp": 1351080000,
+          "equity": -55.85
+        },
+        {
+          "timestamp": 1351681200,
+          "equity": -50.05
+        },
+        {
+          "timestamp": 1351756800,
+          "equity": -44.75
+        },
+        {
+          "timestamp": 1353056400,
+          "equity": -82.1
+        },
+        {
+          "timestamp": 1353067200,
+          "equity": -76.9
+        },
+        {
+          "timestamp": 1353362400,
+          "equity": -71.1
+        },
+        {
+          "timestamp": 1354968000,
+          "equity": -40.2
+        },
+        {
+          "timestamp": 1355238000,
+          "equity": -34.4
+        },
+        {
+          "timestamp": 1357142400,
+          "equity": -28.6
+        },
+        {
+          "timestamp": 1357200000,
+          "equity": -23.35
+        },
+        {
+          "timestamp": 1357912800,
+          "equity": 124.6
+        },
+        {
+          "timestamp": 1360047600,
+          "equity": 129.85
+        },
+        {
+          "timestamp": 1360069200,
+          "equity": 92.7
+        },
+        {
+          "timestamp": 1360224000,
+          "equity": 55.4
+        },
+        {
+          "timestamp": 1360242000,
+          "equity": 18.25
+        },
+        {
+          "timestamp": 1360314000,
+          "equity": 23.6
+        },
+        {
+          "timestamp": 1360746000,
+          "equity": 29.4
+        },
+        {
+          "timestamp": 1361019600,
+          "equity": 98.5
+        },
+        {
+          "timestamp": 1361340000,
+          "equity": 104.3
+        },
+        {
+          "timestamp": 1361433600,
+          "equity": 252.55
+        },
+        {
+          "timestamp": 1362736800,
+          "equity": 215.45
+        },
+        {
+          "timestamp": 1362744000,
+          "equity": 221.25
+        },
+        {
+          "timestamp": 1362744000,
+          "equity": 227.05
+        },
+        {
+          "timestamp": 1362754800,
+          "equity": 232.5
+        },
+        {
+          "timestamp": 1363352400,
+          "equity": 195.3
+        },
+        {
+          "timestamp": 1364227200,
+          "equity": 200.8
+        },
+        {
+          "timestamp": 1365145200,
+          "equity": 163.7
+        },
+        {
+          "timestamp": 1366275600,
+          "equity": 126.55
+        },
+        {
+          "timestamp": 1366308000,
+          "equity": 89.4
+        },
+        {
+          "timestamp": 1366635600,
+          "equity": 94.9
+        },
+        {
+          "timestamp": 1366693200,
+          "equity": 100.4
+        },
+        {
+          "timestamp": 1366700400,
+          "equity": 106.2
+        },
+        {
+          "timestamp": 1366891200,
+          "equity": 112.0
+        },
+        {
+          "timestamp": 1366941600,
+          "equity": 75.0
+        },
+        {
+          "timestamp": 1367395200,
+          "equity": 223.4
+        },
+        {
+          "timestamp": 1367560800,
+          "equity": 186.2
+        },
+        {
+          "timestamp": 1367578800,
+          "equity": 192.0
+        },
+        {
+          "timestamp": 1367920800,
+          "equity": 154.85
+        },
+        {
+          "timestamp": 1367935200,
+          "equity": 117.8
+        },
+        {
+          "timestamp": 1367992800,
+          "equity": 80.8
+        },
+        {
+          "timestamp": 1368007200,
+          "equity": 86.6
+        },
+        {
+          "timestamp": 1368169200,
+          "equity": 92.05
+        },
+        {
+          "timestamp": 1369231200,
+          "equity": 97.85
+        },
+        {
+          "timestamp": 1369242000,
+          "equity": 103.3
+        },
+        {
+          "timestamp": 1369396800,
+          "equity": 109.1
+        },
+        {
+          "timestamp": 1369724400,
+          "equity": 114.55
+        },
+        {
+          "timestamp": 1369738800,
+          "equity": 120.35
+        },
+        {
+          "timestamp": 1369738800,
+          "equity": 83.35
+        },
+        {
+          "timestamp": 1369749600,
+          "equity": 46.2
+        },
+        {
+          "timestamp": 1369803600,
+          "equity": 51.55
+        },
+        {
+          "timestamp": 1369882800,
+          "equity": 57.35
+        },
+        {
+          "timestamp": 1371708000,
+          "equity": 62.75
+        },
+        {
+          "timestamp": 1373497200,
+          "equity": 25.7
+        },
+        {
+          "timestamp": 1375408800,
+          "equity": 31.25
+        },
+        {
+          "timestamp": 1375455600,
+          "equity": 37.05
+        },
+        {
+          "timestamp": 1376395200,
+          "equity": 0.05
+        },
+        {
+          "timestamp": 1376532000,
+          "equity": 5.55
+        },
+        {
+          "timestamp": 1376532000,
+          "equity": 11.05
+        },
+        {
+          "timestamp": 1376658000,
+          "equity": 16.85
+        },
+        {
+          "timestamp": 1377874800,
+          "equity": 165.45
+        },
+        {
+          "timestamp": 1378792800,
+          "equity": 171.25
+        },
+        {
+          "timestamp": 1381341600,
+          "equity": 176.8
+        },
+        {
+          "timestamp": 1381507200,
+          "equity": 139.75
+        },
+        {
+          "timestamp": 1381860000,
+          "equity": 102.7
+        },
+        {
+          "timestamp": 1382058000,
+          "equity": 108.5
+        },
+        {
+          "timestamp": 1383246000,
+          "equity": 257.15
+        },
+        {
+          "timestamp": 1384423200,
+          "equity": 220.2
+        },
+        {
+          "timestamp": 1384423200,
+          "equity": 225.85
+        },
+        {
+          "timestamp": 1384599600,
+          "equity": 245.45
+        },
+        {
+          "timestamp": 1385020800,
+          "equity": 251.0
+        },
+        {
+          "timestamp": 1385125200,
+          "equity": 256.8
+        },
+        {
+          "timestamp": 1386061200,
+          "equity": 219.9
+        },
+        {
+          "timestamp": 1386075600,
+          "equity": 225.7
+        },
+        {
+          "timestamp": 1387432800,
+          "equity": 231.15
+        },
+        {
+          "timestamp": 1388142000,
+          "equity": 377.6
+        },
+        {
+          "timestamp": 1388674800,
+          "equity": 383.15
+        },
+        {
+          "timestamp": 1389452400,
+          "equity": 386.9
+        },
+        {
+          "timestamp": 1389772800,
+          "equity": 392.5
+        },
+        {
+          "timestamp": 1390482000,
+          "equity": 398.3
+        },
+        {
+          "timestamp": 1391086800,
+          "equity": 403.5
+        },
+        {
+          "timestamp": 1391760000,
+          "equity": 366.6
+        },
+        {
+          "timestamp": 1392271200,
+          "equity": 372.4
+        },
+        {
+          "timestamp": 1392271200,
+          "equity": 335.5
+        },
+        {
+          "timestamp": 1393488000,
+          "equity": 341.15
+        },
+        {
+          "timestamp": 1393596000,
+          "equity": 346.95
+        },
+        {
+          "timestamp": 1393912800,
+          "equity": 309.95
+        },
+        {
+          "timestamp": 1393930800,
+          "equity": 315.75
+        },
+        {
+          "timestamp": 1394010000,
+          "equity": 321.25
+        },
+        {
+          "timestamp": 1394114400,
+          "equity": 327.05
+        },
+        {
+          "timestamp": 1395406800,
+          "equity": 332.7
+        },
+        {
+          "timestamp": 1396422000,
+          "equity": 338.5
+        },
+        {
+          "timestamp": 1396522800,
+          "equity": 343.45
+        },
+        {
+          "timestamp": 1397311200,
+          "equity": 457.05
+        },
+        {
+          "timestamp": 1397556000,
+          "equity": 462.65
+        },
+        {
+          "timestamp": 1397656800,
+          "equity": 425.75
+        },
+        {
+          "timestamp": 1397923200,
+          "equity": 418.05
+        },
+        {
+          "timestamp": 1398092400,
+          "equity": 381.2
+        },
+        {
+          "timestamp": 1398146400,
+          "equity": 386.75
+        },
+        {
+          "timestamp": 1398258000,
+          "equity": 392.55
+        },
+        {
+          "timestamp": 1398848400,
+          "equity": 398.1
+        },
+        {
+          "timestamp": 1398870000,
+          "equity": 403.9
+        },
+        {
+          "timestamp": 1399618800,
+          "equity": 409.45
+        },
+        {
+          "timestamp": 1402045200,
+          "equity": 372.6
+        },
+        {
+          "timestamp": 1402297200,
+          "equity": 378.4
+        },
+        {
+          "timestamp": 1402311600,
+          "equity": 383.9
+        },
+        {
+          "timestamp": 1402462800,
+          "equity": 475.95
+        },
+        {
+          "timestamp": 1403258400,
+          "equity": 481.75
+        },
+        {
+          "timestamp": 1404486000,
+          "equity": 487.35
+        },
+        {
+          "timestamp": 1404972000,
+          "equity": 493.15
+        },
+        {
+          "timestamp": 1405321200,
+          "equity": 456.3
+        },
+        {
+          "timestamp": 1405414800,
+          "equity": 419.4
+        },
+        {
+          "timestamp": 1405414800,
+          "equity": 425.05
+        },
+        {
+          "timestamp": 1412809200,
+          "equity": 430.85
+        },
+        {
+          "timestamp": 1413162000,
+          "equity": 436.3
+        },
+        {
+          "timestamp": 1413266400,
+          "equity": 398.5
+        },
+        {
+          "timestamp": 1413331200,
+          "equity": 404.0
+        },
+        {
+          "timestamp": 1413385200,
+          "equity": 409.8
+        },
+        {
+          "timestamp": 1413975600,
+          "equity": 415.3
+        },
+        {
+          "timestamp": 1414501200,
+          "equity": 421.1
+        },
+        {
+          "timestamp": 1414677600,
+          "equity": 426.6
+        },
+        {
+          "timestamp": 1416186000,
+          "equity": 432.4
+        },
+        {
+          "timestamp": 1416268800,
+          "equity": 437.75
+        },
+        {
+          "timestamp": 1416384000,
+          "equity": 443.55
+        },
+        {
+          "timestamp": 1416567600,
+          "equity": 449.05
+        },
+        {
+          "timestamp": 1417075200,
+          "equity": 454.85
+        },
+        {
+          "timestamp": 1417140000,
+          "equity": 460.35
+        },
+        {
+          "timestamp": 1418241600,
+          "equity": 466.15
+        },
+        {
+          "timestamp": 1418374800,
+          "equity": 471.95
+        },
+        {
+          "timestamp": 1418374800,
+          "equity": 434.8
+        },
+        {
+          "timestamp": 1418846400,
+          "equity": 397.55
+        },
+        {
+          "timestamp": 1423036800,
+          "equity": 360.45
+        },
+        {
+          "timestamp": 1423080000,
+          "equity": 365.7
+        },
+        {
+          "timestamp": 1423216800,
+          "equity": 328.8
+        },
+        {
+          "timestamp": 1423234800,
+          "equity": 334.35
+        },
+        {
+          "timestamp": 1423821600,
+          "equity": 340.15
+        },
+        {
+          "timestamp": 1424134800,
+          "equity": 345.55
+        },
+        {
+          "timestamp": 1424185200,
+          "equity": 308.45
+        },
+        {
+          "timestamp": 1424282400,
+          "equity": 314.15
+        },
+        {
+          "timestamp": 1424318400,
+          "equity": 319.95
+        },
+        {
+          "timestamp": 1424415600,
+          "equity": 325.55
+        },
+        {
+          "timestamp": 1426881600,
+          "equity": 331.35
+        },
+        {
+          "timestamp": 1427727600,
+          "equity": 336.95
+        },
+        {
+          "timestamp": 1427997600,
+          "equity": 342.75
+        },
+        {
+          "timestamp": 1428444000,
+          "equity": 348.3
+        },
+        {
+          "timestamp": 1429214400,
+          "equity": 311.35
+        },
+        {
+          "timestamp": 1429624800,
+          "equity": 316.9
+        },
+        {
+          "timestamp": 1429700400,
+          "equity": 322.7
+        },
+        {
+          "timestamp": 1429776000,
+          "equity": 328.3
+        },
+        {
+          "timestamp": 1429801200,
+          "equity": 334.1
+        },
+        {
+          "timestamp": 1432108800,
+          "equity": 339.55
+        },
+        {
+          "timestamp": 1433289600,
+          "equity": 345.35
+        },
+        {
+          "timestamp": 1435060800,
+          "equity": 350.45
+        },
+        {
+          "timestamp": 1436526000,
+          "equity": 356.25
+        },
+        {
+          "timestamp": 1436788800,
+          "equity": 361.8
+        },
+        {
+          "timestamp": 1437678000,
+          "equity": 367.6
+        },
+        {
+          "timestamp": 1437750000,
+          "equity": 330.8
+        },
+        {
+          "timestamp": 1438009200,
+          "equity": 479.15
+        },
+        {
+          "timestamp": 1438236000,
+          "equity": 484.6
+        },
+        {
+          "timestamp": 1438358400,
+          "equity": 447.4
+        },
+        {
+          "timestamp": 1439200800,
+          "equity": 410.4
+        },
+        {
+          "timestamp": 1439960400,
+          "equity": 373.45
+        },
+        {
+          "timestamp": 1439985600,
+          "equity": 379.25
+        },
+        {
+          "timestamp": 1440781200,
+          "equity": 342.25
+        },
+        {
+          "timestamp": 1441087200,
+          "equity": 348.05
+        },
+        {
+          "timestamp": 1441220400,
+          "equity": 353.65
+        },
+        {
+          "timestamp": 1441900800,
+          "equity": 359.45
+        },
+        {
+          "timestamp": 1442905200,
+          "equity": 365.0
+        },
+        {
+          "timestamp": 1443510000,
+          "equity": 370.8
+        },
+        {
+          "timestamp": 1443618000,
+          "equity": 376.4
+        },
+        {
+          "timestamp": 1443801600,
+          "equity": 339.4
+        },
+        {
+          "timestamp": 1444114800,
+          "equity": 302.45
+        },
+        {
+          "timestamp": 1444186800,
+          "equity": 308.25
+        },
+        {
+          "timestamp": 1445518800,
+          "equity": 456.8
+        },
+        {
+          "timestamp": 1449169200,
+          "equity": 605.3
+        },
+        {
+          "timestamp": 1450357200,
+          "equity": 610.9
+        },
+        {
+          "timestamp": 1450767600,
+          "equity": 616.7
+        },
+        {
+          "timestamp": 1451584800,
+          "equity": 621.9
+        },
+        {
+          "timestamp": 1452214800,
+          "equity": 584.95
+        },
+        {
+          "timestamp": 1452578400,
+          "equity": 548.0
+        },
+        {
+          "timestamp": 1452585600,
+          "equity": 553.8
+        },
+        {
+          "timestamp": 1452614400,
+          "equity": 559.45
+        },
+        {
+          "timestamp": 1452747600,
+          "equity": 565.25
+        },
+        {
+          "timestamp": 1452830400,
+          "equity": 571.05
+        },
+        {
+          "timestamp": 1452844800,
+          "equity": 534.15
+        },
+        {
+          "timestamp": 1453212000,
+          "equity": 497.3
+        },
+        {
+          "timestamp": 1453215600,
+          "equity": 503.1
+        },
+        {
+          "timestamp": 1453384800,
+          "equity": 466.2
+        },
+        {
+          "timestamp": 1453903200,
+          "equity": 472.0
+        },
+        {
+          "timestamp": 1454097600,
+          "equity": 477.55
+        },
+        {
+          "timestamp": 1454374800,
+          "equity": 483.35
+        },
+        {
+          "timestamp": 1455793200,
+          "equity": 446.5
+        },
+        {
+          "timestamp": 1455818400,
+          "equity": 452.1
+        },
+        {
+          "timestamp": 1455840000,
+          "equity": 457.75
+        },
+        {
+          "timestamp": 1457334000,
+          "equity": 420.85
+        },
+        {
+          "timestamp": 1457366400,
+          "equity": 384.0
+        },
+        {
+          "timestamp": 1457427600,
+          "equity": 389.8
+        },
+        {
+          "timestamp": 1457532000,
+          "equity": 395.5
+        },
+        {
+          "timestamp": 1457564400,
+          "equity": 358.6
+        },
+        {
+          "timestamp": 1457596800,
+          "equity": 364.25
+        },
+        {
+          "timestamp": 1457629200,
+          "equity": 370.05
+        },
+        {
+          "timestamp": 1460721600,
+          "equity": 375.6
+        },
+        {
+          "timestamp": 1461157200,
+          "equity": 381.4
+        },
+        {
+          "timestamp": 1461225600,
+          "equity": 386.9
+        },
+        {
+          "timestamp": 1461776400,
+          "equity": 392.7
+        },
+        {
+          "timestamp": 1462773600,
+          "equity": 355.7
+        },
+        {
+          "timestamp": 1462791600,
+          "equity": 318.6
+        },
+        {
+          "timestamp": 1462791600,
+          "equity": 281.55
+        },
+        {
+          "timestamp": 1462791600,
+          "equity": 286.95
+        },
+        {
+          "timestamp": 1462791600,
+          "equity": 292.55
+        },
+        {
+          "timestamp": 1463047200,
+          "equity": 255.6
+        },
+        {
+          "timestamp": 1463594400,
+          "equity": 404.05
+        },
+        {
+          "timestamp": 1464966000,
+          "equity": 409.85
+        },
+        {
+          "timestamp": 1465776000,
+          "equity": 415.3
+        },
+        {
+          "timestamp": 1465884000,
+          "equity": 378.35
+        },
+        {
+          "timestamp": 1465898400,
+          "equity": 384.0
+        },
+        {
+          "timestamp": 1466510400,
+          "equity": 389.8
+        },
+        {
+          "timestamp": 1466582400,
+          "equity": 352.95
+        },
+        {
+          "timestamp": 1466604000,
+          "equity": 358.75
+        },
+        {
+          "timestamp": 1466740800,
+          "equity": 320.75
+        },
+        {
+          "timestamp": 1468497600,
+          "equity": 326.55
+        },
+        {
+          "timestamp": 1468789200,
+          "equity": 327.75
+        },
+        {
+          "timestamp": 1469721600,
+          "equity": 333.55
+        },
+        {
+          "timestamp": 1470661200,
+          "equity": 337.4
+        },
+        {
+          "timestamp": 1471330800,
+          "equity": 486.0
+        },
+        {
+          "timestamp": 1472418000,
+          "equity": 489.8
+        },
+        {
+          "timestamp": 1473343200,
+          "equity": 495.6
+        },
+        {
+          "timestamp": 1473861600,
+          "equity": 458.8
+        },
+        {
+          "timestamp": 1473919200,
+          "equity": 464.6
+        },
+        {
+          "timestamp": 1474030800,
+          "equity": 470.25
+        },
+        {
+          "timestamp": 1474552800,
+          "equity": 476.05
+        },
+        {
+          "timestamp": 1475046000,
+          "equity": 481.6
+        },
+        {
+          "timestamp": 1475071200,
+          "equity": 444.7
+        },
+        {
+          "timestamp": 1475107200,
+          "equity": 407.75
+        },
+        {
+          "timestamp": 1475157600,
+          "equity": 413.55
+        },
+        {
+          "timestamp": 1475240400,
+          "equity": 419.15
+        },
+        {
+          "timestamp": 1475542800,
+          "equity": 382.15
+        },
+        {
+          "timestamp": 1475593200,
+          "equity": 387.8
+        },
+        {
+          "timestamp": 1475676000,
+          "equity": 350.8
+        },
+        {
+          "timestamp": 1475748000,
+          "equity": 356.3
+        },
+        {
+          "timestamp": 1477983600,
+          "equity": 319.3
+        },
+        {
+          "timestamp": 1478275200,
+          "equity": 467.9
+        },
+        {
+          "timestamp": 1478653200,
+          "equity": 430.95
+        },
+        {
+          "timestamp": 1478664000,
+          "equity": 579.35
+        },
+        {
+          "timestamp": 1478718000,
+          "equity": 584.8
+        },
+        {
+          "timestamp": 1480669200,
+          "equity": 547.75
+        },
+        {
+          "timestamp": 1480683600,
+          "equity": 553.4
+        },
+        {
+          "timestamp": 1481022000,
+          "equity": 559.2
+        },
+        {
+          "timestamp": 1481281200,
+          "equity": 564.9
+        },
+        {
+          "timestamp": 1483063200,
+          "equity": 527.4
+        },
+        {
+          "timestamp": 1483394400,
+          "equity": 528.15
+        },
+        {
+          "timestamp": 1483592400,
+          "equity": 533.95
+        },
+        {
+          "timestamp": 1484154000,
+          "equity": 539.55
+        },
+        {
+          "timestamp": 1484164800,
+          "equity": 545.35
+        },
+        {
+          "timestamp": 1486468800,
+          "equity": 550.95
+        },
+        {
+          "timestamp": 1487343600,
+          "equity": 513.3
+        },
+        {
+          "timestamp": 1487757600,
+          "equity": 662.0
+        },
+        {
+          "timestamp": 1488952800,
+          "equity": 667.4
+        },
+        {
+          "timestamp": 1489129200,
+          "equity": 673.2
+        },
+        {
+          "timestamp": 1490878800,
+          "equity": 678.7
+        },
+        {
+          "timestamp": 1492981200,
+          "equity": 827.1
+        },
+        {
+          "timestamp": 1494406800,
+          "equity": 790.0
+        },
+        {
+          "timestamp": 1494410400,
+          "equity": 795.5
+        },
+        {
+          "timestamp": 1494507600,
+          "equity": 801.1
+        },
+        {
+          "timestamp": 1494936000,
+          "equity": 949.7
+        },
+        {
+          "timestamp": 1496995200,
+          "equity": 955.25
+        },
+        {
+          "timestamp": 1497330000,
+          "equity": 918.25
+        },
+        {
+          "timestamp": 1497423600,
+          "equity": 924.05
+        },
+        {
+          "timestamp": 1497441600,
+          "equity": 887.1
+        },
+        {
+          "timestamp": 1497441600,
+          "equity": 849.65
+        },
+        {
+          "timestamp": 1497463200,
+          "equity": 855.45
+        },
+        {
+          "timestamp": 1497531600,
+          "equity": 860.9
+        },
+        {
+          "timestamp": 1498482000,
+          "equity": 866.7
+        },
+        {
+          "timestamp": 1502287200,
+          "equity": 829.65
+        },
+        {
+          "timestamp": 1502323200,
+          "equity": 835.45
+        },
+        {
+          "timestamp": 1502359200,
+          "equity": 841.1
+        },
+        {
+          "timestamp": 1502406000,
+          "equity": 846.9
+        },
+        {
+          "timestamp": 1502809200,
+          "equity": 809.95
+        },
+        {
+          "timestamp": 1502931600,
+          "equity": 815.75
+        },
+        {
+          "timestamp": 1502967600,
+          "equity": 821.3
+        },
+        {
+          "timestamp": 1503316800,
+          "equity": 784.3
+        },
+        {
+          "timestamp": 1503388800,
+          "equity": 790.1
+        },
+        {
+          "timestamp": 1503388800,
+          "equity": 795.9
+        },
+        {
+          "timestamp": 1505372400,
+          "equity": 759.0
+        },
+        {
+          "timestamp": 1505487600,
+          "equity": 764.8
+        },
+        {
+          "timestamp": 1505952000,
+          "equity": 770.2
+        },
+        {
+          "timestamp": 1506060000,
+          "equity": 776.0
+        },
+        {
+          "timestamp": 1506434400,
+          "equity": 924.55
+        },
+        {
+          "timestamp": 1507701600,
+          "equity": 930.35
+        },
+        {
+          "timestamp": 1508342400,
+          "equity": 935.95
+        },
+        {
+          "timestamp": 1508400000,
+          "equity": 898.95
+        },
+        {
+          "timestamp": 1508529600,
+          "equity": 904.4
+        },
+        {
+          "timestamp": 1509001200,
+          "equity": 910.2
+        },
+        {
+          "timestamp": 1509534000,
+          "equity": 973.35
+        },
+        {
+          "timestamp": 1510642800,
+          "equity": 936.45
+        },
+        {
+          "timestamp": 1510729200,
+          "equity": 1084.95
+        },
+        {
+          "timestamp": 1510732800,
+          "equity": 1233.6
+        },
+        {
+          "timestamp": 1512529200,
+          "equity": 1196.55
+        },
+        {
+          "timestamp": 1513256400,
+          "equity": 1202.35
+        },
+        {
+          "timestamp": 1513335600,
+          "equity": 1165.4
+        },
+        {
+          "timestamp": 1513692000,
+          "equity": 1171.2
+        },
+        {
+          "timestamp": 1515578400,
+          "equity": 1134.2
+        },
+        {
+          "timestamp": 1515600000,
+          "equity": 1097.2
+        },
+        {
+          "timestamp": 1515672000,
+          "equity": 1060.05
+        },
+        {
+          "timestamp": 1515675600,
+          "equity": 1065.85
+        },
+        {
+          "timestamp": 1518012000,
+          "equity": 1071.35
+        },
+        {
+          "timestamp": 1518584400,
+          "equity": 1077.15
+        },
+        {
+          "timestamp": 1519135200,
+          "equity": 1082.55
+        },
+        {
+          "timestamp": 1520200800,
+          "equity": 1088.35
+        },
+        {
+          "timestamp": 1520593200,
+          "equity": 1093.95
+        },
+        {
+          "timestamp": 1520935200,
+          "equity": 1099.75
+        },
+        {
+          "timestamp": 1520942400,
+          "equity": 1062.7
+        },
+        {
+          "timestamp": 1520942400,
+          "equity": 1025.5
+        },
+        {
+          "timestamp": 1520949600,
+          "equity": 1031.3
+        },
+        {
+          "timestamp": 1520949600,
+          "equity": 1037.1
+        },
+        {
+          "timestamp": 1521453600,
+          "equity": 1042.7
+        },
+        {
+          "timestamp": 1521540000,
+          "equity": 1005.55
+        },
+        {
+          "timestamp": 1521619200,
+          "equity": 1011.05
+        },
+        {
+          "timestamp": 1521702000,
+          "equity": 1016.85
+        },
+        {
+          "timestamp": 1521763200,
+          "equity": 979.95
+        },
+        {
+          "timestamp": 1521788400,
+          "equity": 985.75
+        },
+        {
+          "timestamp": 1522339200,
+          "equity": 991.25
+        },
+        {
+          "timestamp": 1523372400,
+          "equity": 997.05
+        },
+        {
+          "timestamp": 1524654000,
+          "equity": 1145.45
+        },
+        {
+          "timestamp": 1528264800,
+          "equity": 1151.25
+        },
+        {
+          "timestamp": 1528894800,
+          "equity": 1157.05
+        },
+        {
+          "timestamp": 1528894800,
+          "equity": 1120.1
+        },
+        {
+          "timestamp": 1528988400,
+          "equity": 1125.5
+        },
+        {
+          "timestamp": 1529992800,
+          "equity": 1131.3
+        },
+        {
+          "timestamp": 1530090000,
+          "equity": 1136.9
+        },
+        {
+          "timestamp": 1530507600,
+          "equity": 1100.0
+        },
+        {
+          "timestamp": 1530543600,
+          "equity": 1105.55
+        },
+        {
+          "timestamp": 1530669600,
+          "equity": 1111.35
+        },
+        {
+          "timestamp": 1531396800,
+          "equity": 1116.15
+        },
+        {
+          "timestamp": 1531746000,
+          "equity": 1121.95
+        },
+        {
+          "timestamp": 1531929600,
+          "equity": 1127.55
+        },
+        {
+          "timestamp": 1532329200,
+          "equity": 1133.35
+        },
+        {
+          "timestamp": 1532692800,
+          "equity": 1138.05
+        },
+        {
+          "timestamp": 1533020400,
+          "equity": 1143.85
+        },
+        {
+          "timestamp": 1533852000,
+          "equity": 1292.3
+        },
+        {
+          "timestamp": 1534827600,
+          "equity": 1298.1
+        },
+        {
+          "timestamp": 1536058800,
+          "equity": 1303.75
+        },
+        {
+          "timestamp": 1536210000,
+          "equity": 1309.55
+        },
+        {
+          "timestamp": 1536343200,
+          "equity": 1315.15
+        },
+        {
+          "timestamp": 1536649200,
+          "equity": 1320.95
+        },
+        {
+          "timestamp": 1536760800,
+          "equity": 1283.85
+        },
+        {
+          "timestamp": 1536804000,
+          "equity": 1289.65
+        },
+        {
+          "timestamp": 1538074800,
+          "equity": 1295.3
+        },
+        {
+          "timestamp": 1539320400,
+          "equity": 1301.1
+        },
+        {
+          "timestamp": 1539694800,
+          "equity": 1306.9
+        },
+        {
+          "timestamp": 1540368000,
+          "equity": 1455.5
+        },
+        {
+          "timestamp": 1541163600,
+          "equity": 1418.6
+        },
+        {
+          "timestamp": 1541440800,
+          "equity": 1424.05
+        },
+        {
+          "timestamp": 1541552400,
+          "equity": 1429.85
+        },
+        {
+          "timestamp": 1541703600,
+          "equity": 1435.2
+        },
+        {
+          "timestamp": 1542600000,
+          "equity": 1441.0
+        },
+        {
+          "timestamp": 1543204800,
+          "equity": 1446.55
+        },
+        {
+          "timestamp": 1543485600,
+          "equity": 1409.65
+        },
+        {
+          "timestamp": 1543600800,
+          "equity": 1415.05
+        },
+        {
+          "timestamp": 1543910400,
+          "equity": 1420.85
+        },
+        {
+          "timestamp": 1543989600,
+          "equity": 1426.3
+        },
+        {
+          "timestamp": 1544115600,
+          "equity": 1432.1
+        },
+        {
+          "timestamp": 1544544000,
+          "equity": 1437.7
+        },
+        {
+          "timestamp": 1544688000,
+          "equity": 1443.5
+        },
+        {
+          "timestamp": 1544774400,
+          "equity": 1406.55
+        },
+        {
+          "timestamp": 1545037200,
+          "equity": 1433.35
+        },
+        {
+          "timestamp": 1545044400,
+          "equity": 1438.9
+        },
+        {
+          "timestamp": 1545134400,
+          "equity": 1444.7
+        },
+        {
+          "timestamp": 1545883200,
+          "equity": 1407.6
+        },
+        {
+          "timestamp": 1545912000,
+          "equity": 1370.6
+        },
+        {
+          "timestamp": 1546448400,
+          "equity": 1376.05
+        },
+        {
+          "timestamp": 1546606800,
+          "equity": 1339.0
+        },
+        {
+          "timestamp": 1546614000,
+          "equity": 1344.25
+        },
+        {
+          "timestamp": 1546833600,
+          "equity": 1307.25
+        },
+        {
+          "timestamp": 1546844400,
+          "equity": 1313.05
+        },
+        {
+          "timestamp": 1548126000,
+          "equity": 1387.32
+        },
+        {
+          "timestamp": 1549958400,
+          "equity": 1535.92
+        },
+        {
+          "timestamp": 1550689200,
+          "equity": 1541.72
+        },
+        {
+          "timestamp": 1551715200,
+          "equity": 1547.32
+        },
+        {
+          "timestamp": 1552557600,
+          "equity": 1553.12
+        },
+        {
+          "timestamp": 1553263200,
+          "equity": 1558.67
+        },
+        {
+          "timestamp": 1554800400,
+          "equity": 1564.47
+        },
+        {
+          "timestamp": 1555592400,
+          "equity": 1570.07
+        },
+        {
+          "timestamp": 1556712000,
+          "equity": 1575.87
+        },
+        {
+          "timestamp": 1556895600,
+          "equity": 1581.32
+        },
+        {
+          "timestamp": 1557226800,
+          "equity": 1544.27
+        },
+        {
+          "timestamp": 1557230400,
+          "equity": 1549.87
+        },
+        {
+          "timestamp": 1557493200,
+          "equity": 1555.67
+        },
+        {
+          "timestamp": 1557928800,
+          "equity": 1561.22
+        },
+        {
+          "timestamp": 1558710000,
+          "equity": 1567.02
+        },
+        {
+          "timestamp": 1559088000,
+          "equity": 1572.47
+        },
+        {
+          "timestamp": 1559916000,
+          "equity": 1720.92
+        },
+        {
+          "timestamp": 1560729600,
+          "equity": 1726.42
+        },
+        {
+          "timestamp": 1561042800,
+          "equity": 1732.22
+        },
+        {
+          "timestamp": 1562058000,
+          "equity": 1695.27
+        },
+        {
+          "timestamp": 1563264000,
+          "equity": 1658.32
+        },
+        {
+          "timestamp": 1563472800,
+          "equity": 1663.87
+        },
+        {
+          "timestamp": 1563537600,
+          "equity": 1626.82
+        },
+        {
+          "timestamp": 1563541200,
+          "equity": 1632.37
+        },
+        {
+          "timestamp": 1565013600,
+          "equity": 1638.17
+        },
+        {
+          "timestamp": 1566284400,
+          "equity": 1740.62
+        },
+        {
+          "timestamp": 1566842400,
+          "equity": 1746.07
+        },
+        {
+          "timestamp": 1568196000,
+          "equity": 1709.12
+        },
+        {
+          "timestamp": 1568196000,
+          "equity": 1672.02
+        },
+        {
+          "timestamp": 1568275200,
+          "equity": 1677.52
+        },
+        {
+          "timestamp": 1568286000,
+          "equity": 1681.67
+        },
+        {
+          "timestamp": 1568379600,
+          "equity": 1687.47
+        },
+        {
+          "timestamp": 1568721600,
+          "equity": 1650.47
+        },
+        {
+          "timestamp": 1568829600,
+          "equity": 1613.47
+        },
+        {
+          "timestamp": 1568883600,
+          "equity": 1576.37
+        },
+        {
+          "timestamp": 1568977200,
+          "equity": 1539.47
+        },
+        {
+          "timestamp": 1568988000,
+          "equity": 1545.07
+        },
+        {
+          "timestamp": 1570186800,
+          "equity": 1550.87
+        },
+        {
+          "timestamp": 1570186800,
+          "equity": 1556.67
+        },
+        {
+          "timestamp": 1570190400,
+          "equity": 1518.92
+        },
+        {
+          "timestamp": 1570608000,
+          "equity": 1481.82
+        },
+        {
+          "timestamp": 1571302800,
+          "equity": 1630.42
+        },
+        {
+          "timestamp": 1572361200,
+          "equity": 1593.37
+        },
+        {
+          "timestamp": 1572458400,
+          "equity": 1599.17
+        },
+        {
+          "timestamp": 1573027200,
+          "equity": 1604.77
+        },
+        {
+          "timestamp": 1574121600,
+          "equity": 1610.57
+        },
+        {
+          "timestamp": 1574766000,
+          "equity": 1637.77
+        },
+        {
+          "timestamp": 1575396000,
+          "equity": 1643.57
+        },
+        {
+          "timestamp": 1576868400,
+          "equity": 1649.12
+        },
+        {
+          "timestamp": 1578470400,
+          "equity": 1654.72
+        },
+        {
+          "timestamp": 1578484800,
+          "equity": 1660.52
+        },
+        {
+          "timestamp": 1579179600,
+          "equity": 1666.32
+        },
+        {
+          "timestamp": 1580738400,
+          "equity": 1629.37
+        },
+        {
+          "timestamp": 1581001200,
+          "equity": 1777.92
+        },
+        {
+          "timestamp": 1581364800,
+          "equity": 1926.52
+        },
+        {
+          "timestamp": 1582707600,
+          "equity": 1932.32
+        },
+        {
+          "timestamp": 1584111600,
+          "equity": 1937.87
+        },
+        {
+          "timestamp": 1585310400,
+          "equity": 1943.67
+        },
+        {
+          "timestamp": 1585742400,
+          "equity": 1949.27
+        },
+        {
+          "timestamp": 1586527200,
+          "equity": 1953.72
+        },
+        {
+          "timestamp": 1587016800,
+          "equity": 1959.27
+        },
+        {
+          "timestamp": 1588183200,
+          "equity": 1965.07
+        },
+        {
+          "timestamp": 1588183200,
+          "equity": 1970.87
+        },
+        {
+          "timestamp": 1588183200,
+          "equity": 1933.72
+        },
+        {
+          "timestamp": 1588683600,
+          "equity": 1896.67
+        },
+        {
+          "timestamp": 1589374800,
+          "equity": 1902.47
+        },
+        {
+          "timestamp": 1589443200,
+          "equity": 1907.87
+        },
+        {
+          "timestamp": 1589817600,
+          "equity": 1913.67
+        },
+        {
+          "timestamp": 1592452800,
+          "equity": 1876.52
+        },
+        {
+          "timestamp": 1592481600,
+          "equity": 1839.42
+        },
+        {
+          "timestamp": 1592503200,
+          "equity": 1845.02
+        },
+        {
+          "timestamp": 1592874000,
+          "equity": 1850.82
+        },
+        {
+          "timestamp": 1593093600,
+          "equity": 1856.37
+        },
+        {
+          "timestamp": 1593428400,
+          "equity": 1862.17
+        },
+        {
+          "timestamp": 1593496800,
+          "equity": 1824.97
+        },
+        {
+          "timestamp": 1593522000,
+          "equity": 1830.47
+        },
+        {
+          "timestamp": 1593525600,
+          "equity": 1836.02
+        },
+        {
+          "timestamp": 1593694800,
+          "equity": 1841.82
+        },
+        {
+          "timestamp": 1593993600,
+          "equity": 1804.72
+        },
+        {
+          "timestamp": 1597219200,
+          "equity": 1767.82
+        },
+        {
+          "timestamp": 1597240800,
+          "equity": 1773.62
+        },
+        {
+          "timestamp": 1598040000,
+          "equity": 1736.52
+        },
+        {
+          "timestamp": 1598281200,
+          "equity": 1699.52
+        },
+        {
+          "timestamp": 1598313600,
+          "equity": 1704.87
+        },
+        {
+          "timestamp": 1598439600,
+          "equity": 1667.82
+        },
+        {
+          "timestamp": 1598446800,
+          "equity": 1673.17
+        },
+        {
+          "timestamp": 1598490000,
+          "equity": 1678.97
+        },
+        {
+          "timestamp": 1598540400,
+          "equity": 1641.92
+        },
+        {
+          "timestamp": 1598925600,
+          "equity": 1790.27
+        },
+        {
+          "timestamp": 1599120000,
+          "equity": 1795.92
+        },
+        {
+          "timestamp": 1599742800,
+          "equity": 1801.72
+        },
+        {
+          "timestamp": 1600326000,
+          "equity": 1807.07
+        },
+        {
+          "timestamp": 1600412400,
+          "equity": 1812.87
+        },
+        {
+          "timestamp": 1600693200,
+          "equity": 1818.42
+        },
+        {
+          "timestamp": 1601550000,
+          "equity": 1824.22
+        },
+        {
+          "timestamp": 1601550000,
+          "equity": 1830.02
+        },
+        {
+          "timestamp": 1601550000,
+          "equity": 1793.12
+        },
+        {
+          "timestamp": 1601614800,
+          "equity": 1798.62
+        },
+        {
+          "timestamp": 1602007200,
+          "equity": 1804.42
+        },
+        {
+          "timestamp": 1602068400,
+          "equity": 1767.37
+        },
+        {
+          "timestamp": 1602075600,
+          "equity": 1773.17
+        },
+        {
+          "timestamp": 1602658800,
+          "equity": 1778.72
+        },
+        {
+          "timestamp": 1603411200,
+          "equity": 1784.52
+        },
+        {
+          "timestamp": 1604300400,
+          "equity": 1933.17
+        },
+        {
+          "timestamp": 1604930400,
+          "equity": 2081.62
+        },
+        {
+          "timestamp": 1605171600,
+          "equity": 2044.67
+        },
+        {
+          "timestamp": 1605265200,
+          "equity": 2050.47
+        },
+        {
+          "timestamp": 1610344800,
+          "equity": 2055.92
+        },
+        {
+          "timestamp": 1611306000,
+          "equity": 2061.72
+        },
+        {
+          "timestamp": 1611666000,
+          "equity": 2024.72
+        },
+        {
+          "timestamp": 1611738000,
+          "equity": 1987.62
+        },
+        {
+          "timestamp": 1611752400,
+          "equity": 1993.12
+        },
+        {
+          "timestamp": 1612947600,
+          "equity": 1998.92
+        },
+        {
+          "timestamp": 1613552400,
+          "equity": 2004.42
+        },
+        {
+          "timestamp": 1613980800,
+          "equity": 1967.42
+        },
+        {
+          "timestamp": 1614373200,
+          "equity": 1972.77
+        },
+        {
+          "timestamp": 1616050800,
+          "equity": 1935.67
+        },
+        {
+          "timestamp": 1616432400,
+          "equity": 1941.27
+        },
+        {
+          "timestamp": 1618383600,
+          "equity": 2089.82
+        },
+        {
+          "timestamp": 1620050400,
+          "equity": 2052.82
+        },
+        {
+          "timestamp": 1620054000,
+          "equity": 2058.62
+        },
+        {
+          "timestamp": 1620198000,
+          "equity": 2064.12
+        },
+        {
+          "timestamp": 1620370800,
+          "equity": 2069.92
+        },
+        {
+          "timestamp": 1620925200,
+          "equity": 2032.97
+        },
+        {
+          "timestamp": 1620972000,
+          "equity": 1996.07
+        },
+        {
+          "timestamp": 1620972000,
+          "equity": 1959.12
+        },
+        {
+          "timestamp": 1621400400,
+          "equity": 2107.77
+        },
+        {
+          "timestamp": 1622210400,
+          "equity": 2070.87
+        },
+        {
+          "timestamp": 1622462400,
+          "equity": 2066.87
+        },
+        {
+          "timestamp": 1622808000,
+          "equity": 2072.37
+        },
+        {
+          "timestamp": 1623232800,
+          "equity": 2068.22
+        },
+        {
+          "timestamp": 1623243600,
+          "equity": 2031.22
+        },
+        {
+          "timestamp": 1623247200,
+          "equity": 2037.02
+        },
+        {
+          "timestamp": 1623312000,
+          "equity": 2042.57
+        },
+        {
+          "timestamp": 1623405600,
+          "equity": 2005.57
+        },
+        {
+          "timestamp": 1623866400,
+          "equity": 2154.12
+        },
+        {
+          "timestamp": 1627470000,
+          "equity": 2117.17
+        },
+        {
+          "timestamp": 1627495200,
+          "equity": 2080.22
+        },
+        {
+          "timestamp": 1627495200,
+          "equity": 2043.02
+        },
+        {
+          "timestamp": 1628229600,
+          "equity": 2048.52
+        },
+        {
+          "timestamp": 1629813600,
+          "equity": 2054.02
+        },
+        {
+          "timestamp": 1629910800,
+          "equity": 2059.82
+        },
+        {
+          "timestamp": 1629914400,
+          "equity": 2022.87
+        },
+        {
+          "timestamp": 1629914400,
+          "equity": 1985.87
+        },
+        {
+          "timestamp": 1629957600,
+          "equity": 1991.67
+        },
+        {
+          "timestamp": 1629957600,
+          "equity": 1997.47
+        },
+        {
+          "timestamp": 1631260800,
+          "equity": 1960.47
+        },
+        {
+          "timestamp": 1631264400,
+          "equity": 1966.27
+        },
+        {
+          "timestamp": 1631772000,
+          "equity": 1929.32
+        },
+        {
+          "timestamp": 1632913200,
+          "equity": 2077.92
+        },
+        {
+          "timestamp": 1634536800,
+          "equity": 2040.77
+        },
+        {
+          "timestamp": 1634540400,
+          "equity": 2046.27
+        },
+        {
+          "timestamp": 1634540400,
+          "equity": 2051.82
+        },
+        {
+          "timestamp": 1634540400,
+          "equity": 2057.47
+        },
+        {
+          "timestamp": 1634576400,
+          "equity": 2063.27
+        },
+        {
+          "timestamp": 1634580000,
+          "equity": 2069.07
+        },
+        {
+          "timestamp": 1634713200,
+          "equity": 2074.87
+        },
+        {
+          "timestamp": 1635231600,
+          "equity": 2080.47
+        },
+        {
+          "timestamp": 1635433200,
+          "equity": 2086.27
+        },
+        {
+          "timestamp": 1635753600,
+          "equity": 2049.32
+        },
+        {
+          "timestamp": 1636527600,
+          "equity": 2012.42
+        },
+        {
+          "timestamp": 1636534800,
+          "equity": 2017.87
+        },
+        {
+          "timestamp": 1638284400,
+          "equity": 2023.67
+        },
+        {
+          "timestamp": 1638306000,
+          "equity": 1986.62
+        },
+        {
+          "timestamp": 1638345600,
+          "equity": 1992.42
+        },
+        {
+          "timestamp": 1638446400,
+          "equity": 1998.22
+        },
+        {
+          "timestamp": 1638446400,
+          "equity": 1961.32
+        },
+        {
+          "timestamp": 1638464400,
+          "equity": 1924.37
+        },
+        {
+          "timestamp": 1638471600,
+          "equity": 1929.87
+        },
+        {
+          "timestamp": 1638518400,
+          "equity": 1935.42
+        },
+        {
+          "timestamp": 1639044000,
+          "equity": 1898.42
+        },
+        {
+          "timestamp": 1639141200,
+          "equity": 1903.57
+        },
+        {
+          "timestamp": 1639659600,
+          "equity": 1909.37
+        },
+        {
+          "timestamp": 1639958400,
+          "equity": 1914.87
+        },
+        {
+          "timestamp": 1640246400,
+          "equity": 1920.67
+        },
+        {
+          "timestamp": 1640775600,
+          "equity": 1926.22
+        },
+        {
+          "timestamp": 1640790000,
+          "equity": 1932.02
+        },
+        {
+          "timestamp": 1641301200,
+          "equity": 1937.62
+        },
+        {
+          "timestamp": 1641448800,
+          "equity": 1900.62
+        },
+        {
+          "timestamp": 1641564000,
+          "equity": 1863.67
+        },
+        {
+          "timestamp": 1641765600,
+          "equity": 1869.47
+        },
+        {
+          "timestamp": 1642640400,
+          "equity": 1832.47
+        },
+        {
+          "timestamp": 1643871600,
+          "equity": 1838.27
+        },
+        {
+          "timestamp": 1645016400,
+          "equity": 1801.32
+        },
+        {
+          "timestamp": 1645196400,
+          "equity": 1806.82
+        },
+        {
+          "timestamp": 1647504000,
+          "equity": 1812.62
+        },
+        {
+          "timestamp": 1647936000,
+          "equity": 1818.07
+        },
+        {
+          "timestamp": 1648562400,
+          "equity": 1823.87
+        },
+        {
+          "timestamp": 1649059200,
+          "equity": 1829.22
+        },
+        {
+          "timestamp": 1650538800,
+          "equity": 1792.27
+        },
+        {
+          "timestamp": 1650632400,
+          "equity": 1797.72
+        },
+        {
+          "timestamp": 1652835600,
+          "equity": 1803.52
+        },
+        {
+          "timestamp": 1652896800,
+          "equity": 1809.12
+        },
+        {
+          "timestamp": 1652983200,
+          "equity": 1814.92
+        },
+        {
+          "timestamp": 1654153200,
+          "equity": 1777.97
+        },
+        {
+          "timestamp": 1654156800,
+          "equity": 1783.77
+        },
+        {
+          "timestamp": 1654606800,
+          "equity": 1746.77
+        },
+        {
+          "timestamp": 1654632000,
+          "equity": 1752.57
+        },
+        {
+          "timestamp": 1654830000,
+          "equity": 1758.07
+        },
+        {
+          "timestamp": 1655967600,
+          "equity": 1721.07
+        },
+        {
+          "timestamp": 1655982000,
+          "equity": 1726.57
+        },
+        {
+          "timestamp": 1656453600,
+          "equity": 1731.72
+        },
+        {
+          "timestamp": 1658232000,
+          "equity": 1694.57
+        },
+        {
+          "timestamp": 1658487600,
+          "equity": 1657.62
+        },
+        {
+          "timestamp": 1658512800,
+          "equity": 1620.42
+        },
+        {
+          "timestamp": 1658847600,
+          "equity": 1625.87
+        },
+        {
+          "timestamp": 1658988000,
+          "equity": 1631.67
+        },
+        {
+          "timestamp": 1659006000,
+          "equity": 1636.97
+        },
+        {
+          "timestamp": 1659081600,
+          "equity": 1642.77
+        },
+        {
+          "timestamp": 1659524400,
+          "equity": 1605.52
+        },
+        {
+          "timestamp": 1659639600,
+          "equity": 1611.32
+        },
+        {
+          "timestamp": 1659920400,
+          "equity": 1616.57
+        },
+        {
+          "timestamp": 1660032000,
+          "equity": 1579.52
+        },
+        {
+          "timestamp": 1660032000,
+          "equity": 1542.27
+        },
+        {
+          "timestamp": 1660042800,
+          "equity": 1548.07
+        },
+        {
+          "timestamp": 1660064400,
+          "equity": 1553.87
+        },
+        {
+          "timestamp": 1660068000,
+          "equity": 1559.67
+        },
+        {
+          "timestamp": 1660572000,
+          "equity": 1564.97
+        },
+        {
+          "timestamp": 1662638400,
+          "equity": 1570.77
+        },
+        {
+          "timestamp": 1662656400,
+          "equity": 1533.62
+        },
+        {
+          "timestamp": 1662966000,
+          "equity": 1678.87
+        },
+        {
+          "timestamp": 1663128000,
+          "equity": 1641.52
+        },
+        {
+          "timestamp": 1663632000,
+          "equity": 1647.32
+        },
+        {
+          "timestamp": 1663783200,
+          "equity": 1795.32
+        },
+        {
+          "timestamp": 1664528400,
+          "equity": 1758.12
+        },
+        {
+          "timestamp": 1664539200,
+          "equity": 1763.57
+        },
+        {
+          "timestamp": 1664787600,
+          "equity": 1726.37
+        },
+        {
+          "timestamp": 1664805600,
+          "equity": 1689.37
+        },
+        {
+          "timestamp": 1664856000,
+          "equity": 1695.17
+        },
+        {
+          "timestamp": 1665126000,
+          "equity": 1700.52
+        },
+        {
+          "timestamp": 1665730800,
+          "equity": 1663.37
+        },
+        {
+          "timestamp": 1665748800,
+          "equity": 1668.72
+        },
+        {
+          "timestamp": 1666072800,
+          "equity": 1674.52
+        },
+        {
+          "timestamp": 1666231200,
+          "equity": 1679.82
+        },
+        {
+          "timestamp": 1666267200,
+          "equity": 1685.62
+        },
+        {
+          "timestamp": 1666342800,
+          "equity": 1691.02
+        },
+        {
+          "timestamp": 1666562400,
+          "equity": 1696.82
+        },
+        {
+          "timestamp": 1667383200,
+          "equity": 1659.77
+        },
+        {
+          "timestamp": 1667401200,
+          "equity": 1622.72
+        },
+        {
+          "timestamp": 1667412000,
+          "equity": 1584.52
+        },
+        {
+          "timestamp": 1667772000,
+          "equity": 1547.32
+        },
+        {
+          "timestamp": 1672750800,
+          "equity": 1510.32
+        },
+        {
+          "timestamp": 1675170000,
+          "equity": 1473.07
+        },
+        {
+          "timestamp": 1675180800,
+          "equity": 1478.87
+        },
+        {
+          "timestamp": 1675911600,
+          "equity": 1559.07
+        },
+        {
+          "timestamp": 1677733200,
+          "equity": 1521.92
+        },
+        {
+          "timestamp": 1677751200,
+          "equity": 1526.82
+        },
+        {
+          "timestamp": 1678114800,
+          "equity": 1532.62
+        },
+        {
+          "timestamp": 1678287600,
+          "equity": 1537.87
+        },
+        {
+          "timestamp": 1678669200,
+          "equity": 1543.67
+        },
+        {
+          "timestamp": 1678896000,
+          "equity": 1549.02
+        },
+        {
+          "timestamp": 1679050800,
+          "equity": 1512.07
+        },
+        {
+          "timestamp": 1679054400,
+          "equity": 1517.67
+        },
+        {
+          "timestamp": 1679079600,
+          "equity": 1523.47
+        },
+        {
+          "timestamp": 1683025200,
+          "equity": 1528.87
+        },
+        {
+          "timestamp": 1683201600,
+          "equity": 1534.67
+        },
+        {
+          "timestamp": 1683702000,
+          "equity": 1540.22
+        },
+        {
+          "timestamp": 1686326400,
+          "equity": 1503.22
+        },
+        {
+          "timestamp": 1688126400,
+          "equity": 1508.77
+        },
+        {
+          "timestamp": 1688367600,
+          "equity": 1471.87
+        },
+        {
+          "timestamp": 1688626800,
+          "equity": 1477.47
+        },
+        {
+          "timestamp": 1689145200,
+          "equity": 1586.67
+        },
+        {
+          "timestamp": 1690246800,
+          "equity": 1592.27
+        },
+        {
+          "timestamp": 1690459200,
+          "equity": 1555.22
+        },
+        {
+          "timestamp": 1690466400,
+          "equity": 1560.72
+        },
+        {
+          "timestamp": 1691686800,
+          "equity": 1523.77
+        },
+        {
+          "timestamp": 1691758800,
+          "equity": 1529.32
+        },
+        {
+          "timestamp": 1693465200,
+          "equity": 1535.12
+        },
+        {
+          "timestamp": 1693569600,
+          "equity": 1497.87
+        },
+        {
+          "timestamp": 1697007600,
+          "equity": 1503.67
+        },
+        {
+          "timestamp": 1697403600,
+          "equity": 1505.82
+        },
+        {
+          "timestamp": 1697612400,
+          "equity": 1511.62
+        },
+        {
+          "timestamp": 1697716800,
+          "equity": 1474.67
+        },
+        {
+          "timestamp": 1698051600,
+          "equity": 1480.47
+        },
+        {
+          "timestamp": 1698343200,
+          "equity": 1486.12
+        },
+        {
+          "timestamp": 1698739200,
+          "equity": 1491.92
+        },
+        {
+          "timestamp": 1698847200,
+          "equity": 1497.32
+        },
+        {
+          "timestamp": 1699257600,
+          "equity": 1645.87
+        },
+        {
+          "timestamp": 1701442800,
+          "equity": 1651.07
+        },
+        {
+          "timestamp": 1702540800,
+          "equity": 1656.87
+        },
+        {
+          "timestamp": 1704294000,
+          "equity": 1662.32
+        },
+        {
+          "timestamp": 1704978000,
+          "equity": 1668.12
+        },
+        {
+          "timestamp": 1704999600,
+          "equity": 1631.22
+        },
+        {
+          "timestamp": 1705057200,
+          "equity": 1594.32
+        },
+        {
+          "timestamp": 1705312800,
+          "equity": 1557.42
+        },
+        {
+          "timestamp": 1705316400,
+          "equity": 1563.02
+        },
+        {
+          "timestamp": 1705316400,
+          "equity": 1568.57
+        },
+        {
+          "timestamp": 1706860800,
+          "equity": 1574.37
+        },
+        {
+          "timestamp": 1706886000,
+          "equity": 1579.92
+        },
+        {
+          "timestamp": 1708423200,
+          "equity": 1542.97
+        },
+        {
+          "timestamp": 1708448400,
+          "equity": 1548.77
+        },
+        {
+          "timestamp": 1709305200,
+          "equity": 1511.92
+        },
+        {
+          "timestamp": 1709308800,
+          "equity": 1517.72
+        },
+        {
+          "timestamp": 1709510400,
+          "equity": 1480.87
+        },
+        {
+          "timestamp": 1709539200,
+          "equity": 1486.67
+        },
+        {
+          "timestamp": 1709827200,
+          "equity": 1635.22
+        },
+        {
+          "timestamp": 1710824400,
+          "equity": 1598.27
+        },
+        {
+          "timestamp": 1710903600,
+          "equity": 1603.77
+        },
+        {
+          "timestamp": 1710957600,
+          "equity": 1609.02
+        },
+        {
+          "timestamp": 1711004400,
+          "equity": 1614.82
+        },
+        {
+          "timestamp": 1711425600,
+          "equity": 1635.07
+        },
+        {
+          "timestamp": 1712257200,
+          "equity": 1640.87
+        },
+        {
+          "timestamp": 1712768400,
+          "equity": 1646.52
+        },
+        {
+          "timestamp": 1714024800,
+          "equity": 1609.57
+        },
+        {
+          "timestamp": 1714028400,
+          "equity": 1615.37
+        },
+        {
+          "timestamp": 1714028400,
+          "equity": 1621.17
+        },
+        {
+          "timestamp": 1714561200,
+          "equity": 1631.32
+        },
+        {
+          "timestamp": 1714654800,
+          "equity": 1594.42
+        },
+        {
+          "timestamp": 1716552000,
+          "equity": 1557.52
+        },
+        {
+          "timestamp": 1716566400,
+          "equity": 1563.32
+        },
+        {
+          "timestamp": 1717052400,
+          "equity": 1568.92
+        },
+        {
+          "timestamp": 1717164000,
+          "equity": 1574.72
+        },
+        {
+          "timestamp": 1718182800,
+          "equity": 1625.32
+        },
+        {
+          "timestamp": 1719813600,
+          "equity": 1631.12
+        },
+        {
+          "timestamp": 1719990000,
+          "equity": 1594.17
+        },
+        {
+          "timestamp": 1720098000,
+          "equity": 1649.77
+        },
+        {
+          "timestamp": 1721818800,
+          "equity": 1655.32
+        },
+        {
+          "timestamp": 1722243600,
+          "equity": 1618.27
+        },
+        {
+          "timestamp": 1722600000,
+          "equity": 1622.12
+        },
+        {
+          "timestamp": 1722834000,
+          "equity": 1627.92
+        },
+        {
+          "timestamp": 1725022800,
+          "equity": 1633.52
+        },
+        {
+          "timestamp": 1725537600,
+          "equity": 1639.32
+        },
+        {
+          "timestamp": 1725872400,
+          "equity": 1644.92
+        },
+        {
+          "timestamp": 1726704000,
+          "equity": 1650.72
+        },
+        {
+          "timestamp": 1727780400,
+          "equity": 1656.27
+        },
+        {
+          "timestamp": 1730372400,
+          "equity": 1662.07
+        },
+        {
+          "timestamp": 1730671200,
+          "equity": 1624.27
+        },
+        {
+          "timestamp": 1730865600,
+          "equity": 1587.07
+        },
+        {
+          "timestamp": 1732863600,
+          "equity": 1592.87
+        },
+        {
+          "timestamp": 1732910400,
+          "equity": 1555.97
+        },
+        {
+          "timestamp": 1732914000,
+          "equity": 1561.77
+        },
+        {
+          "timestamp": 1733112000,
+          "equity": 1567.37
+        },
+        {
+          "timestamp": 1733443200,
+          "equity": 1573.17
+        },
+        {
+          "timestamp": 1733853600,
+          "equity": 1578.72
+        },
+        {
+          "timestamp": 1736244000,
+          "equity": 1584.52
+        },
+        {
+          "timestamp": 1736276400,
+          "equity": 1590.07
+        },
+        {
+          "timestamp": 1737385200,
+          "equity": 1595.87
+        },
+        {
+          "timestamp": 1738314000,
+          "equity": 1601.22
+        },
+        {
+          "timestamp": 1738814400,
+          "equity": 1607.02
+        },
+        {
+          "timestamp": 1738915200,
+          "equity": 1570.07
+        },
+        {
+          "timestamp": 1738933200,
+          "equity": 1575.87
+        },
+        {
+          "timestamp": 1738944000,
+          "equity": 1581.07
+        },
+        {
+          "timestamp": 1739365200,
+          "equity": 1543.92
+        },
+        {
+          "timestamp": 1739376000,
+          "equity": 1506.62
+        },
+        {
+          "timestamp": 1739394000,
+          "equity": 1512.42
+        },
+        {
+          "timestamp": 1740733200,
+          "equity": 1517.57
+        },
+        {
+          "timestamp": 1741021200,
+          "equity": 1523.37
+        },
+        {
+          "timestamp": 1742889600,
+          "equity": 1528.62
+        },
+        {
+          "timestamp": 1743382800,
+          "equity": 1534.42
+        },
+        {
+          "timestamp": 1743598800,
+          "equity": 1497.17
+        },
+        {
+          "timestamp": 1743624000,
+          "equity": 1502.97
+        },
+        {
+          "timestamp": 1746079200,
+          "equity": 1508.22
+        },
+        {
+          "timestamp": 1746198000,
+          "equity": 1470.97
+        },
+        {
+          "timestamp": 1746406800,
+          "equity": 1433.62
+        },
+        {
+          "timestamp": 1746446400,
+          "equity": 1439.42
+        },
+        {
+          "timestamp": 1746489600,
+          "equity": 1444.47
+        },
+        {
+          "timestamp": 1746540000,
+          "equity": 1450.27
+        },
+        {
+          "timestamp": 1746673200,
+          "equity": 1412.77
+        },
+        {
+          "timestamp": 1747728000,
+          "equity": 1418.57
+        },
+        {
+          "timestamp": 1748509200,
+          "equity": 1423.97
+        },
+        {
+          "timestamp": 1748566800,
+          "equity": 1429.77
+        },
+        {
+          "timestamp": 1750359600,
+          "equity": 1392.47
+        },
+        {
+          "timestamp": 1750626000,
+          "equity": 1398.27
+        },
+        {
+          "timestamp": 1752192000,
+          "equity": 1360.52
+        },
+        {
+          "timestamp": 1752217200,
+          "equity": 1366.12
+        },
+        {
+          "timestamp": 1752238800,
+          "equity": 1328.92
+        },
+        {
+          "timestamp": 1753275600,
+          "equity": 1334.72
+        },
+        {
+          "timestamp": 1753876800,
+          "equity": 1481.77
+        },
+        {
+          "timestamp": 1754492400,
+          "equity": 1487.57
+        },
+        {
+          "timestamp": 1755691200,
+          "equity": 1450.47
+        },
+        {
+          "timestamp": 1755756000,
+          "equity": 1413.57
+        },
+        {
+          "timestamp": 1755759600,
+          "equity": 1418.92
+        },
+        {
+          "timestamp": 1755759600,
+          "equity": 1424.27
+        },
+        {
+          "timestamp": 1755781200,
+          "equity": 1387.12
+        },
+        {
+          "timestamp": 1756080000,
+          "equity": 1350.17
+        },
+        {
+          "timestamp": 1756166400,
+          "equity": 1312.92
+        },
+        {
+          "timestamp": 1756382400,
+          "equity": 1318.72
+        },
+        {
+          "timestamp": 1756843200,
+          "equity": 1323.97
+        },
+        {
+          "timestamp": 1757592000,
+          "equity": 1329.77
+        },
+        {
+          "timestamp": 1758610800,
+          "equity": 1335.57
+        },
+        {
+          "timestamp": 1759107600,
+          "equity": 1340.82
+        },
+        {
+          "timestamp": 1759302000,
+          "equity": 1346.62
+        },
+        {
+          "timestamp": 1759302000,
+          "equity": 1352.42
+        },
+        {
+          "timestamp": 1759395600,
+          "equity": 1315.52
+        },
+        {
+          "timestamp": 1759410000,
+          "equity": 1278.32
+        },
+        {
+          "timestamp": 1759420800,
+          "equity": 1283.67
+        },
+        {
+          "timestamp": 1760702400,
+          "equity": 1289.47
+        },
+        {
+          "timestamp": 1761307200,
+          "equity": 1293.17
+        },
+        {
+          "timestamp": 1761652800,
+          "equity": 1298.97
+        },
+        {
+          "timestamp": 1761764400,
+          "equity": 1304.02
+        },
+        {
+          "timestamp": 1762941600,
+          "equity": 1267.12
+        },
+        {
+          "timestamp": 1764082800,
+          "equity": 1272.47
+        },
+        {
+          "timestamp": 1764144000,
+          "equity": 1278.27
+        },
+        {
+          "timestamp": 1767171600,
+          "equity": 1283.82
+        },
+        {
+          "timestamp": 1767344400,
+          "equity": 1246.77
+        },
+        {
+          "timestamp": 1767628800,
+          "equity": 1252.27
+        },
+        {
+          "timestamp": 1768899600,
+          "equity": 1258.07
+        },
+        {
+          "timestamp": 1770080400,
+          "equity": 1221.12
+        },
+        {
+          "timestamp": 1770217200,
+          "equity": 1184.07
+        },
+        {
+          "timestamp": 1770217200,
+          "equity": 1189.57
+        },
+        {
+          "timestamp": 1770616800,
+          "equity": 1195.37
+        },
+        {
+          "timestamp": 1771315200,
+          "equity": 1201.07
+        }
+      ]
+    },
+    {
+      "index": 0,
+      "params": {
+        "ema_combo": 13300,
+        "sl_mode": "fixed_pips",
+        "sl_fixed_pips": 30,
+        "sl_atr_mult": 0.75,
+        "tp_mode": "fixed_pips",
+        "tp_rr_ratio": 1.5,
+        "tp_atr_mult": 2.5,
+        "tp_fixed_pips": 150,
+        "trailing_mode": "off",
+        "trail_activate_pips": 30,
+        "trail_distance_pips": 5,
+        "trail_atr_mult": 3.0,
+        "breakeven_enabled": true,
+        "breakeven_trigger_pips": 15,
+        "breakeven_offset_pips": 7,
+        "partial_close_enabled": false,
+        "partial_close_pct": 70,
+        "partial_close_trigger_pips": 20,
+        "max_bars": 0,
+        "stale_exit_enabled": true,
+        "stale_exit_bars": 20,
+        "stale_exit_atr_threshold": 1.0,
+        "allowed_hours_start": 0,
+        "allowed_hours_end": 23,
+        "allowed_days": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "back_quality": 0.39642432129905547,
+      "forward_quality": 0.0,
+      "forward_back_ratio": 0.0,
+      "eliminated": true,
+      "eliminated_at": "forward_gate",
+      "elimination_reason": "Forward/back ratio 0.000 below threshold (back_q=0.40, fwd_q=0.00)",
+      "advisory_stages": [
+        "stability",
+        "monte_carlo",
+        "confidence"
+      ],
+      "composite_score": 15.658031221021133,
+      "rating": "RED",
+      "gates_passed": {
+        "forward_back_ratio": false,
+        "wf_pass_rate": false,
+        "wf_mean_sharpe": false,
+        "dsr": false,
+        "permutation_p": false
+      },
+      "confidence_breakdown": {
+        "walk_forward": 0.0,
+        "monte_carlo": 39.3,
+        "forward_back": 0.0,
+        "stability": 27.9,
+        "dsr": 0.0,
+        "backtest_quality": 30.4
+      },
+      "dsr": 3.123254840159084e-05,
+      "permutation_p": 0.183,
+      "stability_rating": "MODERATE",
+      "stability_mean_ratio": 0.6390834196900826,
+      "regime_distribution": {
+        "Trend + Quiet": 43.182527301092044,
+        "Trend + Volatile": 18.960998439937597,
+        "Range + Quiet": 32.315132605304214,
+        "Range + Volatile": 5.541341653666146
+      },
+      "regime_robustness_score": 48.835654510055036,
+      "regime_advisory": "Catastrophic drawdown in Trend + Volatile (250.8% MaxDD). Strategy underperforms in: Trend + Volatile.",
+      "per_regime_stats": [
+        {
+          "regime": 0,
+          "regime_name": "Trend + Quiet",
+          "n_bars": 41520,
+          "bar_pct": 43.182527301092044,
+          "n_trades": 266,
+          "sharpe": 0.8547177360874619,
+          "profit_factor": 1.2011079860222382,
+          "max_dd_pct": 49.323482668281784,
+          "win_rate": 65.0375939849624,
+          "mean_pnl_pips": 2.2176691729313442,
+          "sufficient_data": true
+        },
+        {
+          "regime": 1,
+          "regime_name": "Trend + Volatile",
+          "n_bars": 18231,
+          "bar_pct": 18.960998439937597,
+          "n_trades": 220,
+          "sharpe": -0.24757020223521778,
+          "profit_factor": 0.944636443721513,
+          "max_dd_pct": 250.78211059716935,
+          "win_rate": 68.63636363636364,
+          "mean_pnl_pips": -0.5570454545465794,
+          "sufficient_data": true
+        },
+        {
+          "regime": 2,
+          "regime_name": "Range + Quiet",
+          "n_bars": 31071,
+          "bar_pct": 32.315132605304214,
+          "n_trades": 274,
+          "sharpe": 0.7602942390712596,
+          "profit_factor": 1.1764915682041626,
+          "max_dd_pct": 62.343318165355576,
+          "win_rate": 68.97810218978103,
+          "mean_pnl_pips": 1.7608576642325722,
+          "sufficient_data": true
+        },
+        {
+          "regime": 3,
+          "regime_name": "Range + Volatile",
+          "n_bars": 5328,
+          "bar_pct": 5.541341653666146,
+          "n_trades": 88,
+          "sharpe": 0.2884133524407104,
+          "profit_factor": 1.1107558139534013,
+          "max_dd_pct": 64.06840980103921,
+          "win_rate": 62.5,
+          "mean_pnl_pips": 1.2988636363626371,
+          "sufficient_data": true
+        }
+      ],
+      "trade_stats": {
+        "n_trades": 848,
+        "total_pnl_pips": 1064.12,
+        "total_pnl_usd": 106.41,
+        "lot_size": 0.01,
+        "pip_value_usd": 0.1,
+        "win_rate": 67.0,
+        "profit_factor": 1.12,
+        "avg_pnl_pips": 1.25,
+        "median_pnl_pips": 5.55,
+        "best_trade_pips": 148.7,
+        "worst_trade_pips": -35.7,
+        "std_dev_pips": 38.88,
+        "avg_bars_held": 15.6,
+        "exit_breakdown": {
+          "breakeven": {
+            "count": 506,
+            "pct": 59.7,
+            "pnl_pips": 2828.6,
+            "pnl_usd": 282.86
+          },
+          "stop_loss": {
+            "count": 277,
+            "pct": 32.7,
+            "pnl_pips": -8898.15,
+            "pnl_usd": -889.82
+          },
+          "take_profit": {
+            "count": 41,
+            "pct": 4.8,
+            "pnl_pips": 6080.65,
+            "pnl_usd": 608.06
+          },
+          "stale_exit": {
+            "count": 24,
+            "pct": 2.8,
+            "pnl_pips": 1053.02,
+            "pnl_usd": 105.3
+          }
+        },
+        "direction_stats": {
+          "BUY": {
+            "n_trades": 421,
+            "win_rate": 68.6,
+            "total_pnl_pips": 936.7,
+            "total_pnl_usd": 93.67
+          },
+          "SELL": {
+            "n_trades": 427,
+            "win_rate": 65.3,
+            "total_pnl_pips": 127.42,
+            "total_pnl_usd": 12.74
+          }
+        }
+      },
+      "equity_curve": [
+        {
+          "timestamp": 1167609600,
+          "equity": 0.0
+        },
+        {
+          "timestamp": 1169798400,
+          "equity": 4.6
+        },
+        {
+          "timestamp": 1170172800,
+          "equity": -27.85
+        },
+        {
+          "timestamp": 1170234000,
+          "equity": -23.55
+        },
+        {
+          "timestamp": 1170270000,
+          "equity": -17.75
+        },
+        {
+          "timestamp": 1170921600,
+          "equity": -11.95
+        },
+        {
+          "timestamp": 1171350000,
+          "equity": -45.35
+        },
+        {
+          "timestamp": 1171378800,
+          "equity": -39.55
+        },
+        {
+          "timestamp": 1173106800,
+          "equity": -34.75
+        },
+        {
+          "timestamp": 1173340800,
+          "equity": -67.95
+        },
+        {
+          "timestamp": 1173412800,
+          "equity": -101.25
+        },
+        {
+          "timestamp": 1173445200,
+          "equity": -133.85
+        },
+        {
+          "timestamp": 1173646800,
+          "equity": -169.55
+        },
+        {
+          "timestamp": 1173711600,
+          "equity": -163.75
+        },
+        {
+          "timestamp": 1178114400,
+          "equity": -196.65
+        },
+        {
+          "timestamp": 1178175600,
+          "equity": -190.85
+        },
+        {
+          "timestamp": 1178258400,
+          "equity": -186.05
+        },
+        {
+          "timestamp": 1178690400,
+          "equity": -181.25
+        },
+        {
+          "timestamp": 1179316800,
+          "equity": -214.65
+        },
+        {
+          "timestamp": 1179500400,
+          "equity": -209.85
+        },
+        {
+          "timestamp": 1327042800,
+          "equity": -204.05
+        },
+        {
+          "timestamp": 1327064400,
+          "equity": -199.15
+        },
+        {
+          "timestamp": 1327323600,
+          "equity": -193.35
+        },
+        {
+          "timestamp": 1328083200,
+          "equity": -188.35
+        },
+        {
+          "timestamp": 1328169600,
+          "equity": -182.55
+        },
+        {
+          "timestamp": 1328511600,
+          "equity": -177.7
+        },
+        {
+          "timestamp": 1328608800,
+          "equity": -171.9
+        },
+        {
+          "timestamp": 1329199200,
+          "equity": -166.95
+        },
+        {
+          "timestamp": 1330603200,
+          "equity": -162.05
+        },
+        {
+          "timestamp": 1331272800,
+          "equity": -194.5
+        },
+        {
+          "timestamp": 1331380800,
+          "equity": -105.3
+        },
+        {
+          "timestamp": 1332000000,
+          "equity": -107.95
+        },
+        {
+          "timestamp": 1333616400,
+          "equity": 39.9
+        },
+        {
+          "timestamp": 1334304000,
+          "equity": 6.4
+        },
+        {
+          "timestamp": 1334401200,
+          "equity": 77.6
+        },
+        {
+          "timestamp": 1334718000,
+          "equity": 82.6
+        },
+        {
+          "timestamp": 1334728800,
+          "equity": 50.05
+        },
+        {
+          "timestamp": 1334732400,
+          "equity": 17.05
+        },
+        {
+          "timestamp": 1334732400,
+          "equity": 22.05
+        },
+        {
+          "timestamp": 1334829600,
+          "equity": -10.35
+        },
+        {
+          "timestamp": 1334840400,
+          "equity": -5.35
+        },
+        {
+          "timestamp": 1334880000,
+          "equity": 0.45
+        },
+        {
+          "timestamp": 1335207600,
+          "equity": -31.95
+        },
+        {
+          "timestamp": 1335376800,
+          "equity": -26.15
+        },
+        {
+          "timestamp": 1335967200,
+          "equity": -21.3
+        },
+        {
+          "timestamp": 1338876000,
+          "equity": -53.9
+        },
+        {
+          "timestamp": 1338886800,
+          "equity": -48.85
+        },
+        {
+          "timestamp": 1339023600,
+          "equity": -43.05
+        },
+        {
+          "timestamp": 1339160400,
+          "equity": -38.0
+        },
+        {
+          "timestamp": 1339470000,
+          "equity": -70.75
+        },
+        {
+          "timestamp": 1339635600,
+          "equity": -64.95
+        },
+        {
+          "timestamp": 1340348400,
+          "equity": -60.05
+        },
+        {
+          "timestamp": 1340967600,
+          "equity": -54.25
+        },
+        {
+          "timestamp": 1341417600,
+          "equity": -87.25
+        },
+        {
+          "timestamp": 1343311200,
+          "equity": -81.45
+        },
+        {
+          "timestamp": 1343890800,
+          "equity": -114.5
+        },
+        {
+          "timestamp": 1343908800,
+          "equity": -108.7
+        },
+        {
+          "timestamp": 1343916000,
+          "equity": -103.7
+        },
+        {
+          "timestamp": 1344078000,
+          "equity": -61.85
+        },
+        {
+          "timestamp": 1344542400,
+          "equity": -94.65
+        },
+        {
+          "timestamp": 1344866400,
+          "equity": -88.85
+        },
+        {
+          "timestamp": 1345075200,
+          "equity": -121.5
+        },
+        {
+          "timestamp": 1345194000,
+          "equity": -115.7
+        },
+        {
+          "timestamp": 1348470000,
+          "equity": -148.0
+        },
+        {
+          "timestamp": 1349182800,
+          "equity": -142.2
+        },
+        {
+          "timestamp": 1349326800,
+          "equity": -174.6
+        },
+        {
+          "timestamp": 1349330400,
+          "equity": -206.9
+        },
+        {
+          "timestamp": 1349337600,
+          "equity": -201.1
+        },
+        {
+          "timestamp": 1349442000,
+          "equity": -52.9
+        },
+        {
+          "timestamp": 1349776800,
+          "equity": -47.65
+        },
+        {
+          "timestamp": 1350054000,
+          "equity": -79.95
+        },
+        {
+          "timestamp": 1350284400,
+          "equity": -112.4
+        },
+        {
+          "timestamp": 1350309600,
+          "equity": -144.6
+        },
+        {
+          "timestamp": 1351058400,
+          "equity": -177.0
+        },
+        {
+          "timestamp": 1351681200,
+          "equity": -171.2
+        },
+        {
+          "timestamp": 1351756800,
+          "equity": -165.9
+        },
+        {
+          "timestamp": 1353052800,
+          "equity": -198.25
+        },
+        {
+          "timestamp": 1353067200,
+          "equity": -193.05
+        },
+        {
+          "timestamp": 1353362400,
+          "equity": -187.25
+        },
+        {
+          "timestamp": 1354968000,
+          "equity": -156.35
+        },
+        {
+          "timestamp": 1355238000,
+          "equity": -150.55
+        },
+        {
+          "timestamp": 1357142400,
+          "equity": -144.75
+        },
+        {
+          "timestamp": 1357200000,
+          "equity": -139.5
+        },
+        {
+          "timestamp": 1357912800,
+          "equity": 8.45
+        },
+        {
+          "timestamp": 1360047600,
+          "equity": 13.7
+        },
+        {
+          "timestamp": 1360069200,
+          "equity": -18.45
+        },
+        {
+          "timestamp": 1360224000,
+          "equity": -50.75
+        },
+        {
+          "timestamp": 1360242000,
+          "equity": -82.9
+        },
+        {
+          "timestamp": 1360314000,
+          "equity": -77.55
+        },
+        {
+          "timestamp": 1360746000,
+          "equity": -71.75
+        },
+        {
+          "timestamp": 1361019600,
+          "equity": -2.65
+        },
+        {
+          "timestamp": 1361340000,
+          "equity": 3.15
+        },
+        {
+          "timestamp": 1361433600,
+          "equity": 151.4
+        },
+        {
+          "timestamp": 1362736800,
+          "equity": 119.3
+        },
+        {
+          "timestamp": 1362744000,
+          "equity": 125.1
+        },
+        {
+          "timestamp": 1362744000,
+          "equity": 130.9
+        },
+        {
+          "timestamp": 1362754800,
+          "equity": 136.35
+        },
+        {
+          "timestamp": 1363352400,
+          "equity": 104.15
+        },
+        {
+          "timestamp": 1364227200,
+          "equity": 109.65
+        },
+        {
+          "timestamp": 1365141600,
+          "equity": 77.55
+        },
+        {
+          "timestamp": 1366257600,
+          "equity": 45.45
+        },
+        {
+          "timestamp": 1366308000,
+          "equity": 13.3
+        },
+        {
+          "timestamp": 1366635600,
+          "equity": 18.8
+        },
+        {
+          "timestamp": 1366693200,
+          "equity": 24.3
+        },
+        {
+          "timestamp": 1366700400,
+          "equity": 30.1
+        },
+        {
+          "timestamp": 1366891200,
+          "equity": 35.9
+        },
+        {
+          "timestamp": 1366941600,
+          "equity": 3.8
+        },
+        {
+          "timestamp": 1367395200,
+          "equity": 152.2
+        },
+        {
+          "timestamp": 1367560800,
+          "equity": 120.0
+        },
+        {
+          "timestamp": 1367578800,
+          "equity": 125.8
+        },
+        {
+          "timestamp": 1367920800,
+          "equity": 93.7
+        },
+        {
+          "timestamp": 1367935200,
+          "equity": 61.65
+        },
+        {
+          "timestamp": 1367992800,
+          "equity": 29.65
+        },
+        {
+          "timestamp": 1368007200,
+          "equity": 35.45
+        },
+        {
+          "timestamp": 1368169200,
+          "equity": 40.9
+        },
+        {
+          "timestamp": 1369231200,
+          "equity": 46.7
+        },
+        {
+          "timestamp": 1369242000,
+          "equity": 52.15
+        },
+        {
+          "timestamp": 1369396800,
+          "equity": 57.95
+        },
+        {
+          "timestamp": 1369724400,
+          "equity": 25.7
+        },
+        {
+          "timestamp": 1369724400,
+          "equity": 31.15
+        },
+        {
+          "timestamp": 1369735200,
+          "equity": -1.0
+        },
+        {
+          "timestamp": 1369749600,
+          "equity": -33.15
+        },
+        {
+          "timestamp": 1369803600,
+          "equity": -27.8
+        },
+        {
+          "timestamp": 1369882800,
+          "equity": -22.0
+        },
+        {
+          "timestamp": 1371708000,
+          "equity": -16.6
+        },
+        {
+          "timestamp": 1373497200,
+          "equity": -48.65
+        },
+        {
+          "timestamp": 1375408800,
+          "equity": -43.1
+        },
+        {
+          "timestamp": 1375455600,
+          "equity": -37.3
+        },
+        {
+          "timestamp": 1376395200,
+          "equity": -69.3
+        },
+        {
+          "timestamp": 1376532000,
+          "equity": -63.8
+        },
+        {
+          "timestamp": 1376532000,
+          "equity": -58.3
+        },
+        {
+          "timestamp": 1376658000,
+          "equity": -52.5
+        },
+        {
+          "timestamp": 1377874800,
+          "equity": 96.1
+        },
+        {
+          "timestamp": 1378792800,
+          "equity": 101.9
+        },
+        {
+          "timestamp": 1381341600,
+          "equity": 107.45
+        },
+        {
+          "timestamp": 1381507200,
+          "equity": 75.4
+        },
+        {
+          "timestamp": 1381860000,
+          "equity": 43.5
+        },
+        {
+          "timestamp": 1382058000,
+          "equity": 49.3
+        },
+        {
+          "timestamp": 1383246000,
+          "equity": 197.95
+        },
+        {
+          "timestamp": 1384419600,
+          "equity": 166.0
+        },
+        {
+          "timestamp": 1384423200,
+          "equity": 171.65
+        },
+        {
+          "timestamp": 1384599600,
+          "equity": 191.25
+        },
+        {
+          "timestamp": 1385020800,
+          "equity": 196.8
+        },
+        {
+          "timestamp": 1385125200,
+          "equity": 202.6
+        },
+        {
+          "timestamp": 1386057600,
+          "equity": 170.6
+        },
+        {
+          "timestamp": 1386075600,
+          "equity": 176.4
+        },
+        {
+          "timestamp": 1387432800,
+          "equity": 181.85
+        },
+        {
+          "timestamp": 1388142000,
+          "equity": 328.3
+        },
+        {
+          "timestamp": 1388674800,
+          "equity": 333.85
+        },
+        {
+          "timestamp": 1389452400,
+          "equity": 337.6
+        },
+        {
+          "timestamp": 1389772800,
+          "equity": 343.2
+        },
+        {
+          "timestamp": 1390482000,
+          "equity": 349.0
+        },
+        {
+          "timestamp": 1391086800,
+          "equity": 354.2
+        },
+        {
+          "timestamp": 1391760000,
+          "equity": 322.3
+        },
+        {
+          "timestamp": 1392256800,
+          "equity": 290.4
+        },
+        {
+          "timestamp": 1392271200,
+          "equity": 296.2
+        },
+        {
+          "timestamp": 1393488000,
+          "equity": 301.85
+        },
+        {
+          "timestamp": 1393596000,
+          "equity": 307.65
+        },
+        {
+          "timestamp": 1393912800,
+          "equity": 275.65
+        },
+        {
+          "timestamp": 1393930800,
+          "equity": 281.45
+        },
+        {
+          "timestamp": 1394010000,
+          "equity": 286.95
+        },
+        {
+          "timestamp": 1394114400,
+          "equity": 292.75
+        },
+        {
+          "timestamp": 1395406800,
+          "equity": 298.4
+        },
+        {
+          "timestamp": 1396422000,
+          "equity": 304.2
+        },
+        {
+          "timestamp": 1396522800,
+          "equity": 309.15
+        },
+        {
+          "timestamp": 1397311200,
+          "equity": 422.75
+        },
+        {
+          "timestamp": 1397556000,
+          "equity": 428.35
+        },
+        {
+          "timestamp": 1397656800,
+          "equity": 396.45
+        },
+        {
+          "timestamp": 1397923200,
+          "equity": 388.75
+        },
+        {
+          "timestamp": 1398092400,
+          "equity": 356.9
+        },
+        {
+          "timestamp": 1398146400,
+          "equity": 362.45
+        },
+        {
+          "timestamp": 1398258000,
+          "equity": 368.25
+        },
+        {
+          "timestamp": 1398848400,
+          "equity": 373.8
+        },
+        {
+          "timestamp": 1398870000,
+          "equity": 379.6
+        },
+        {
+          "timestamp": 1399618800,
+          "equity": 385.15
+        },
+        {
+          "timestamp": 1402041600,
+          "equity": 353.3
+        },
+        {
+          "timestamp": 1402293600,
+          "equity": 321.4
+        },
+        {
+          "timestamp": 1402297200,
+          "equity": 327.2
+        },
+        {
+          "timestamp": 1402311600,
+          "equity": 332.7
+        },
+        {
+          "timestamp": 1403258400,
+          "equity": 338.5
+        },
+        {
+          "timestamp": 1404486000,
+          "equity": 344.1
+        },
+        {
+          "timestamp": 1404972000,
+          "equity": 349.9
+        },
+        {
+          "timestamp": 1405321200,
+          "equity": 318.0
+        },
+        {
+          "timestamp": 1405414800,
+          "equity": 286.1
+        },
+        {
+          "timestamp": 1405414800,
+          "equity": 291.75
+        },
+        {
+          "timestamp": 1412809200,
+          "equity": 297.55
+        },
+        {
+          "timestamp": 1413162000,
+          "equity": 303.0
+        },
+        {
+          "timestamp": 1413262800,
+          "equity": 270.2
+        },
+        {
+          "timestamp": 1413331200,
+          "equity": 275.7
+        },
+        {
+          "timestamp": 1413385200,
+          "equity": 281.5
+        },
+        {
+          "timestamp": 1413975600,
+          "equity": 287.0
+        },
+        {
+          "timestamp": 1414501200,
+          "equity": 292.8
+        },
+        {
+          "timestamp": 1414677600,
+          "equity": 298.3
+        },
+        {
+          "timestamp": 1416186000,
+          "equity": 304.1
+        },
+        {
+          "timestamp": 1416268800,
+          "equity": 309.45
+        },
+        {
+          "timestamp": 1416384000,
+          "equity": 315.25
+        },
+        {
+          "timestamp": 1416567600,
+          "equity": 320.75
+        },
+        {
+          "timestamp": 1417075200,
+          "equity": 326.55
+        },
+        {
+          "timestamp": 1417140000,
+          "equity": 332.05
+        },
+        {
+          "timestamp": 1418241600,
+          "equity": 337.85
+        },
+        {
+          "timestamp": 1418371200,
+          "equity": 305.75
+        },
+        {
+          "timestamp": 1418374800,
+          "equity": 311.55
+        },
+        {
+          "timestamp": 1418846400,
+          "equity": 279.3
+        },
+        {
+          "timestamp": 1423036800,
+          "equity": 247.2
+        },
+        {
+          "timestamp": 1423080000,
+          "equity": 215.25
+        },
+        {
+          "timestamp": 1423209600,
+          "equity": 183.35
+        },
+        {
+          "timestamp": 1423234800,
+          "equity": 188.9
+        },
+        {
+          "timestamp": 1423821600,
+          "equity": 194.7
+        },
+        {
+          "timestamp": 1424134800,
+          "equity": 200.1
+        },
+        {
+          "timestamp": 1424181600,
+          "equity": 168.0
+        },
+        {
+          "timestamp": 1424282400,
+          "equity": 173.7
+        },
+        {
+          "timestamp": 1424318400,
+          "equity": 179.5
+        },
+        {
+          "timestamp": 1424415600,
+          "equity": 185.1
+        },
+        {
+          "timestamp": 1426881600,
+          "equity": 190.9
+        },
+        {
+          "timestamp": 1427727600,
+          "equity": 196.5
+        },
+        {
+          "timestamp": 1427997600,
+          "equity": 202.3
+        },
+        {
+          "timestamp": 1428444000,
+          "equity": 207.85
+        },
+        {
+          "timestamp": 1429210800,
+          "equity": 175.9
+        },
+        {
+          "timestamp": 1429624800,
+          "equity": 181.45
+        },
+        {
+          "timestamp": 1429700400,
+          "equity": 187.25
+        },
+        {
+          "timestamp": 1429776000,
+          "equity": 192.85
+        },
+        {
+          "timestamp": 1429801200,
+          "equity": 198.65
+        },
+        {
+          "timestamp": 1432040400,
+          "equity": 166.75
+        },
+        {
+          "timestamp": 1433289600,
+          "equity": 172.55
+        },
+        {
+          "timestamp": 1435060800,
+          "equity": 177.65
+        },
+        {
+          "timestamp": 1436526000,
+          "equity": 183.45
+        },
+        {
+          "timestamp": 1436788800,
+          "equity": 189.0
+        },
+        {
+          "timestamp": 1437678000,
+          "equity": 194.8
+        },
+        {
+          "timestamp": 1437746400,
+          "equity": 162.8
+        },
+        {
+          "timestamp": 1438009200,
+          "equity": 311.15
+        },
+        {
+          "timestamp": 1438236000,
+          "equity": 316.6
+        },
+        {
+          "timestamp": 1438358400,
+          "equity": 284.4
+        },
+        {
+          "timestamp": 1439197200,
+          "equity": 252.4
+        },
+        {
+          "timestamp": 1439949600,
+          "equity": 220.4
+        },
+        {
+          "timestamp": 1439985600,
+          "equity": 226.2
+        },
+        {
+          "timestamp": 1440781200,
+          "equity": 194.2
+        },
+        {
+          "timestamp": 1441087200,
+          "equity": 200.0
+        },
+        {
+          "timestamp": 1441220400,
+          "equity": 205.6
+        },
+        {
+          "timestamp": 1441900800,
+          "equity": 211.4
+        },
+        {
+          "timestamp": 1442905200,
+          "equity": 216.95
+        },
+        {
+          "timestamp": 1443510000,
+          "equity": 222.75
+        },
+        {
+          "timestamp": 1443618000,
+          "equity": 228.35
+        },
+        {
+          "timestamp": 1443801600,
+          "equity": 196.35
+        },
+        {
+          "timestamp": 1444114800,
+          "equity": 164.4
+        },
+        {
+          "timestamp": 1444186800,
+          "equity": 170.2
+        },
+        {
+          "timestamp": 1445518800,
+          "equity": 318.75
+        },
+        {
+          "timestamp": 1449169200,
+          "equity": 467.25
+        },
+        {
+          "timestamp": 1450357200,
+          "equity": 472.85
+        },
+        {
+          "timestamp": 1450767600,
+          "equity": 478.65
+        },
+        {
+          "timestamp": 1451584800,
+          "equity": 483.85
+        },
+        {
+          "timestamp": 1452214800,
+          "equity": 451.9
+        },
+        {
+          "timestamp": 1452567600,
+          "equity": 419.9
+        },
+        {
+          "timestamp": 1452585600,
+          "equity": 425.7
+        },
+        {
+          "timestamp": 1452614400,
+          "equity": 431.35
+        },
+        {
+          "timestamp": 1452747600,
+          "equity": 437.15
+        },
+        {
+          "timestamp": 1452830400,
+          "equity": 442.95
+        },
+        {
+          "timestamp": 1452844800,
+          "equity": 411.05
+        },
+        {
+          "timestamp": 1453212000,
+          "equity": 379.15
+        },
+        {
+          "timestamp": 1453215600,
+          "equity": 384.95
+        },
+        {
+          "timestamp": 1453384800,
+          "equity": 353.05
+        },
+        {
+          "timestamp": 1453903200,
+          "equity": 358.85
+        },
+        {
+          "timestamp": 1454097600,
+          "equity": 364.4
+        },
+        {
+          "timestamp": 1454374800,
+          "equity": 370.2
+        },
+        {
+          "timestamp": 1455793200,
+          "equity": 338.35
+        },
+        {
+          "timestamp": 1455818400,
+          "equity": 343.95
+        },
+        {
+          "timestamp": 1455840000,
+          "equity": 349.6
+        },
+        {
+          "timestamp": 1457334000,
+          "equity": 317.7
+        },
+        {
+          "timestamp": 1457362800,
+          "equity": 285.8
+        },
+        {
+          "timestamp": 1457427600,
+          "equity": 291.6
+        },
+        {
+          "timestamp": 1457532000,
+          "equity": 297.3
+        },
+        {
+          "timestamp": 1457550000,
+          "equity": 265.4
+        },
+        {
+          "timestamp": 1457596800,
+          "equity": 271.05
+        },
+        {
+          "timestamp": 1457629200,
+          "equity": 276.85
+        },
+        {
+          "timestamp": 1460721600,
+          "equity": 282.4
+        },
+        {
+          "timestamp": 1461157200,
+          "equity": 288.2
+        },
+        {
+          "timestamp": 1461225600,
+          "equity": 293.7
+        },
+        {
+          "timestamp": 1461758400,
+          "equity": 261.75
+        },
+        {
+          "timestamp": 1462773600,
+          "equity": 229.85
+        },
+        {
+          "timestamp": 1462777200,
+          "equity": 197.8
+        },
+        {
+          "timestamp": 1462788000,
+          "equity": 165.7
+        },
+        {
+          "timestamp": 1462791600,
+          "equity": 171.1
+        },
+        {
+          "timestamp": 1462791600,
+          "equity": 176.7
+        },
+        {
+          "timestamp": 1463047200,
+          "equity": 144.75
+        },
+        {
+          "timestamp": 1463594400,
+          "equity": 293.2
+        },
+        {
+          "timestamp": 1464966000,
+          "equity": 299.0
+        },
+        {
+          "timestamp": 1465776000,
+          "equity": 304.45
+        },
+        {
+          "timestamp": 1465884000,
+          "equity": 272.5
+        },
+        {
+          "timestamp": 1465898400,
+          "equity": 278.15
+        },
+        {
+          "timestamp": 1466510400,
+          "equity": 283.95
+        },
+        {
+          "timestamp": 1466575200,
+          "equity": 252.05
+        },
+        {
+          "timestamp": 1466604000,
+          "equity": 257.85
+        },
+        {
+          "timestamp": 1466740800,
+          "equity": 224.85
+        },
+        {
+          "timestamp": 1468497600,
+          "equity": 230.65
+        },
+        {
+          "timestamp": 1468789200,
+          "equity": 231.85
+        },
+        {
+          "timestamp": 1469721600,
+          "equity": 237.65
+        },
+        {
+          "timestamp": 1470661200,
+          "equity": 241.5
+        },
+        {
+          "timestamp": 1471330800,
+          "equity": 390.1
+        },
+        {
+          "timestamp": 1472418000,
+          "equity": 393.9
+        },
+        {
+          "timestamp": 1473343200,
+          "equity": 399.7
+        },
+        {
+          "timestamp": 1473861600,
+          "equity": 367.8
+        },
+        {
+          "timestamp": 1473919200,
+          "equity": 373.6
+        },
+        {
+          "timestamp": 1474030800,
+          "equity": 379.25
+        },
+        {
+          "timestamp": 1474552800,
+          "equity": 385.05
+        },
+        {
+          "timestamp": 1475046000,
+          "equity": 390.6
+        },
+        {
+          "timestamp": 1475071200,
+          "equity": 358.7
+        },
+        {
+          "timestamp": 1475103600,
+          "equity": 326.5
+        },
+        {
+          "timestamp": 1475157600,
+          "equity": 332.3
+        },
+        {
+          "timestamp": 1475240400,
+          "equity": 337.9
+        },
+        {
+          "timestamp": 1475503200,
+          "equity": 305.9
+        },
+        {
+          "timestamp": 1475593200,
+          "equity": 311.55
+        },
+        {
+          "timestamp": 1475676000,
+          "equity": 279.55
+        },
+        {
+          "timestamp": 1475748000,
+          "equity": 285.05
+        },
+        {
+          "timestamp": 1477944000,
+          "equity": 253.15
+        },
+        {
+          "timestamp": 1478275200,
+          "equity": 401.75
+        },
+        {
+          "timestamp": 1478653200,
+          "equity": 369.8
+        },
+        {
+          "timestamp": 1478664000,
+          "equity": 518.2
+        },
+        {
+          "timestamp": 1478718000,
+          "equity": 523.65
+        },
+        {
+          "timestamp": 1480669200,
+          "equity": 491.6
+        },
+        {
+          "timestamp": 1480683600,
+          "equity": 497.25
+        },
+        {
+          "timestamp": 1481022000,
+          "equity": 503.05
+        },
+        {
+          "timestamp": 1481281200,
+          "equity": 508.75
+        },
+        {
+          "timestamp": 1483063200,
+          "equity": 476.25
+        },
+        {
+          "timestamp": 1483394400,
+          "equity": 477.0
+        },
+        {
+          "timestamp": 1483578000,
+          "equity": 444.95
+        },
+        {
+          "timestamp": 1484154000,
+          "equity": 450.55
+        },
+        {
+          "timestamp": 1484164800,
+          "equity": 456.35
+        },
+        {
+          "timestamp": 1486468800,
+          "equity": 461.95
+        },
+        {
+          "timestamp": 1487322000,
+          "equity": 429.3
+        },
+        {
+          "timestamp": 1487757600,
+          "equity": 578.0
+        },
+        {
+          "timestamp": 1488952800,
+          "equity": 583.4
+        },
+        {
+          "timestamp": 1489129200,
+          "equity": 589.2
+        },
+        {
+          "timestamp": 1490878800,
+          "equity": 594.7
+        },
+        {
+          "timestamp": 1492981200,
+          "equity": 743.1
+        },
+        {
+          "timestamp": 1494406800,
+          "equity": 711.0
+        },
+        {
+          "timestamp": 1494410400,
+          "equity": 716.5
+        },
+        {
+          "timestamp": 1494507600,
+          "equity": 722.1
+        },
+        {
+          "timestamp": 1494936000,
+          "equity": 870.7
+        },
+        {
+          "timestamp": 1496995200,
+          "equity": 876.25
+        },
+        {
+          "timestamp": 1497315600,
+          "equity": 844.25
+        },
+        {
+          "timestamp": 1497420000,
+          "equity": 812.15
+        },
+        {
+          "timestamp": 1497423600,
+          "equity": 817.95
+        },
+        {
+          "timestamp": 1497441600,
+          "equity": 785.5
+        },
+        {
+          "timestamp": 1497463200,
+          "equity": 791.3
+        },
+        {
+          "timestamp": 1497531600,
+          "equity": 796.75
+        },
+        {
+          "timestamp": 1498482000,
+          "equity": 802.55
+        },
+        {
+          "timestamp": 1502287200,
+          "equity": 770.5
+        },
+        {
+          "timestamp": 1502323200,
+          "equity": 776.3
+        },
+        {
+          "timestamp": 1502359200,
+          "equity": 781.95
+        },
+        {
+          "timestamp": 1502406000,
+          "equity": 787.75
+        },
+        {
+          "timestamp": 1502802000,
+          "equity": 755.9
+        },
+        {
+          "timestamp": 1502931600,
+          "equity": 761.7
+        },
+        {
+          "timestamp": 1502967600,
+          "equity": 767.25
+        },
+        {
+          "timestamp": 1503316800,
+          "equity": 735.45
+        },
+        {
+          "timestamp": 1503388800,
+          "equity": 741.25
+        },
+        {
+          "timestamp": 1503388800,
+          "equity": 747.05
+        },
+        {
+          "timestamp": 1505372400,
+          "equity": 715.15
+        },
+        {
+          "timestamp": 1505487600,
+          "equity": 720.95
+        },
+        {
+          "timestamp": 1505952000,
+          "equity": 726.35
+        },
+        {
+          "timestamp": 1506060000,
+          "equity": 732.15
+        },
+        {
+          "timestamp": 1506434400,
+          "equity": 880.7
+        },
+        {
+          "timestamp": 1507701600,
+          "equity": 886.5
+        },
+        {
+          "timestamp": 1508342400,
+          "equity": 892.1
+        },
+        {
+          "timestamp": 1508400000,
+          "equity": 860.1
+        },
+        {
+          "timestamp": 1508529600,
+          "equity": 865.55
+        },
+        {
+          "timestamp": 1509001200,
+          "equity": 871.35
+        },
+        {
+          "timestamp": 1509534000,
+          "equity": 934.5
+        },
+        {
+          "timestamp": 1510578000,
+          "equity": 902.45
+        },
+        {
+          "timestamp": 1510729200,
+          "equity": 1050.95
+        },
+        {
+          "timestamp": 1510732800,
+          "equity": 1199.6
+        },
+        {
+          "timestamp": 1512529200,
+          "equity": 1167.8
+        },
+        {
+          "timestamp": 1513256400,
+          "equity": 1173.6
+        },
+        {
+          "timestamp": 1513335600,
+          "equity": 1141.45
+        },
+        {
+          "timestamp": 1513692000,
+          "equity": 1147.25
+        },
+        {
+          "timestamp": 1515578400,
+          "equity": 1115.15
+        },
+        {
+          "timestamp": 1515600000,
+          "equity": 1083.15
+        },
+        {
+          "timestamp": 1515672000,
+          "equity": 1051.3
+        },
+        {
+          "timestamp": 1515675600,
+          "equity": 1057.1
+        },
+        {
+          "timestamp": 1518012000,
+          "equity": 1062.6
+        },
+        {
+          "timestamp": 1518584400,
+          "equity": 1068.4
+        },
+        {
+          "timestamp": 1519135200,
+          "equity": 1073.8
+        },
+        {
+          "timestamp": 1520200800,
+          "equity": 1079.6
+        },
+        {
+          "timestamp": 1520593200,
+          "equity": 1085.2
+        },
+        {
+          "timestamp": 1520935200,
+          "equity": 1091.0
+        },
+        {
+          "timestamp": 1520935200,
+          "equity": 1059.05
+        },
+        {
+          "timestamp": 1520942400,
+          "equity": 1026.85
+        },
+        {
+          "timestamp": 1520949600,
+          "equity": 1032.65
+        },
+        {
+          "timestamp": 1520949600,
+          "equity": 1038.45
+        },
+        {
+          "timestamp": 1521190800,
+          "equity": 1006.45
+        },
+        {
+          "timestamp": 1521536400,
+          "equity": 974.3
+        },
+        {
+          "timestamp": 1521619200,
+          "equity": 979.8
+        },
+        {
+          "timestamp": 1521702000,
+          "equity": 985.6
+        },
+        {
+          "timestamp": 1521763200,
+          "equity": 953.7
+        },
+        {
+          "timestamp": 1521788400,
+          "equity": 959.5
+        },
+        {
+          "timestamp": 1522296000,
+          "equity": 927.55
+        },
+        {
+          "timestamp": 1523372400,
+          "equity": 933.35
+        },
+        {
+          "timestamp": 1524654000,
+          "equity": 1081.75
+        },
+        {
+          "timestamp": 1528264800,
+          "equity": 1087.55
+        },
+        {
+          "timestamp": 1528894800,
+          "equity": 1093.35
+        },
+        {
+          "timestamp": 1528894800,
+          "equity": 1061.35
+        },
+        {
+          "timestamp": 1528988400,
+          "equity": 1066.75
+        },
+        {
+          "timestamp": 1529992800,
+          "equity": 1072.55
+        },
+        {
+          "timestamp": 1530090000,
+          "equity": 1078.15
+        },
+        {
+          "timestamp": 1530507600,
+          "equity": 1046.25
+        },
+        {
+          "timestamp": 1530543600,
+          "equity": 1051.8
+        },
+        {
+          "timestamp": 1530669600,
+          "equity": 1057.6
+        },
+        {
+          "timestamp": 1531396800,
+          "equity": 1062.4
+        },
+        {
+          "timestamp": 1531746000,
+          "equity": 1068.2
+        },
+        {
+          "timestamp": 1531929600,
+          "equity": 1073.8
+        },
+        {
+          "timestamp": 1532329200,
+          "equity": 1079.6
+        },
+        {
+          "timestamp": 1532692800,
+          "equity": 1084.3
+        },
+        {
+          "timestamp": 1533020400,
+          "equity": 1090.1
+        },
+        {
+          "timestamp": 1533852000,
+          "equity": 1238.55
+        },
+        {
+          "timestamp": 1534827600,
+          "equity": 1244.35
+        },
+        {
+          "timestamp": 1536058800,
+          "equity": 1250.0
+        },
+        {
+          "timestamp": 1536210000,
+          "equity": 1255.8
+        },
+        {
+          "timestamp": 1536343200,
+          "equity": 1261.4
+        },
+        {
+          "timestamp": 1536649200,
+          "equity": 1267.2
+        },
+        {
+          "timestamp": 1536696000,
+          "equity": 1235.2
+        },
+        {
+          "timestamp": 1536804000,
+          "equity": 1241.0
+        },
+        {
+          "timestamp": 1538074800,
+          "equity": 1246.65
+        },
+        {
+          "timestamp": 1539320400,
+          "equity": 1252.45
+        },
+        {
+          "timestamp": 1539666000,
+          "equity": 1220.5
+        },
+        {
+          "timestamp": 1540368000,
+          "equity": 1369.1
+        },
+        {
+          "timestamp": 1541160000,
+          "equity": 1337.2
+        },
+        {
+          "timestamp": 1541440800,
+          "equity": 1342.65
+        },
+        {
+          "timestamp": 1541552400,
+          "equity": 1348.45
+        },
+        {
+          "timestamp": 1541703600,
+          "equity": 1353.8
+        },
+        {
+          "timestamp": 1542600000,
+          "equity": 1359.6
+        },
+        {
+          "timestamp": 1543204800,
+          "equity": 1365.15
+        },
+        {
+          "timestamp": 1543485600,
+          "equity": 1333.25
+        },
+        {
+          "timestamp": 1543600800,
+          "equity": 1338.65
+        },
+        {
+          "timestamp": 1543910400,
+          "equity": 1344.45
+        },
+        {
+          "timestamp": 1543989600,
+          "equity": 1349.9
+        },
+        {
+          "timestamp": 1544115600,
+          "equity": 1355.7
+        },
+        {
+          "timestamp": 1544544000,
+          "equity": 1361.3
+        },
+        {
+          "timestamp": 1544688000,
+          "equity": 1367.1
+        },
+        {
+          "timestamp": 1544774400,
+          "equity": 1335.15
+        },
+        {
+          "timestamp": 1545037200,
+          "equity": 1361.95
+        },
+        {
+          "timestamp": 1545044400,
+          "equity": 1367.5
+        },
+        {
+          "timestamp": 1545134400,
+          "equity": 1373.3
+        },
+        {
+          "timestamp": 1545876000,
+          "equity": 1341.25
+        },
+        {
+          "timestamp": 1545912000,
+          "equity": 1309.25
+        },
+        {
+          "timestamp": 1546448400,
+          "equity": 1314.7
+        },
+        {
+          "timestamp": 1546606800,
+          "equity": 1282.65
+        },
+        {
+          "timestamp": 1546614000,
+          "equity": 1287.9
+        },
+        {
+          "timestamp": 1546830000,
+          "equity": 1255.95
+        },
+        {
+          "timestamp": 1546844400,
+          "equity": 1261.75
+        },
+        {
+          "timestamp": 1548126000,
+          "equity": 1336.02
+        },
+        {
+          "timestamp": 1549958400,
+          "equity": 1484.62
+        },
+        {
+          "timestamp": 1550689200,
+          "equity": 1490.42
+        },
+        {
+          "timestamp": 1551715200,
+          "equity": 1496.02
+        },
+        {
+          "timestamp": 1552557600,
+          "equity": 1501.82
+        },
+        {
+          "timestamp": 1553263200,
+          "equity": 1507.37
+        },
+        {
+          "timestamp": 1554800400,
+          "equity": 1513.17
+        },
+        {
+          "timestamp": 1555592400,
+          "equity": 1518.77
+        },
+        {
+          "timestamp": 1556712000,
+          "equity": 1524.57
+        },
+        {
+          "timestamp": 1556895600,
+          "equity": 1530.02
+        },
+        {
+          "timestamp": 1557226800,
+          "equity": 1497.97
+        },
+        {
+          "timestamp": 1557230400,
+          "equity": 1503.57
+        },
+        {
+          "timestamp": 1557493200,
+          "equity": 1509.37
+        },
+        {
+          "timestamp": 1557928800,
+          "equity": 1514.92
+        },
+        {
+          "timestamp": 1558710000,
+          "equity": 1520.72
+        },
+        {
+          "timestamp": 1559088000,
+          "equity": 1526.17
+        },
+        {
+          "timestamp": 1559916000,
+          "equity": 1674.62
+        },
+        {
+          "timestamp": 1560729600,
+          "equity": 1680.12
+        },
+        {
+          "timestamp": 1561042800,
+          "equity": 1685.92
+        },
+        {
+          "timestamp": 1562058000,
+          "equity": 1653.97
+        },
+        {
+          "timestamp": 1563264000,
+          "equity": 1622.02
+        },
+        {
+          "timestamp": 1563472800,
+          "equity": 1627.57
+        },
+        {
+          "timestamp": 1563530400,
+          "equity": 1595.52
+        },
+        {
+          "timestamp": 1563541200,
+          "equity": 1601.07
+        },
+        {
+          "timestamp": 1565013600,
+          "equity": 1606.87
+        },
+        {
+          "timestamp": 1566284400,
+          "equity": 1709.32
+        },
+        {
+          "timestamp": 1566842400,
+          "equity": 1714.77
+        },
+        {
+          "timestamp": 1568192400,
+          "equity": 1682.82
+        },
+        {
+          "timestamp": 1568196000,
+          "equity": 1650.72
+        },
+        {
+          "timestamp": 1568275200,
+          "equity": 1656.22
+        },
+        {
+          "timestamp": 1568286000,
+          "equity": 1660.37
+        },
+        {
+          "timestamp": 1568379600,
+          "equity": 1666.17
+        },
+        {
+          "timestamp": 1568718000,
+          "equity": 1634.07
+        },
+        {
+          "timestamp": 1568829600,
+          "equity": 1602.07
+        },
+        {
+          "timestamp": 1568880000,
+          "equity": 1570.02
+        },
+        {
+          "timestamp": 1568977200,
+          "equity": 1538.12
+        },
+        {
+          "timestamp": 1568988000,
+          "equity": 1543.72
+        },
+        {
+          "timestamp": 1570186800,
+          "equity": 1549.52
+        },
+        {
+          "timestamp": 1570186800,
+          "equity": 1555.32
+        },
+        {
+          "timestamp": 1570190400,
+          "equity": 1522.57
+        },
+        {
+          "timestamp": 1570604400,
+          "equity": 1490.57
+        },
+        {
+          "timestamp": 1571302800,
+          "equity": 1639.17
+        },
+        {
+          "timestamp": 1572357600,
+          "equity": 1607.27
+        },
+        {
+          "timestamp": 1572458400,
+          "equity": 1613.07
+        },
+        {
+          "timestamp": 1573027200,
+          "equity": 1618.67
+        },
+        {
+          "timestamp": 1574121600,
+          "equity": 1624.47
+        },
+        {
+          "timestamp": 1574766000,
+          "equity": 1651.67
+        },
+        {
+          "timestamp": 1575396000,
+          "equity": 1657.47
+        },
+        {
+          "timestamp": 1576868400,
+          "equity": 1663.02
+        },
+        {
+          "timestamp": 1578470400,
+          "equity": 1668.62
+        },
+        {
+          "timestamp": 1578484800,
+          "equity": 1674.42
+        },
+        {
+          "timestamp": 1579179600,
+          "equity": 1680.22
+        },
+        {
+          "timestamp": 1580720400,
+          "equity": 1648.27
+        },
+        {
+          "timestamp": 1581001200,
+          "equity": 1796.82
+        },
+        {
+          "timestamp": 1581364800,
+          "equity": 1945.42
+        },
+        {
+          "timestamp": 1582707600,
+          "equity": 1951.22
+        },
+        {
+          "timestamp": 1584111600,
+          "equity": 1956.77
+        },
+        {
+          "timestamp": 1585310400,
+          "equity": 1962.57
+        },
+        {
+          "timestamp": 1585742400,
+          "equity": 1968.17
+        },
+        {
+          "timestamp": 1586527200,
+          "equity": 1972.62
+        },
+        {
+          "timestamp": 1586973600,
+          "equity": 1940.72
+        },
+        {
+          "timestamp": 1588183200,
+          "equity": 1946.52
+        },
+        {
+          "timestamp": 1588183200,
+          "equity": 1952.32
+        },
+        {
+          "timestamp": 1588183200,
+          "equity": 1920.22
+        },
+        {
+          "timestamp": 1588683600,
+          "equity": 1888.22
+        },
+        {
+          "timestamp": 1589374800,
+          "equity": 1894.02
+        },
+        {
+          "timestamp": 1589443200,
+          "equity": 1899.42
+        },
+        {
+          "timestamp": 1589817600,
+          "equity": 1905.22
+        },
+        {
+          "timestamp": 1592438400,
+          "equity": 1873.17
+        },
+        {
+          "timestamp": 1592481600,
+          "equity": 1841.07
+        },
+        {
+          "timestamp": 1592503200,
+          "equity": 1846.67
+        },
+        {
+          "timestamp": 1592874000,
+          "equity": 1852.47
+        },
+        {
+          "timestamp": 1593093600,
+          "equity": 1858.02
+        },
+        {
+          "timestamp": 1593428400,
+          "equity": 1863.82
+        },
+        {
+          "timestamp": 1593496800,
+          "equity": 1831.62
+        },
+        {
+          "timestamp": 1593522000,
+          "equity": 1837.12
+        },
+        {
+          "timestamp": 1593525600,
+          "equity": 1842.67
+        },
+        {
+          "timestamp": 1593694800,
+          "equity": 1848.47
+        },
+        {
+          "timestamp": 1593993600,
+          "equity": 1816.42
+        },
+        {
+          "timestamp": 1597219200,
+          "equity": 1784.27
+        },
+        {
+          "timestamp": 1597240800,
+          "equity": 1790.07
+        },
+        {
+          "timestamp": 1598036400,
+          "equity": 1758.07
+        },
+        {
+          "timestamp": 1598277600,
+          "equity": 1726.07
+        },
+        {
+          "timestamp": 1598313600,
+          "equity": 1731.42
+        },
+        {
+          "timestamp": 1598425200,
+          "equity": 1699.37
+        },
+        {
+          "timestamp": 1598446800,
+          "equity": 1704.72
+        },
+        {
+          "timestamp": 1598490000,
+          "equity": 1710.52
+        },
+        {
+          "timestamp": 1598540400,
+          "equity": 1678.42
+        },
+        {
+          "timestamp": 1598925600,
+          "equity": 1826.77
+        },
+        {
+          "timestamp": 1599120000,
+          "equity": 1832.42
+        },
+        {
+          "timestamp": 1599742800,
+          "equity": 1838.22
+        },
+        {
+          "timestamp": 1600326000,
+          "equity": 1843.57
+        },
+        {
+          "timestamp": 1600412400,
+          "equity": 1849.37
+        },
+        {
+          "timestamp": 1600693200,
+          "equity": 1854.92
+        },
+        {
+          "timestamp": 1601535600,
+          "equity": 1822.82
+        },
+        {
+          "timestamp": 1601550000,
+          "equity": 1828.62
+        },
+        {
+          "timestamp": 1601550000,
+          "equity": 1796.67
+        },
+        {
+          "timestamp": 1601614800,
+          "equity": 1802.17
+        },
+        {
+          "timestamp": 1602007200,
+          "equity": 1807.97
+        },
+        {
+          "timestamp": 1602068400,
+          "equity": 1775.97
+        },
+        {
+          "timestamp": 1602075600,
+          "equity": 1781.77
+        },
+        {
+          "timestamp": 1602658800,
+          "equity": 1787.32
+        },
+        {
+          "timestamp": 1603411200,
+          "equity": 1793.12
+        },
+        {
+          "timestamp": 1604300400,
+          "equity": 1941.77
+        },
+        {
+          "timestamp": 1604930400,
+          "equity": 2090.22
+        },
+        {
+          "timestamp": 1605171600,
+          "equity": 2058.22
+        },
+        {
+          "timestamp": 1605265200,
+          "equity": 2064.02
+        },
+        {
+          "timestamp": 1610136000,
+          "equity": 2032.02
+        },
+        {
+          "timestamp": 1611306000,
+          "equity": 2037.82
+        },
+        {
+          "timestamp": 1611666000,
+          "equity": 2005.92
+        },
+        {
+          "timestamp": 1611738000,
+          "equity": 1973.82
+        },
+        {
+          "timestamp": 1611752400,
+          "equity": 1979.32
+        },
+        {
+          "timestamp": 1612947600,
+          "equity": 1985.12
+        },
+        {
+          "timestamp": 1613552400,
+          "equity": 1990.62
+        },
+        {
+          "timestamp": 1613980800,
+          "equity": 1958.62
+        },
+        {
+          "timestamp": 1614373200,
+          "equity": 1963.97
+        },
+        {
+          "timestamp": 1616050800,
+          "equity": 1931.87
+        },
+        {
+          "timestamp": 1616432400,
+          "equity": 1937.47
+        },
+        {
+          "timestamp": 1618383600,
+          "equity": 2086.02
+        },
+        {
+          "timestamp": 1620036000,
+          "equity": 2054.07
+        },
+        {
+          "timestamp": 1620054000,
+          "equity": 2059.87
+        },
+        {
+          "timestamp": 1620140400,
+          "equity": 2027.97
+        },
+        {
+          "timestamp": 1620370800,
+          "equity": 2033.77
+        },
+        {
+          "timestamp": 1620910800,
+          "equity": 2001.82
+        },
+        {
+          "timestamp": 1620918000,
+          "equity": 1969.87
+        },
+        {
+          "timestamp": 1620972000,
+          "equity": 1937.82
+        },
+        {
+          "timestamp": 1621400400,
+          "equity": 2086.47
+        },
+        {
+          "timestamp": 1622206800,
+          "equity": 2054.57
+        },
+        {
+          "timestamp": 1622462400,
+          "equity": 2050.57
+        },
+        {
+          "timestamp": 1622808000,
+          "equity": 2056.07
+        },
+        {
+          "timestamp": 1623135600,
+          "equity": 2024.22
+        },
+        {
+          "timestamp": 1623243600,
+          "equity": 1992.17
+        },
+        {
+          "timestamp": 1623247200,
+          "equity": 1997.97
+        },
+        {
+          "timestamp": 1623312000,
+          "equity": 2003.52
+        },
+        {
+          "timestamp": 1623402000,
+          "equity": 1971.52
+        },
+        {
+          "timestamp": 1623866400,
+          "equity": 2120.07
+        },
+        {
+          "timestamp": 1627452000,
+          "equity": 2088.12
+        },
+        {
+          "timestamp": 1627491600,
+          "equity": 2056.17
+        },
+        {
+          "timestamp": 1627495200,
+          "equity": 2024.22
+        },
+        {
+          "timestamp": 1628229600,
+          "equity": 2029.72
+        },
+        {
+          "timestamp": 1629813600,
+          "equity": 2035.22
+        },
+        {
+          "timestamp": 1629907200,
+          "equity": 2003.27
+        },
+        {
+          "timestamp": 1629907200,
+          "equity": 1971.27
+        },
+        {
+          "timestamp": 1629910800,
+          "equity": 1977.07
+        },
+        {
+          "timestamp": 1629957600,
+          "equity": 1982.87
+        },
+        {
+          "timestamp": 1629957600,
+          "equity": 1988.67
+        },
+        {
+          "timestamp": 1631260800,
+          "equity": 1956.77
+        },
+        {
+          "timestamp": 1631264400,
+          "equity": 1962.57
+        },
+        {
+          "timestamp": 1631772000,
+          "equity": 1930.62
+        },
+        {
+          "timestamp": 1632913200,
+          "equity": 2079.22
+        },
+        {
+          "timestamp": 1634529600,
+          "equity": 2047.07
+        },
+        {
+          "timestamp": 1634536800,
+          "equity": 2015.17
+        },
+        {
+          "timestamp": 1634536800,
+          "equity": 1983.27
+        },
+        {
+          "timestamp": 1634540400,
+          "equity": 1988.77
+        },
+        {
+          "timestamp": 1634540400,
+          "equity": 1994.32
+        },
+        {
+          "timestamp": 1634540400,
+          "equity": 1999.97
+        },
+        {
+          "timestamp": 1634713200,
+          "equity": 2005.77
+        },
+        {
+          "timestamp": 1635231600,
+          "equity": 2011.37
+        },
+        {
+          "timestamp": 1635433200,
+          "equity": 2017.17
+        },
+        {
+          "timestamp": 1635753600,
+          "equity": 1985.22
+        },
+        {
+          "timestamp": 1636527600,
+          "equity": 1953.32
+        },
+        {
+          "timestamp": 1636534800,
+          "equity": 1958.77
+        },
+        {
+          "timestamp": 1638284400,
+          "equity": 1964.57
+        },
+        {
+          "timestamp": 1638302400,
+          "equity": 1932.57
+        },
+        {
+          "timestamp": 1638345600,
+          "equity": 1938.37
+        },
+        {
+          "timestamp": 1638442800,
+          "equity": 1906.37
+        },
+        {
+          "timestamp": 1638446400,
+          "equity": 1912.17
+        },
+        {
+          "timestamp": 1638446400,
+          "equity": 1880.17
+        },
+        {
+          "timestamp": 1638464400,
+          "equity": 1848.22
+        },
+        {
+          "timestamp": 1638518400,
+          "equity": 1853.77
+        },
+        {
+          "timestamp": 1639033200,
+          "equity": 1821.77
+        },
+        {
+          "timestamp": 1639141200,
+          "equity": 1826.92
+        },
+        {
+          "timestamp": 1639659600,
+          "equity": 1832.72
+        },
+        {
+          "timestamp": 1639958400,
+          "equity": 1838.22
+        },
+        {
+          "timestamp": 1640246400,
+          "equity": 1844.02
+        },
+        {
+          "timestamp": 1640775600,
+          "equity": 1849.57
+        },
+        {
+          "timestamp": 1640790000,
+          "equity": 1855.37
+        },
+        {
+          "timestamp": 1641301200,
+          "equity": 1860.97
+        },
+        {
+          "timestamp": 1641412800,
+          "equity": 1828.97
+        },
+        {
+          "timestamp": 1641477600,
+          "equity": 1796.87
+        },
+        {
+          "timestamp": 1641765600,
+          "equity": 1802.67
+        },
+        {
+          "timestamp": 1642600800,
+          "equity": 1770.67
+        },
+        {
+          "timestamp": 1643871600,
+          "equity": 1776.47
+        },
+        {
+          "timestamp": 1645016400,
+          "equity": 1744.52
+        },
+        {
+          "timestamp": 1645196400,
+          "equity": 1750.02
+        },
+        {
+          "timestamp": 1647504000,
+          "equity": 1755.82
+        },
+        {
+          "timestamp": 1647936000,
+          "equity": 1761.27
+        },
+        {
+          "timestamp": 1648562400,
+          "equity": 1767.07
+        },
+        {
+          "timestamp": 1649059200,
+          "equity": 1772.42
+        },
+        {
+          "timestamp": 1650538800,
+          "equity": 1740.47
+        },
+        {
+          "timestamp": 1650632400,
+          "equity": 1745.92
+        },
+        {
+          "timestamp": 1652835600,
+          "equity": 1751.72
+        },
+        {
+          "timestamp": 1652896800,
+          "equity": 1757.32
+        },
+        {
+          "timestamp": 1652983200,
+          "equity": 1763.12
+        },
+        {
+          "timestamp": 1654153200,
+          "equity": 1731.07
+        },
+        {
+          "timestamp": 1654156800,
+          "equity": 1736.87
+        },
+        {
+          "timestamp": 1654606800,
+          "equity": 1704.87
+        },
+        {
+          "timestamp": 1654632000,
+          "equity": 1710.67
+        },
+        {
+          "timestamp": 1654830000,
+          "equity": 1716.17
+        },
+        {
+          "timestamp": 1655967600,
+          "equity": 1684.17
+        },
+        {
+          "timestamp": 1655982000,
+          "equity": 1689.67
+        },
+        {
+          "timestamp": 1656453600,
+          "equity": 1694.82
+        },
+        {
+          "timestamp": 1658232000,
+          "equity": 1662.67
+        },
+        {
+          "timestamp": 1658476800,
+          "equity": 1630.47
+        },
+        {
+          "timestamp": 1658512800,
+          "equity": 1598.27
+        },
+        {
+          "timestamp": 1658847600,
+          "equity": 1603.72
+        },
+        {
+          "timestamp": 1658988000,
+          "equity": 1609.52
+        },
+        {
+          "timestamp": 1659006000,
+          "equity": 1614.82
+        },
+        {
+          "timestamp": 1659081600,
+          "equity": 1620.62
+        },
+        {
+          "timestamp": 1659517200,
+          "equity": 1588.37
+        },
+        {
+          "timestamp": 1659639600,
+          "equity": 1594.17
+        },
+        {
+          "timestamp": 1659920400,
+          "equity": 1599.42
+        },
+        {
+          "timestamp": 1660032000,
+          "equity": 1567.27
+        },
+        {
+          "timestamp": 1660032000,
+          "equity": 1535.17
+        },
+        {
+          "timestamp": 1660042800,
+          "equity": 1540.97
+        },
+        {
+          "timestamp": 1660064400,
+          "equity": 1546.77
+        },
+        {
+          "timestamp": 1660068000,
+          "equity": 1552.57
+        },
+        {
+          "timestamp": 1660572000,
+          "equity": 1557.87
+        },
+        {
+          "timestamp": 1662638400,
+          "equity": 1563.67
+        },
+        {
+          "timestamp": 1662656400,
+          "equity": 1531.57
+        },
+        {
+          "timestamp": 1662966000,
+          "equity": 1676.82
+        },
+        {
+          "timestamp": 1663128000,
+          "equity": 1644.72
+        },
+        {
+          "timestamp": 1663632000,
+          "equity": 1650.52
+        },
+        {
+          "timestamp": 1663783200,
+          "equity": 1798.52
+        },
+        {
+          "timestamp": 1664528400,
+          "equity": 1766.32
+        },
+        {
+          "timestamp": 1664539200,
+          "equity": 1771.77
+        },
+        {
+          "timestamp": 1664787600,
+          "equity": 1739.57
+        },
+        {
+          "timestamp": 1664805600,
+          "equity": 1707.52
+        },
+        {
+          "timestamp": 1664856000,
+          "equity": 1713.32
+        },
+        {
+          "timestamp": 1665126000,
+          "equity": 1718.67
+        },
+        {
+          "timestamp": 1665730800,
+          "equity": 1686.52
+        },
+        {
+          "timestamp": 1665748800,
+          "equity": 1691.87
+        },
+        {
+          "timestamp": 1666072800,
+          "equity": 1697.67
+        },
+        {
+          "timestamp": 1666231200,
+          "equity": 1702.97
+        },
+        {
+          "timestamp": 1666267200,
+          "equity": 1708.77
+        },
+        {
+          "timestamp": 1666335600,
+          "equity": 1676.67
+        },
+        {
+          "timestamp": 1666562400,
+          "equity": 1682.47
+        },
+        {
+          "timestamp": 1667376000,
+          "equity": 1650.27
+        },
+        {
+          "timestamp": 1667401200,
+          "equity": 1618.22
+        },
+        {
+          "timestamp": 1667412000,
+          "equity": 1585.02
+        },
+        {
+          "timestamp": 1667772000,
+          "equity": 1552.82
+        },
+        {
+          "timestamp": 1672750800,
+          "equity": 1520.57
+        },
+        {
+          "timestamp": 1675170000,
+          "equity": 1488.32
+        },
+        {
+          "timestamp": 1675180800,
+          "equity": 1494.12
+        },
+        {
+          "timestamp": 1675911600,
+          "equity": 1574.32
+        },
+        {
+          "timestamp": 1677733200,
+          "equity": 1542.17
+        },
+        {
+          "timestamp": 1677751200,
+          "equity": 1547.07
+        },
+        {
+          "timestamp": 1678114800,
+          "equity": 1552.87
+        },
+        {
+          "timestamp": 1678287600,
+          "equity": 1558.12
+        },
+        {
+          "timestamp": 1678669200,
+          "equity": 1563.92
+        },
+        {
+          "timestamp": 1678896000,
+          "equity": 1569.27
+        },
+        {
+          "timestamp": 1679050800,
+          "equity": 1537.32
+        },
+        {
+          "timestamp": 1679054400,
+          "equity": 1542.92
+        },
+        {
+          "timestamp": 1679079600,
+          "equity": 1548.72
+        },
+        {
+          "timestamp": 1683010800,
+          "equity": 1516.72
+        },
+        {
+          "timestamp": 1683201600,
+          "equity": 1522.52
+        },
+        {
+          "timestamp": 1683702000,
+          "equity": 1528.07
+        },
+        {
+          "timestamp": 1686322800,
+          "equity": 1496.07
+        },
+        {
+          "timestamp": 1688126400,
+          "equity": 1501.62
+        },
+        {
+          "timestamp": 1688367600,
+          "equity": 1469.72
+        },
+        {
+          "timestamp": 1688540400,
+          "equity": 1437.72
+        },
+        {
+          "timestamp": 1689145200,
+          "equity": 1546.92
+        },
+        {
+          "timestamp": 1690246800,
+          "equity": 1552.52
+        },
+        {
+          "timestamp": 1690459200,
+          "equity": 1520.47
+        },
+        {
+          "timestamp": 1690466400,
+          "equity": 1525.97
+        },
+        {
+          "timestamp": 1691672400,
+          "equity": 1494.02
+        },
+        {
+          "timestamp": 1691758800,
+          "equity": 1499.57
+        },
+        {
+          "timestamp": 1693465200,
+          "equity": 1505.37
+        },
+        {
+          "timestamp": 1693569600,
+          "equity": 1473.12
+        },
+        {
+          "timestamp": 1696935600,
+          "equity": 1441.12
+        },
+        {
+          "timestamp": 1697180400,
+          "equity": 1409.12
+        },
+        {
+          "timestamp": 1697612400,
+          "equity": 1414.92
+        },
+        {
+          "timestamp": 1697716800,
+          "equity": 1383.07
+        },
+        {
+          "timestamp": 1697781600,
+          "equity": 1350.97
+        },
+        {
+          "timestamp": 1698343200,
+          "equity": 1356.62
+        },
+        {
+          "timestamp": 1698739200,
+          "equity": 1362.42
+        },
+        {
+          "timestamp": 1698847200,
+          "equity": 1367.82
+        },
+        {
+          "timestamp": 1699257600,
+          "equity": 1516.37
+        },
+        {
+          "timestamp": 1701442800,
+          "equity": 1521.57
+        },
+        {
+          "timestamp": 1702540800,
+          "equity": 1527.37
+        },
+        {
+          "timestamp": 1704294000,
+          "equity": 1532.82
+        },
+        {
+          "timestamp": 1704978000,
+          "equity": 1538.62
+        },
+        {
+          "timestamp": 1704999600,
+          "equity": 1506.72
+        },
+        {
+          "timestamp": 1705057200,
+          "equity": 1474.82
+        },
+        {
+          "timestamp": 1705071600,
+          "equity": 1442.92
+        },
+        {
+          "timestamp": 1705269600,
+          "equity": 1411.02
+        },
+        {
+          "timestamp": 1705316400,
+          "equity": 1416.57
+        },
+        {
+          "timestamp": 1706860800,
+          "equity": 1422.37
+        },
+        {
+          "timestamp": 1706886000,
+          "equity": 1427.92
+        },
+        {
+          "timestamp": 1708423200,
+          "equity": 1395.97
+        },
+        {
+          "timestamp": 1708448400,
+          "equity": 1401.77
+        },
+        {
+          "timestamp": 1709305200,
+          "equity": 1369.87
+        },
+        {
+          "timestamp": 1709305200,
+          "equity": 1337.97
+        },
+        {
+          "timestamp": 1709308800,
+          "equity": 1343.77
+        },
+        {
+          "timestamp": 1709539200,
+          "equity": 1349.57
+        },
+        {
+          "timestamp": 1709827200,
+          "equity": 1498.12
+        },
+        {
+          "timestamp": 1710777600,
+          "equity": 1466.17
+        },
+        {
+          "timestamp": 1710903600,
+          "equity": 1471.67
+        },
+        {
+          "timestamp": 1710957600,
+          "equity": 1476.92
+        },
+        {
+          "timestamp": 1711004400,
+          "equity": 1482.72
+        },
+        {
+          "timestamp": 1711425600,
+          "equity": 1502.97
+        },
+        {
+          "timestamp": 1712257200,
+          "equity": 1508.77
+        },
+        {
+          "timestamp": 1712768400,
+          "equity": 1514.42
+        },
+        {
+          "timestamp": 1713960000,
+          "equity": 1482.52
+        },
+        {
+          "timestamp": 1714024800,
+          "equity": 1450.62
+        },
+        {
+          "timestamp": 1714028400,
+          "equity": 1456.42
+        },
+        {
+          "timestamp": 1714561200,
+          "equity": 1466.57
+        },
+        {
+          "timestamp": 1714654800,
+          "equity": 1434.67
+        },
+        {
+          "timestamp": 1716544800,
+          "equity": 1402.82
+        },
+        {
+          "timestamp": 1716566400,
+          "equity": 1408.62
+        },
+        {
+          "timestamp": 1717052400,
+          "equity": 1414.22
+        },
+        {
+          "timestamp": 1717164000,
+          "equity": 1420.02
+        },
+        {
+          "timestamp": 1718182800,
+          "equity": 1470.62
+        },
+        {
+          "timestamp": 1719813600,
+          "equity": 1476.42
+        },
+        {
+          "timestamp": 1719964800,
+          "equity": 1444.47
+        },
+        {
+          "timestamp": 1720098000,
+          "equity": 1500.07
+        },
+        {
+          "timestamp": 1721818800,
+          "equity": 1505.62
+        },
+        {
+          "timestamp": 1722240000,
+          "equity": 1473.57
+        },
+        {
+          "timestamp": 1722600000,
+          "equity": 1477.42
+        },
+        {
+          "timestamp": 1722834000,
+          "equity": 1483.22
+        },
+        {
+          "timestamp": 1725022800,
+          "equity": 1488.82
+        },
+        {
+          "timestamp": 1725537600,
+          "equity": 1494.62
+        },
+        {
+          "timestamp": 1725872400,
+          "equity": 1500.22
+        },
+        {
+          "timestamp": 1726704000,
+          "equity": 1506.02
+        },
+        {
+          "timestamp": 1727780400,
+          "equity": 1511.57
+        },
+        {
+          "timestamp": 1730372400,
+          "equity": 1517.37
+        },
+        {
+          "timestamp": 1730671200,
+          "equity": 1484.57
+        },
+        {
+          "timestamp": 1730865600,
+          "equity": 1452.42
+        },
+        {
+          "timestamp": 1732863600,
+          "equity": 1458.22
+        },
+        {
+          "timestamp": 1732903200,
+          "equity": 1426.17
+        },
+        {
+          "timestamp": 1732914000,
+          "equity": 1431.97
+        },
+        {
+          "timestamp": 1733112000,
+          "equity": 1437.57
+        },
+        {
+          "timestamp": 1733443200,
+          "equity": 1443.37
+        },
+        {
+          "timestamp": 1733853600,
+          "equity": 1448.92
+        },
+        {
+          "timestamp": 1736244000,
+          "equity": 1454.72
+        },
+        {
+          "timestamp": 1736276400,
+          "equity": 1460.27
+        },
+        {
+          "timestamp": 1737385200,
+          "equity": 1466.07
+        },
+        {
+          "timestamp": 1738314000,
+          "equity": 1471.42
+        },
+        {
+          "timestamp": 1738814400,
+          "equity": 1477.22
+        },
+        {
+          "timestamp": 1738864800,
+          "equity": 1445.27
+        },
+        {
+          "timestamp": 1738933200,
+          "equity": 1451.07
+        },
+        {
+          "timestamp": 1738944000,
+          "equity": 1456.27
+        },
+        {
+          "timestamp": 1739365200,
+          "equity": 1424.12
+        },
+        {
+          "timestamp": 1739372400,
+          "equity": 1391.87
+        },
+        {
+          "timestamp": 1739394000,
+          "equity": 1397.67
+        },
+        {
+          "timestamp": 1740733200,
+          "equity": 1402.82
+        },
+        {
+          "timestamp": 1741021200,
+          "equity": 1408.62
+        },
+        {
+          "timestamp": 1742889600,
+          "equity": 1413.87
+        },
+        {
+          "timestamp": 1743382800,
+          "equity": 1419.67
+        },
+        {
+          "timestamp": 1743595200,
+          "equity": 1387.42
+        },
+        {
+          "timestamp": 1743624000,
+          "equity": 1393.22
+        },
+        {
+          "timestamp": 1746079200,
+          "equity": 1398.47
+        },
+        {
+          "timestamp": 1746198000,
+          "equity": 1366.22
+        },
+        {
+          "timestamp": 1746406800,
+          "equity": 1333.77
+        },
+        {
+          "timestamp": 1746446400,
+          "equity": 1339.57
+        },
+        {
+          "timestamp": 1746489600,
+          "equity": 1344.62
+        },
+        {
+          "timestamp": 1746540000,
+          "equity": 1350.42
+        },
+        {
+          "timestamp": 1746666000,
+          "equity": 1318.22
+        },
+        {
+          "timestamp": 1747699200,
+          "equity": 1286.02
+        },
+        {
+          "timestamp": 1748509200,
+          "equity": 1291.42
+        },
+        {
+          "timestamp": 1748566800,
+          "equity": 1297.22
+        },
+        {
+          "timestamp": 1750356000,
+          "equity": 1265.02
+        },
+        {
+          "timestamp": 1750626000,
+          "equity": 1270.82
+        },
+        {
+          "timestamp": 1752192000,
+          "equity": 1238.07
+        },
+        {
+          "timestamp": 1752217200,
+          "equity": 1243.67
+        },
+        {
+          "timestamp": 1752238800,
+          "equity": 1211.62
+        },
+        {
+          "timestamp": 1753275600,
+          "equity": 1217.42
+        },
+        {
+          "timestamp": 1753876800,
+          "equity": 1364.47
+        },
+        {
+          "timestamp": 1754492400,
+          "equity": 1370.27
+        },
+        {
+          "timestamp": 1755684000,
+          "equity": 1338.17
+        },
+        {
+          "timestamp": 1755756000,
+          "equity": 1306.27
+        },
+        {
+          "timestamp": 1755756000,
+          "equity": 1274.12
+        },
+        {
+          "timestamp": 1755759600,
+          "equity": 1279.47
+        },
+        {
+          "timestamp": 1755759600,
+          "equity": 1284.82
+        },
+        {
+          "timestamp": 1756080000,
+          "equity": 1252.87
+        },
+        {
+          "timestamp": 1756166400,
+          "equity": 1220.77
+        },
+        {
+          "timestamp": 1756382400,
+          "equity": 1226.57
+        },
+        {
+          "timestamp": 1756821600,
+          "equity": 1194.57
+        },
+        {
+          "timestamp": 1757592000,
+          "equity": 1200.37
+        },
+        {
+          "timestamp": 1758610800,
+          "equity": 1206.17
+        },
+        {
+          "timestamp": 1759107600,
+          "equity": 1211.42
+        },
+        {
+          "timestamp": 1759302000,
+          "equity": 1217.22
+        },
+        {
+          "timestamp": 1759302000,
+          "equity": 1223.02
+        },
+        {
+          "timestamp": 1759388400,
+          "equity": 1191.02
+        },
+        {
+          "timestamp": 1759410000,
+          "equity": 1158.82
+        },
+        {
+          "timestamp": 1759420800,
+          "equity": 1164.17
+        },
+        {
+          "timestamp": 1760702400,
+          "equity": 1169.97
+        },
+        {
+          "timestamp": 1761307200,
+          "equity": 1173.67
+        },
+        {
+          "timestamp": 1761652800,
+          "equity": 1179.47
+        },
+        {
+          "timestamp": 1761764400,
+          "equity": 1184.52
+        },
+        {
+          "timestamp": 1762920000,
+          "equity": 1152.62
+        },
+        {
+          "timestamp": 1764082800,
+          "equity": 1157.97
+        },
+        {
+          "timestamp": 1764144000,
+          "equity": 1163.77
+        },
+        {
+          "timestamp": 1767171600,
+          "equity": 1169.32
+        },
+        {
+          "timestamp": 1767340800,
+          "equity": 1137.27
+        },
+        {
+          "timestamp": 1767366000,
+          "equity": 1105.32
+        },
+        {
+          "timestamp": 1768899600,
+          "equity": 1111.12
+        },
+        {
+          "timestamp": 1770080400,
+          "equity": 1079.17
+        },
+        {
+          "timestamp": 1770217200,
+          "equity": 1047.12
+        },
+        {
+          "timestamp": 1770217200,
+          "equity": 1052.62
+        },
+        {
+          "timestamp": 1770616800,
+          "equity": 1058.42
+        },
+        {
+          "timestamp": 1771315200,
+          "equity": 1064.12
+        }
+      ]
+    }
+  ]
+}
