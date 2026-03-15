@@ -9,7 +9,7 @@
       "url": "https://www.mql5.com/en/articles/21679",
       "title": "Low-Frequency Quantitative Strategies in Metatrader 5: (Part 1) Setting Up An OLAP-Friendly Data Store",
       "description": "The article outlines a practical data pipeline for quantitative analysis based on Parquet storage, Hive-style partitions, and DuckDB. It details migrating selected SQLite tables to Parquet, structuring market data by source, symbol, timeframe, and date, and querying it with SQL window functions. A Golden Cross example illustrates cross\u2011symbol evaluation of forward returns. Accompanying Python scripts handle data download, conversion, and execution.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -17,7 +17,7 @@
       "url": "https://www.mql5.com/en/articles/21603",
       "title": "Unified Validation Pipeline Against Backtest Overfitting",
       "description": "This article explains why standard walkforward and k-fold CV inflate results on financial data, then shows how to fix it. V-in-V enforces strict data partitions and anchored walkforward across windows, CPCV purges and embargoes leakage while aggregating path-wise performance, and CSCV measures the Probability of Backtest Overfitting. Practitioners gain a coherent framework to assess regime robustness and selection reliability.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -25,7 +25,7 @@
       "url": "https://www.mql5.com/en/articles/21590",
       "title": "Graph Theory: Traversal Depth-First Search (DFS) Applied in Trading",
       "description": "This article applies Depth-First Search to market structure by modeling swing highs and lows as graph nodes and tracking one structural path as deeply as conditions remain valid. When a key swing is broken, the algorithm backtracks and explores an alternative branch. Readers gain a practical framework to formalize structural bias and test whether the current path aligns with targets like liquidity pools or supply and demand zones.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -33,7 +33,7 @@
       "url": "https://www.mql5.com/en/articles/21493",
       "title": "Engineering Trading Discipline into Code (Part 3): Enforcing Symbol-Level Trading Boundaries with a Whitelist System in MQL5",
       "description": "This article details an MQL5 framework that restricts trading to an approved set of symbols. The solution combines a shared library, a configuration dashboard, and an enforcement Expert Advisor that validates each trade against a whitelist and logs blocked attempts. It includes fully functional code examples, a clear explanation of the structural design decisions, and validation tests that confirm reliable symbol filtering, controlled market exposure, and transparent monitoring of rule enforceme",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -41,7 +41,7 @@
       "url": "https://www.mql5.com/en/articles/21318",
       "title": "MQL5 Trading Tools (Part 23): Camera-Controlled, DirectX-Enabled 3D Graphs for Distribution Insights",
       "description": "In this article, we advance the binomial distribution graphing tool in MQL5 by integrating DirectX for 3D visualization, enabling switchable 2D/3D modes with camera-controlled rotation, zoom, and auto-fitting for immersive analysis. We render 3D histogram bars, ground planes, and axes alongside the theoretical probability mass function curve, while preserving 2D elements like statistics panels, legends, and customizable themes, gradients, and labels",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -49,7 +49,7 @@
       "url": "https://www.mql5.com/en/articles/21589",
       "title": "Implementing the Truncated Newton Conjugate-Gradient Algorithm in MQL5",
       "description": "This article implements a box\u2011constrained Truncated Newton Conjugate\u2011Gradient (TNC) optimizer in MQL5 and details its core components: scaling, projection to bounds, line search, and Hessian\u2011vector products via finite differences. It provides an objective wrapper supporting analytic or numerical derivatives and validates the solver on the Rosenbrock benchmark. A logistic regression example shows how to use TNC as a drop\u2011in alternative to LBFGS.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -57,7 +57,7 @@
       "url": "https://www.mql5.com/en/articles/21246",
       "title": "Mastering PD Arrays: Optimizing Trading from Imbalances in PD Arrays",
       "description": "This is an article about a specialized trend-following EA that aims to clearly elaborate how to frame and utilize trading setups that occur from imbalances found in PD arrays. This article will explore in detail an EA that is specifically designed for traders who are keen on optimizing and utilizing PD arrays and imbalances as entry criteria for their trades and trading decisions. It will also explore how to correctly determine and profile premium and discount arrays and how to validate and util",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -65,7 +65,7 @@
       "url": "https://www.mql5.com/en/articles/21429",
       "title": "Package-based approach with KnitPkg for MQL5 development",
       "description": "For maximum reliability and productivity in MetaTrader products built with MQL, this article advocates a development approach based on reusable \u201cpackages\u201d managed by KnitPkg, a project manager for MQL5/MQL4. A package can be used as a building block for other packages or as the foundation for final artifacts that run directly on the MetaTrader platform, such as EAs, indicators, and more.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -73,7 +73,7 @@
       "url": "https://www.mql5.com/en/articles/21315",
       "title": "MQL5 Trading Tools (Part 22): Graphing the Histogram and Probability Mass Function (PMF) of the Binomial Distribution",
       "description": "This article develops an interactive MQL5 plot for the binomial distribution, combining a histogram of simulated outcomes with the theoretical probability mass function. It implements mean, standard deviation, skewness, kurtosis, percentiles, and confidence intervals, along with configurable themes and labels, and supports dragging, resizing, and live parameter changes. Use it to assess expected wins, likely drawdowns, and confidence ranges when validating trading strategies.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -81,7 +81,7 @@
       "url": "https://www.mql5.com/en/articles/21313",
       "title": "Engineering Trading Discipline into Code (Part 2): Building a Daily Trade Limit Enforcer for All Trades in MQL5",
       "description": "We have developed a system that enforces a daily trade limit to keep you aligned with your trading rules. It monitors all executed trades across the account and automatically intervenes once the defined limit is reached, preventing any further activity. By embedding control directly into the platform, the system ensures discipline is maintained even when market pressure rises.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -89,7 +89,7 @@
       "url": "https://www.mql5.com/en/articles/21391",
       "title": "Larry Williams Market Secrets (Part 13): Automating Hidden Smash Day Reversal Patterns",
       "description": "The article builds a transparent MQL5 Expert Advisor for Larry Williams\u2019 hidden smash day reversals. Signals are generated only on new bars: a setup bar is validated, then confirmed when the next session trades beyond its extreme. Risk is managed via ATR or structural stops with a defined risk-to-reward, position sizing can be fixed or balance-based, and direction filters plus a one-position policy ensure reproducible tests.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -97,7 +97,7 @@
       "url": "https://www.mql5.com/en/articles/17371",
       "title": "Neural Networks in Trading: Integrating Chaos Theory into Time Series Forecasting (Final Part)",
       "description": "We continue to integrate methods proposed by the authors of the Attraos framework into trading models. Let me remind you that this framework uses concepts of chaos theory to solve time series forecasting problems, interpreting them as projections of multidimensional chaotic dynamic systems.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -105,7 +105,7 @@
       "url": "https://www.mql5.com/en/articles/21279",
       "title": "The MQL5 Standard Library Explorer (Part 9): Using ALGLIB to Filter Excessive MA Crossover Signals",
       "description": "During sideways price movements, traders face excessive signals from multiple moving average crossovers. Today, we discuss how ALGLIB preprocesses raw price data to produce filtered crossover layers, which can also generate alerts when they occur. Join this discussion to learn how a mathematical library can be leveraged in MQL5 programs.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -113,7 +113,7 @@
       "url": "https://www.mql5.com/en/articles/21460",
       "title": "Formulating Dynamic Multi-Pair EA (Part 7): Cross-Pair Correlation Mapping for Real-Time Trade Filtering",
       "description": "In this part, we will integrate a real-time correlation matrix into a multi-symbol Expert Advisor to prevent redundant or risk-stacked trades. By dynamically measuring cross-pair relationships, the EA will filter entries that conflict with existing exposure, improving portfolio balance, reducing systemic risk, and enhancing overall trade quality.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -121,7 +121,7 @@
       "url": "https://www.mql5.com/en/articles/17351",
       "title": "Neural Networks in Trading: Integrating Chaos Theory into Time Series Forecasting (Attraos)",
       "description": "The Attraos framework integrates chaos theory into long-term time series forecasting, treating them as projections of multidimensional chaotic dynamic systems. Exploiting attractor invariance, the model uses phase space reconstruction and dynamic multi-resolution memory to preserve historical structures.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -129,7 +129,7 @@
       "url": "https://www.mql5.com/en/articles/21518",
       "title": "Price Action Analysis Toolkit Development (Part 63): Automating Rising and Falling Wedge Detection in MQL5",
       "description": "In this part of the Price Action Analysis Toolkit Development series, we develop an MQL5 indicator that automatically detects rising and falling wedge patterns in real time. The system confirms pivot structures, validates boundary convergence mathematically, prevents overlapping formations, and monitors breakout and failure conditions with precise visual feedback. Built using a clean object-oriented architecture, this implementation converts subjective wedge recognition into a structured, state-",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -137,7 +137,7 @@
       "url": "https://www.mql5.com/en/articles/21387",
       "title": "Overcoming Accessibility Challenges in MQL5 Trading Tools (Part II): Enabling EA Voice Using a Python Text-to-Speech Engine",
       "description": "Let's discuss how we can make our Expert Advisors speech\u2011capable using text\u2011to\u2011speech technology, partnering Python and MQL5. After reading this article, you will walk away with a working example of an EA that speaks dynamic market information. You will master the application of TTS, the WebRequest function, and learn how Python libraries integrate with the MQL5 language to create a truly voice\u2011aware trading tool.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -145,7 +145,7 @@
       "url": "https://www.mql5.com/en/articles/21306",
       "title": "MQL5 Trading Tools (Part 21): Adding Cyberpunk Theme to Regression Graphs",
       "description": "In this article, we enhance the regression graphing tool in MQL5 by adding a cyberpunk theme mode with neon glows, animations, and holographic effects for immersive visualization. We integrate theme toggling, dynamic backgrounds with stars, glowing borders, and neon points/lines, while maintaining standard mode compatibility. This dual-theme system elevates pair analysis with futuristic aesthetics, supporting real-time updates and interactions for engaging trading insights.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -153,7 +153,7 @@
       "url": "https://www.mql5.com/en/articles/21443",
       "title": "Price Action Analysis Toolkit Development (Part 62): Building an Adaptive Parallel Channel Detection and Breakout System in MQL5",
       "description": "This article presents an adaptive parallel channel detection and breakout system in MQL5. It explains how swing points are identified, channels are constructed and dynamically recalculated, and breakouts are confirmed and visualized with persistent signals. The framework integrates trendline geometry, ATR-based filtering, and retest validation to provide reliable, real-time price action analysis for professional charting and trading decisions.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -161,7 +161,7 @@
       "url": "https://www.mql5.com/en/articles/21507",
       "title": "Statistical Arbitrage Through Cointegrated Stocks (Final): Data Analysis with Specialized Database",
       "description": "The article shows how to pair SQLite (OLTP) with DuckDB (OLAP) for statistical arbitrage data processing. DuckDB\u2019s columnar engine, ASOF JOIN, and array functions accelerate core tasks such as quote\u2013trade alignment and RWEC, with measured speedups from 2x to 23x versus SQLite on larger inputs. You get simpler queries and faster analytics while keeping trade execution in SQLite.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -169,7 +169,7 @@
       "url": "https://www.mql5.com/en/articles/21326",
       "title": "Introduction to MQL5 (Part 42): Beginner Guide to File Handling in MQL5 (IV)",
       "description": "This article shows how to build an MQL5 indicator that reads a CSV trading history, extracts Profit($) values and total trades, and computes a cumulative balance progression. We plot the curve in a separate indicator window, auto-scale the Y-axis, and draw horizontal and vertical axes for alignment. The indicator updates on a timer and redraws only when new trades appear. Optional labels display per-trade profit and loss to help assess performance and drawdowns directly on the chart.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -177,7 +177,7 @@
       "url": "https://www.mql5.com/en/articles/21135",
       "title": "Swing Extremes and Pullbacks in MQL5 (Part 2): Automating the Strategy with an Expert Advisor",
       "description": "Built on lower-timeframe market structure, and then orchestrated on the higher-timeframe, this indicator detects swing extremes where price becomes statistically vulnerable to reversal. It visualizes overextension and pullback zones, offering early insight into mean-reversion behavior.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -185,7 +185,7 @@
       "url": "https://www.mql5.com/en/articles/17957",
       "title": "Implementation of a Breakeven Mechanism in MQL5 (Part 1): Base Class and Fixed-Points Breakeven Mode",
       "description": "This article discusses the application of a breakeven mechanism in automated strategies using the MQL5 language. We will start with a simple explanation of what the breakeven mode is, how it is implemented, and its possible variations.  Next, this functionality will be integrated into the Order Blocks expert advisor, which we created in our last article on risk management. To evaluate its effectiveness, we will run two backtests under specific conditions: one using the breakeven mechanism and th",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -193,7 +193,7 @@
       "url": "https://www.mql5.com/en/articles/21228",
       "title": "Larry Williams Market Secrets (Part 12): Context Based Trading of Smash Day Reversals",
       "description": "This article shows how to automate Larry Williams Smash Day reversal patterns in MQL5 within a structured context. We implement an Expert Advisor that validates setups over a limited window, aligns entries with Supertrend-based trend direction and day-of-week filters, and supports entry on level cross or bar close. The code enforces one position at a time and risk-based or fixed sizing. Step-by-step development, backtesting procedure, and reproducible settings are provided.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -201,7 +201,7 @@
       "url": "https://www.mql5.com/en/articles/21133",
       "title": "From Novice to Expert:  Extending a Liquidity Strategy with Trend Filters",
       "description": "The article extends a liquidity-based strategy with a simple trend constraint: trade liquidity zones only in the direction of the EMA(50). It explains filtering rules, presents a reusable TrendFilter.mqh class and EA integration in MQL5, and compares baseline versus filtered tests. Readers gain a clear directional bias, reduced overtrading in countertrend phases, and ready-to-use source files.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -209,7 +209,7 @@
       "url": "https://www.mql5.com/en/articles/21330",
       "title": "Swing Extremes and Pullbacks in MQL5 (Part 1): Developing a Multi-Timeframe Indicator",
       "description": "In this discussion we will Automate Swing Extremes and the Pullback Indicator, which transforms raw lower-timeframe (LTF) price action into a structured map of market intent, precisely identifying swing highs, swing lows, and corrective phases in real time. By programmatically tracking microstructure shifts, it anticipates potential reversals before they fully unfold\u2014turning noise into actionable insight.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -217,7 +217,7 @@
       "url": "https://www.mql5.com/en/articles/21390",
       "title": "Creating Custom Indicators in MQL5 (Part 8): Adding Volume Integration for Deeper Market Profile Analysis",
       "description": "In this article, we enhance the hybrid Time Price Opportunity (TPO) market profile indicator in MQL5 by integrating volume data to calculate volume-based point of control, value areas, and volume-weighted average price with customizable highlighting options. The system introduces advanced features like initial balance detection, key level extension lines, split profiles, and alternative TPO characters such as squares or circles for improved visual analysis across multiple timeframes.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -225,7 +225,7 @@
       "url": "https://www.mql5.com/en/articles/21303",
       "title": "MQL5 Trading Tools (Part 20): Canvas Graphing with Statistical Correlation and Regression Analysis",
       "description": "In this article, we create a canvas-based graphing tool in MQL5 for statistical correlation and linear regression analysis between two symbols, with draggable and resizable features. We incorporate ALGLIB for regression calculations, dynamic tick labels, data points, and a stats panel displaying slope, intercept, correlation, and R-squared. This interactive visualization aids in pair trading insights, supporting customizable themes, borders, and real-time updates on new bars",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -233,7 +233,7 @@
       "url": "https://www.mql5.com/en/articles/20451",
       "title": "MetaTrader 5 Machine Learning Blueprint (Part 7): From Scattered Experiments to Reproducible Results",
       "description": "In the latest installment of this series, we move beyond individual machine learning techniques to address the \"Research Chaos\" that plagues many quantitative traders. This article focuses on the transition from ad-hoc notebook experiments to a principled, production-grade pipeline that ensures reproducibility, traceability, and efficiency.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -241,7 +241,7 @@
       "url": "https://www.mql5.com/en/articles/21273",
       "title": "Engineering Trading Discipline into Code (Part 1): Creating Structural Discipline in Live Trading with MQL5",
       "description": "Discipline becomes reliable when it is produced by system design, not willpower. Using MQL5, the article implements real-time constraints\u2014trade-frequency caps and daily equity-based stops\u2014that monitor behavior and trigger actions on breach. Readers gain a practical template for governance layers that stabilize execution under market pressure.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -249,7 +249,7 @@
       "url": "https://www.mql5.com/en/articles/21283",
       "title": "From Novice to Expert: Automating Intraday Strategies",
       "description": "We translate the EMA\u201150 retest idea into a behavior\u2011driven Expert Advisor for intraday trading. The study formalizes trend bias, EMA interaction (pierce and close), reaction confirmation, and optional filters, then implements them in MQL5 with modular functions and resource\u2011safe handles. Visual testing in the Strategy Tester verifies signal correctness. The result is a clear template for coding discretionary bounces.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -257,7 +257,7 @@
       "url": "https://www.mql5.com/en/articles/12828",
       "title": "Market Simulation (Part 16): Sockets (X)",
       "description": "We are close to completing this challenge. However, before we begin, I want you to try to understand these two articles\u2014this one and the previous one. That way, you will truly understand the next article, in which I will cover exclusively the part related to MQL5 programming. But I will also try to make it understandable. If you do not understand these last two articles, it will be difficult for you to understand the next one, because the material accumulates. The more things there are to do, th",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -265,7 +265,7 @@
       "url": "https://www.mql5.com/en/articles/21388",
       "title": "Creating Custom Indicators in MQL5 (Part 7): Hybrid Time Price Opportunity (TPO) Market Profiles for Session Analysis",
       "description": "In this article, we develop a custom indicator in MQL5 for hybrid Time Price Opportunity (TPO) market profiles, supporting multiple session timeframes such as intraday, daily, weekly, monthly, and fixed periods with timezone adjustments. The indicator quantizes prices into a grid, tracks session data including highs, lows, opens, and closes, and calculates key elements like the point of control and value area based on TPO counts. It renders profiles visually on the chart with customizable colors",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -273,7 +273,7 @@
       "url": "https://www.mql5.com/en/articles/21275",
       "title": "MQL5 Trading Tools (Part 19): Building an Interactive Tools Palette for Chart Drawing",
       "description": "In this article, we build an interactive tools palette in MQL5 for chart drawing, with draggable, resizable panels and theme switching. We add buttons for tools like crosshair, trendlines, lines, rectangles, Fibonacci, text, and arrows, handling mouse events for activation and instructions. This system improves trading analysis through a customizable UI, supporting real-time interactions on charts",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -281,7 +281,7 @@
       "url": "https://www.mql5.com/en/articles/12827",
       "title": "Market Simulation (Part 15): Sockets (IX)",
       "description": "In this article, we will discuss one of the possible solutions to what we have been trying to demonstrate\u2014namely, how to allow an Excel user to perform an action in MetaTrader 5 without sending orders or opening or closing positions. The idea is that the user employs Excel to conduct fundamental analysis of a particular symbol. And by using only Excel, they can instruct an expert advisor running in MetaTrader 5 to open or close a specific position.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -289,7 +289,7 @@
       "url": "https://www.mql5.com/en/articles/21309",
       "title": "Introduction to MQL5 (Part 41): Beginner Guide to File Handling in MQL5 (III)",
       "description": "Learn how to read a CSV file in MQL5 and organize its trading data into dynamic arrays. This article shows step by step how to count file elements, store all data in a single array, and separate each column into dedicated arrays, laying the foundation for advanced analysis and trading performance visualization.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -297,7 +297,7 @@
       "url": "https://www.mql5.com/en/articles/12790",
       "title": "Market Simulation (Part 13): Sockets (VII)",
       "description": "When we develop something in xlwings or any other package that allows reading and writing directly to Excel, we must note that all programs, functions, or procedures execute and then complete their task. They do not remain in a loop, no matter how hard we try to do things differently.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -305,7 +305,7 @@
       "url": "https://www.mql5.com/en/articles/21235",
       "title": "Using the MQL5 Economic Calendar for News Filtering (Part 1): Implementing Pre- and Post-News Windows in MQL5",
       "description": "We build a calendar\u2011driven news filter entirely in MQL5, avoiding web requests and external DLLs. Part 1 covers loading and caching events, mapping them to symbols by currency, filtering by impact level, defining pre/post windows, and blocking new trades during active news, with optional pre\u2011news position closure. The result is a configurable, prop\u2011firm\u2011friendly control that reduces false pauses and protects entries during volatility.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -313,7 +313,7 @@
       "url": "https://www.mql5.com/en/articles/12745",
       "title": "Market Simulation (Part 12): Sockets (VI)",
       "description": "In this article, we will look at how to solve certain problems and issues that arise when using Python code within other programs. More specifically, we will demonstrate a common issue encountered when using Excel in conjunction with MetaTrader 5, although we will be using Python to facilitate this interaction. However, this implementation has a minor drawback. It does not occur in all cases, but only in certain specific situations. When it does happen, it is necessary to understand the cause. I",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -321,7 +321,7 @@
       "url": "https://www.mql5.com/en/articles/17640",
       "title": "Risk Management (Part 5): Integrating the Risk Management System into an Expert Advisor",
       "description": "In this article, we will implement the risk management system developed in previous publications and add the Order Blocks indicator described in other articles. In addition, we will run a backtest so we can compare results with the risk management system enabled and evaluate the impact of dynamic risk.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -329,7 +329,7 @@
       "url": "https://www.mql5.com/en/articles/21255",
       "title": "Automating Market Memory Zones Indicator: Where Price is Likely to Return",
       "description": "This article turns Market Memory Zones from a chart-only concept into a complete MQL5 Expert Advisor. It automates Displacement, Structure Transition (CHoCH), and Liquidity Sweep zones using ATR- and candle-structure filters, applies lower-timeframe confirmation, and enforces risk-based position sizing with dynamic SL and structure-based TP. You will get the code architecture for detection, entries, trade management, and visualization, plus a brief backtest review.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -337,7 +337,7 @@
       "url": "https://www.mql5.com/en/articles/21267",
       "title": "Introduction to MQL5 (Part 40): Beginner Guide to File Handling in MQL5 (II)",
       "description": "Create a CSV trading journal in MQL5 by reading account history over a defined period and writing structured records to file. The article explains deal counting, ticket retrieval, symbol and order type decoding, and capturing entry (lot, time, price, SL/TP) and exit (time, price, profit, result) data with dynamic arrays. The result is an organized, persistent log suitable for analysis and reporting.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -345,7 +345,7 @@
       "url": "https://www.mql5.com/en/articles/21271",
       "title": "MQL5 Trading Tools (Part 18): Rounded Speech Bubbles/Balloons with Orientation Control",
       "description": "This article shows how to build rounded speech bubbles in MQL5 by combining a rounded rectangle with a pointer triangle and controlling orientation (up, down, left, right). It details geometry precomputation, supersampled filling, rounded apex arcs, and segmented borders with an extension ratio for seamless joins. Readers get configurable code for size, radii, colors, opacity, and thickness, ready for alerts or tooltips in trading interfaces.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -353,7 +353,7 @@
       "url": "https://www.mql5.com/en/articles/21277",
       "title": "Price Action Analysis Toolkit Development (Part 61): Structural Slanted Trendline Breakouts with 3-Swing Validation",
       "description": "We present a slanted trendline breakout tool that relies on three\u2011swing validation to generate objective, price\u2011action signals. The system automates swing detection, trendline construction, and breakout confirmation using crossing logic to reduce noise and standardize execution. The article explains the strategy rules, shows the MQL5 implementation, and reviews testing results; the tool is intended for analysis and signal confirmation, not automated trading.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -361,7 +361,7 @@
       "url": "https://www.mql5.com/en/articles/17508",
       "title": "Risk Management (Part 4): Completing the Key Class Methods",
       "description": "This is Part 4 of our series on risk management in MQL5, where we continue exploring advanced methods for protecting and optimizing trading strategies. Having laid important foundations in earlier articles, we will now focus on completing all remaining methods postponed in Part 3, including functions for checking whether specific profit or loss levels have been reached. In addition, we will introduce new key events that enable more accurate and flexible risk management.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -369,7 +369,7 @@
       "url": "https://www.mql5.com/en/articles/15860",
       "title": "From Basic to Intermediate: Struct (IV)",
       "description": "In this article, we will explore how to create so-called structural code, where the entire context and methods for manipulating variables and information are placed within a structure to create a suitable context for implementing any code. Therefore, we will examine the necessity of using a private section of the code to separate what is public from what is not, thereby adhering to the rule of encapsulation and preserving the context for which the data structure was created.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -377,7 +377,7 @@
       "url": "https://www.mql5.com/en/articles/18253",
       "title": "ARIMA Forecasting Indicator in MQL5",
       "description": "In this article we are implementing ARIMA forecasting indicator in MQL5. It examines how the ARIMA model generates forecasts, its applicability to the Forex market and the stock market in general. It also explains what AR autoregression is, how autoregressive models are used for forecasting, and how the autoregression mechanism works.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -385,7 +385,7 @@
       "url": "https://www.mql5.com/en/articles/18035",
       "title": "Quantitative Analysis of Trends: Collecting Statistics in Python",
       "description": "What is quantitative trend analysis in the Forex market? We collect statistics on trends, their magnitude and distribution across the EURUSD currency pair. How quantitative trend analysis can help you create a profitable trading expert advisor.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -393,7 +393,7 @@
       "url": "https://www.mql5.com/en/articles/21212",
       "title": "Optimizing Liquidity Raids: Mastering the Difference Between Liquidity Raids and Market Structure Shifts",
       "description": "This is an article about a specialized trend-following EA that aims to clearly elaborate how to utilize trading setups after liquidity raids. This article will explore in detail an EA that is specifically designed for traders who are keen on optimizing and utilizing liquidity raids and purges as entry criteria for their trades and trading decisions. It will also explore how to correctly differentiate between liquidity raids and market structure shifts and how to validate and utilize each of them",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -401,7 +401,7 @@
       "url": "https://www.mql5.com/en/articles/21264",
       "title": "MQL5 Trading Tools (Part 17): Exploring Vector-Based Rounded Rectangles and Triangles",
       "description": "In this article, we explore vector-based methods for drawing rounded rectangles and triangles in MQL5 using canvas, with supersampling for anti-aliased rendering. We implement scanline filling, geometric precomputations for arcs and tangents, and border drawing to create smooth, customizable shapes. This approach lays the groundwork for modern UI elements in future trading tools, supporting inputs for sizes, radii, borders, and opacities.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -409,7 +409,7 @@
       "url": "https://www.mql5.com/en/articles/15889",
       "title": "From Basic to Intermediate: Struct (VI)",
       "description": "In this article, we will explore how to approach the implementation of a common structural code base. The goal is to reduce the programming workload and leverage the full potential of the programming language itself\u2014in this case, MQL5.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -417,7 +417,7 @@
       "url": "https://www.mql5.com/en/articles/15869",
       "title": "From Basic to Intermediate: Struct (V)",
       "description": "In this article, we will explore how to overload structural code. I know it can be quite challenging to understand at first, especially if you're seeing it for the first time. It is very important that you grasp these concepts and understand them well before attempting to delve into more complex and elaborate topics.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -425,7 +425,7 @@
       "url": "https://www.mql5.com/en/articles/12744",
       "title": "Market Simulation: (Part 11): Sockets (V)",
       "description": "We are beginning to implement the connection between Excel and MetaTrader 5, but first we need to understand some key points. This way, you won't have to rack your brains trying to figure out why something works or doesn't. And before you frown at the prospect of integrating Python and Excel, let's see how we can (to some extent) control MetaTrader 5 through Excel using xlwings. What we demonstrate here will primarily focus on educational objectives. However, don't think that we can only do what",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -433,7 +433,7 @@
       "url": "https://www.mql5.com/en/articles/10683",
       "title": "Market Simulation (Part 14): Sockets (VIII)",
       "description": "Many programmers might assume we should abandon using Excel and move directly to Python, using some packages that allow Python to generate an Excel file for later analysis of results. However, as mentioned in the previous article, although this solution is the simplest for many programmers, it will not be accepted by some users. And in this particular case, the user is always right. As programmers, we must find a way to make everything work.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -441,7 +441,7 @@
       "url": "https://www.mql5.com/en/articles/15847",
       "title": "From Basic to Intermediate: Struct (III)",
       "description": "In this article, we will explore what structured code is. Many people confuse structured code with organized code, but there is a difference between these two concepts. This is exactly what will be discussed in this article. Despite the apparent complexity you may feel when first encountering this type of code writing, I have tried to approach the topic as simply as possible. However, this article is just the first step toward something greater.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -449,7 +449,7 @@
       "url": "https://www.mql5.com/en/articles/21128",
       "title": "Larry Williams Market Secrets (Part 11): Detecting Smash Day Reversals with a Custom Indicator",
       "description": "We convert Larry Williams\u2019 Smash Day reversal rules into a practical MQL5 indicator that flags confirmed setups with arrows. Step by step, the text shows buffer binding, plot properties, historical mapping, and real\u2011time updates inside OnCalculate. Adjustable lookback parameters and clean chart rendering help you detect valid reversals quickly while keeping final trade decisions discretionary and context\u2011driven.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -457,7 +457,7 @@
       "url": "https://www.mql5.com/en/articles/19930",
       "title": "Bivariate Copulae in MQL5: (Part 3): Implementation and Tuning of Mixed Copula Models in MQL5",
       "description": "The article extends our copula toolkit with mixed copulas implemented natively in MQL5. We construct Clayton\u2013Frank\u2013Gumbel and Clayton\u2013Student\u2013t\u2013Gumbel mixtures, estimate them via EM, and enable sparsity control through SCAD with cross\u2011validation. Provided scripts tune hyperparameters, compare mixtures using information criteria, and save trained models. Practitioners can apply these components to capture asymmetric tail dependence and embed the selected model in indicators or Expert Advisors.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -465,7 +465,7 @@
       "url": "https://www.mql5.com/en/articles/21226",
       "title": "Price Action Analysis Toolkit Development (Part 60):  Objective Swing-Based Trendlines for Structural Analysis",
       "description": "We present a rule-based approach to trendlines that avoids indicator pivots and uses ordered swings derived from raw prices. The article walks through swing detection, size qualification via ATR or fixed thresholds, and validation of ascending and descending structures, then implements these rules in MQL5 with non-repainting drawing and selective output. You get a clear, repeatable way to track structural support and resistance that holds up across market conditions.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -473,7 +473,7 @@
       "url": "https://www.mql5.com/en/articles/21252",
       "title": "MQL5 Trading Tools (Part 16): Improved Super-Sampling Anti-Aliasing (SSAA) and High-Resolution Rendering",
       "description": "We add supersampling\u2011driven anti\u2011aliasing and high\u2011resolution rendering to the MQL5 canvas dashboard, then downsample to the target size. The article implements rounded rectangle fills and borders, rounded triangle arrows, and a custom scrollbar with theming for the stats and text panels. These tools help you build smoother, more legible UI components in MetaTrader 5.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -481,7 +481,7 @@
       "url": "https://www.mql5.com/en/articles/21115",
       "title": "Integrating MQL5 with Data Processing Packages (Part 7): Building Multi-Agent Environments for Cross-Symbol Collaboration",
       "description": "The article presents a complete Python\u2013MQL5 integration for multi\u2011agent trading: MT5 data ingestion, indicator computation, per\u2011agent decisions, and a weighted consensus that outputs a single action. Signals are stored to JSON, served by Flask, and consumed by an MQL5 Expert Advisor for execution with position sizing and ATR\u2011derived SL/TP. Flask routes provide safe lifecycle control and status monitoring.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -489,7 +489,7 @@
       "url": "https://www.mql5.com/en/articles/15833",
       "title": "From Basic to Intermediate: Indicator (IV)",
       "description": "In this article, we will explore how to easily create and implement an operational approach for coloring candles. This concept is highly valued by traders. When implementing such things, care must be taken to ensure that the bars or candles retain their original appearance and do not hinder reading candle by candle.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -497,7 +497,7 @@
       "url": "https://www.mql5.com/en/articles/21160",
       "title": "Introduction to MQL5 (Part 39): Beginner Guide to File Handling in MQL5 (I)",
       "description": "This article introduces file handling in MQL5 using a practical, project-based workflow. You will use FileSelectDialog to choose or create a CSV file, open it with FileOpen, and write structured account headers such as account name, balance, login, date range, and last update. The result is a clear foundation for a reusable trading journal and safe file operations in MetaTrader 5.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -505,7 +505,7 @@
       "url": "https://www.mql5.com/en/articles/21045",
       "title": "The MQL5 Standard Library Explorer (Part 8) : The Hybrid Trades Journal Logging with CFile",
       "description": "In this article, we explore the File Operations classes of the MQL5 Standard Library to build a robust reporting module that automatically generates Excel-ready CSV files. Along the way, we clearly distinguish between manually executed trades and algorithmically executed orders, laying the groundwork for reliable, auditable trade reporting.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -513,7 +513,7 @@
       "url": "https://www.mql5.com/en/articles/15828",
       "title": "From Basic to Intermediate: Indicator (III)",
       "description": "In this article, we will explore how to declare various graphical representation indicators, such as DRAW_COLOR_LINE and DRAW_FILLING. Additionally, of course, we will learn how to plot graphs using multiple indicators in a simple, practical, and fast way. This can truly change your perspective on MetaTrader 5 and the market as a whole.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -521,7 +521,7 @@
       "url": "https://www.mql5.com/en/articles/17755",
       "title": "Algorithmic Trading Strategies: AI and Its Road to Golden Pinnacles",
       "description": "This article demonstrates an approach to creating trading strategies for gold using machine learning. Considering the proposed approach to the analysis and forecasting of time series from different angles, it is possible to determine its advantages and disadvantages in comparison with other ways of creating trading systems which are based solely on the analysis and forecasting of financial time series.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -529,7 +529,7 @@
       "url": "https://www.mql5.com/en/articles/17219",
       "title": "Angular Analysis of Price Movements: A Hybrid Model for Predicting Financial Markets",
       "description": "What is angular analysis of financial markets? How to use price action angles and machine learning to make accurate forecasts with 67% accuracy? How to combine a regression and classification model with angular features and obtain a working algorithm? What does Gann have to do with it? Why are price movement angles a good indicator for machine learning?",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -537,7 +537,7 @@
       "url": "https://www.mql5.com/en/articles/21189",
       "title": "Overcoming Accessibility Problems in MQL5 Trading Tools (Part I): How to Add Contextual Voice Alerts in MQL5 Indicators",
       "description": "This article explores an accessibility-focused enhancement that goes beyond default terminal alerts by leveraging MQL5 resource management to deliver contextual voice feedback. Instead of generic tones, the indicator communicates what has occurred and why, allowing traders to understand market events without relying solely on visual observation. This approach is especially valuable for visually impaired traders, but it also benefits busy or multitasking users who prefer hands-free interaction.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -545,7 +545,7 @@
       "url": "https://www.mql5.com/en/articles/20958",
       "title": "Python-MetaTrader 5 Strategy Tester (Part 05): Multi-Symbols and Timeframes Strategy Tester",
       "description": "This article presents a MetaTrader 5\u2013compatible backtesting workflow that scales across symbols and timeframes. We use HistoryManager to parallelize data collection, synchronize bars and ticks from all timeframes, and run symbol\u2011isolated OnTick handlers in threads. You will learn how modelling modes affect speed/accuracy, when to rely on terminal data, how to reduce I/O with event\u2011driven updates, and how to assemble a complete multicurrency trading robot.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -553,7 +553,7 @@
       "url": "https://www.mql5.com/en/articles/20908",
       "title": "Custom Indicator Workshop (Part 2) : Building a Practical Supertrend Expert Advisor in MQL5",
       "description": "Learn how to build a Supertrend-driven Expert Advisor in MQL5 from the ground up. The article covers embedding the indicator as a resource, reading buffer values on closed bars, detecting confirmed flips, aligning and switching positions, and configuring stop-loss modes and position sizing. It concludes with Strategy Tester setup and reproducible tests, leaving you with a configurable EA and a clear framework for further research and extensions.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -561,7 +561,7 @@
       "url": "https://www.mql5.com/en/articles/15802",
       "title": "From Basic to Intermediate: Indicator (II)",
       "description": "In this article, we will examine how to implement a moving average calculation and what precautions should be taken when performing this calculation. We will also discuss overloading the OnCalculate function to know when and how to work with one model or another.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -569,7 +569,7 @@
       "url": "https://www.mql5.com/en/articles/17706",
       "title": "Analyzing Overbought and Oversold Trends Via Chaos Theory Approaches",
       "description": "We determine the overbought and oversold condition of the market according to chaos theory: integrating the principles of chaos theory, fractal geometry and neural networks to forecast financial markets. The study demonstrates the use of the Lyapunov exponent as a measure of market randomness and the dynamic adaptation of trading signals. The methodology includes an algorithm for generating fractal noise, hyperbolic tangent activation, and moment optimization.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -577,7 +577,7 @@
       "url": "https://www.mql5.com/en/articles/21197",
       "title": "Price Action Analysis Toolkit Development (Part 59): Using Geometric Asymmetry to Identify Precision Breakouts from Fractal Consolidation",
       "description": "While studying a wide range of breakout setups, I noticed that failed breakouts were rarely caused by a lack of volatility, but more often by weak internal structure. That observation led to the framework presented in this article. The approach identifies patterns where the final price leg shows superior length, steepness, and speed\u2014clear signs of momentum accumulation ahead of directional expansion. By detecting these subtle geometric imbalances within consolidation, traders can anticipate high",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -585,7 +585,7 @@
       "url": "https://www.mql5.com/en/articles/15794",
       "title": "From Basic to Intermediate: Indicator (I)",
       "description": "In this article, we will create our first fully practical and functional indicator. The goal is not to show how to create an application, but to help you understand how you can develop your own ideas and give you the opportunity to apply them in a safe, simple, and practical way.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -593,7 +593,7 @@
       "url": "https://www.mql5.com/en/articles/20892",
       "title": "The MQL5 Standard Library Explorer (Part 7): Interactive Position Labeling with CCanvas",
       "description": "In this article, we explore how to build a position information visualization tool using the MQL5 Standard Library\u2019s CCanvas. This project strengthens your skills in working with library modules while providing traders with a practical tool to visualize and interact with open positions directly on a live chart. Join the discussion to learn more.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -601,7 +601,7 @@
       "url": "https://www.mql5.com/en/articles/21127",
       "title": "Larry Williams Market Secrets (Part 10): Automating Smash Day Reversal Patterns",
       "description": "We implement Larry Williams\u2019 Smash Day reversal patterns in MQL5 by building a rule-based Expert Advisor with dynamic risk management, breakout confirmation logic, and one trade at a time execution. Readers can backtest, reproduce, and study parameter effects using the MetaTrader 5 Strategy Tester and the provided source.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -609,7 +609,7 @@
       "url": "https://www.mql5.com/en/articles/17981",
       "title": "Integrating Computer Vision into Trading in MQL5 (Part 1): Creating Basic Functions",
       "description": "The EURUSD forecasting system with the use of computer vision and deep learning. Learn how convolutional neural networks can recognize complex price patterns in the foreign exchange market and predict exchange rate movements with up to 54% accuracy. The article shares the methodology for creating an algorithm that uses artificial intelligence technologies for visual analysis of charts instead of traditional technical indicators. The author demonstrates the process of transforming price data into",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -617,7 +617,7 @@
       "url": "https://www.mql5.com/en/articles/17455",
       "title": "Using Deep Reinforcement Learning to Enhance Ilan Expert Advisor",
       "description": "We revisit the Ilan grid Expert Advisor and integrate Q-learning in MQL5 to build an adaptive version for MetaTrader 5. The article shows how to define state features, discretize them for a Q-table, select actions with \u03b5-greedy, and shape rewards for averaging and exits. You will implement saving/loading the Q-table, tune learning parameters, and test on EURUSD/AUDUSD in the Strategy Tester to evaluate stability and drawdown risks.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -625,7 +625,7 @@
       "url": "https://www.mql5.com/en/articles/17654",
       "title": "Exploring Machine Learning in Unidirectional Trend Trading Using Gold as a Case Study",
       "description": "This article discusses an approach to trading only in the chosen direction (buy or sell). For this purpose, the technique of causal inference and machine learning are used.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -633,7 +633,7 @@
       "url": "https://www.mql5.com/en/articles/15733",
       "title": "From Basic to Intermediate: Events (II)",
       "description": "In this article, we will see that not everything always needs to be implemented in a certain specific way. There are alternative approaches to problem-solving. To properly understand this article, it is necessary to grasp the concepts described in the previous articles. The materials presented here are for educational purposes only. Do not regard it as a finished application. Its purpose is to study the concepts presented here.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -641,7 +641,7 @@
       "url": "https://www.mql5.com/en/articles/20852",
       "title": "Integrating External Applications with MQL5 Community OAuth",
       "description": "Learn how to add \u201cSign in with MQL5\u201d to your Android app using the OAuth 2.0 authorization code flow. The guide covers app registration, endpoints, redirect URI, Custom Tabs, deep-link handling, and a PHP backend that exchanges the code for an access token over HTTPS. You will authenticate real MQL5 users and access profile data such as rank and reputation.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -649,7 +649,7 @@
       "url": "https://www.mql5.com/en/articles/20755",
       "title": "Custom Indicator Workshop (Part 1): Building the Supertrend Indicator in MQL5",
       "description": "Build a non\u2011repainting Supertrend in MQL5 for MetaTrader 5 from first principles. We use an iATR handle and CopyBuffer for volatility, bind buffers with SetIndexBuffer, and configure plots (DRAWCOLORCANDLES plus two line bands) via PlotIndexSetInteger. The logic updates only on closed bars with EMPTY_VALUE to suppress inactive bands, exposing atrPeriod and atrMultiplier inputs. You get a clean, EA\u2011ready overlay with documented buffers for strategies and signals.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -657,7 +657,7 @@
       "url": "https://www.mql5.com/en/articles/17546",
       "title": "Employing Game Theory Approaches in Trading Algorithms",
       "description": "We are creating an adaptive self-learning trading expert advisor based on DQN machine learning, with multidimensional causal inference. The EA will successfully trade simultaneously on 7 currency pairs. And agents of different pairs will exchange information with each other.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -665,7 +665,7 @@
       "url": "https://www.mql5.com/en/articles/21129",
       "title": "From Novice to Expert: Developing a Liquidity Strategy",
       "description": "Liquidity zones are commonly traded by waiting for the price to return and retest the zone of interest, often through the placement of pending orders within these areas. In this article, we leverage MQL5 to bring this concept to life, demonstrating how such zones can be identified programmatically and how risk management can be systematically applied. Join the discussion as we explore both the logic behind liquidity-based trading and its practical implementation.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -673,7 +673,7 @@
       "url": "https://www.mql5.com/en/articles/21109",
       "title": "Price Action Analysis Toolkit Development (Part 58): Range Contraction Analysis and Maturity Classification Module",
       "description": "Building on the previous article that introduced the market state classification module, this installment focuses on implementing the core logic for identifying and evaluating compression zones. It presents a range contraction detection and maturity grading system in MQL5 that analyzes market congestion using price action alone.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -681,7 +681,7 @@
       "url": "https://www.mql5.com/en/articles/21061",
       "title": "Introduction to MQL5 (Part 38): Mastering API and WebRequest Function in MQL5 (XII)",
       "description": "Create a practical bridge between MetaTrader 5 and Binance: fetch 30\u2011minute klines with WebRequest, extract OHLC/time values from JSON, and confirm a bullish engulfing pattern using only completed candles. Then assemble the query string, compute the HMAC\u2011SHA256 signature, add X\u2011MBX\u2011APIKEY, and submit authenticated orders. You get a clear, end\u2011to\u2011end EA workflow from data acquisition to order execution.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -689,7 +689,7 @@
       "url": "https://www.mql5.com/en/articles/17522",
       "title": "Swap Arbitrage in Forex: Building a Synthetic Portfolio and Generating a Consistent Swap Flow",
       "description": "Do you want to know how to benefit from the difference in interest rates? This article considers how to use swap arbitrage in Forex to earn stable profit every night, creating a portfolio that is resistant to market fluctuations.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -697,7 +697,7 @@
       "url": "https://www.mql5.com/en/articles/20986",
       "title": "From Novice to Expert: Creating a Liquidity Zone Indicator",
       "description": "The extent of liquidity zones and the magnitude of the breakout range are key variables that substantially affect the probability of a retest occurring. In this discussion, we outline the complete process for developing an indicator that incorporates these ratios.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -705,7 +705,7 @@
       "url": "https://www.mql5.com/en/articles/21140",
       "title": "MQL5 Trading Tools (Part 15): Canvas Blur Effects, Shadow Rendering, and Smooth Mouse Wheel Scrolling",
       "description": "In this article, we enhance the MQL5 canvas dashboard with advanced visual effects, including blur gradients for fog overlays, shadow rendering for headers, and antialiased drawing for smoother lines and curves. We add smooth mouse wheel scrolling to the text panel that does not interfere with the chart zoom scale, technically an upgrade.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -713,7 +713,7 @@
       "url": "https://www.mql5.com/en/articles/21063",
       "title": "Larry Williams Market Secrets (Part 9): Patterns to Profit",
       "description": "An empirical study of Larry Williams' short-term trading patterns, showing how classic setups can be automated in MQL5, tested on real market data, and evaluated for consistency, profitability, and practical trading value.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -721,7 +721,7 @@
       "url": "https://www.mql5.com/en/articles/17457",
       "title": "Visualizing Strategies in MQL5: Laying Out Optimization Results Across Criterion Charts",
       "description": "In this article, we write an example of visualizing the optimization process and display the top three passes for the four optimization criteria. We will also provide an opportunity to select one of the three best passes for displaying its data in tables and on a chart.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -729,7 +729,7 @@
       "url": "https://www.mql5.com/en/articles/20654",
       "title": "Database Is Easy (Part 1): A Lightweight ORM Framework for MQL5 Using SQLite",
       "description": "This article presents a structured way to manage SQLite data in MQL5 through an ORM layer for MetaTrader 5. It introduces core classes for entity modeling and database access, a fluent CRUD API, reflection hooks for OnGet/OnSet, and macros to define models quickly. Practical code shows creating tables, binding fields, inserting, updating, querying, and deleting records. Developers gain reusable, type-safe components that minimize repetitive SQL.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -737,7 +737,7 @@
       "url": "https://www.mql5.com/en/articles/20904",
       "title": "From Novice to Expert: Statistical Validation of Supply and Demand Zones",
       "description": "Today, we uncover the often overlooked statistical foundation behind supply and demand trading strategies. By combining MQL5 with Python through a Jupyter Notebook workflow, we conduct a structured, data-driven investigation aimed at transforming visual market assumptions into measurable insights. This article covers the complete research process, including data collection, Python-based statistical analysis, algorithm design, testing, and final conclusions. To explore the methodology and finding",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -745,7 +745,7 @@
       "url": "https://www.mql5.com/en/articles/12743",
       "title": "Market Simulation (Part 10): Sockets (IV)",
       "description": "In this article, we'll look at what you need to do to start using Excel to manage MetaTrader 5, but in a very interesting way. To do this, we will use an Excel add-in to avoid using built-in VBA. If you don't know what add-in is meant, read this article and learn how to program in Python directly in Excel.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -753,7 +753,7 @@
       "url": "https://www.mql5.com/en/articles/20856",
       "title": "Graph Theory: Traversal Breadth-First Search (BFS) Applied in Trading",
       "description": "Breadth First Search (BFS) uses level-order traversal to model market structure as a directed graph of price swings evolving through time. By analyzing historical bars or sessions layer by layer, BFS prioritizes recent price behavior while still respecting deeper market memory.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -761,7 +761,7 @@
       "url": "https://www.mql5.com/en/articles/17497",
       "title": "Neuroboids Optimization Algorithm 2 (NOA2)",
       "description": "The new proprietary optimization algorithm NOA2 (Neuroboids Optimization Algorithm 2) combines the principles of swarm intelligence with neural control. NOA2 combines the mechanics of a neuroboid swarm with an adaptive neural system that allows agents to self-correct their behavior while searching for the optimum. The algorithm is under active development and demonstrates potential for solving complex optimization problems.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -769,7 +769,7 @@
       "url": "https://www.mql5.com/en/articles/20371",
       "title": "Formulating Dynamic Multi-Pair EA (Part 6): Adaptive Spread Sensitivity for High-Frequency Symbol Switching",
       "description": "In this part, we will focus on designing an intelligent execution layer that continuously monitors and evaluates real-time spread conditions across multiple symbols. The EA dynamically adapts its symbol selection by enabling or disabling trading based on spread efficiency rather than fixed rules. This approach allows high-frequency multi-pair systems to prioritize cost-effective symbols.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -777,7 +777,7 @@
       "url": "https://www.mql5.com/en/articles/20669",
       "title": "Tracking Account Dynamics: Balance, Equity, and Floating P/L Visualization in MQL5",
       "description": "Create a custom MT5 indicator that processes the entire deal history and plots starting balance, balance, equity, and floating P/L as continuous curves. It updates per bar, aggregates positions across symbols, and avoids external dependencies through local caching. Use it to inspect equity\u2013balance divergence, realized vs. unrealized results, and the timing of risk deployment.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -785,7 +785,7 @@
       "url": "https://www.mql5.com/en/articles/17310",
       "title": "Neural Networks in Trading: Hybrid Graph Sequence Models (Final Part)",
       "description": "We continue exploring hybrid graph sequence models (GSM++), which integrate the advantages of different architectures, providing high analysis accuracy and efficient distribution of computing resources. These models effectively identify hidden patterns, reducing the impact of market noise and improving forecasting quality.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -793,7 +793,7 @@
       "url": "https://www.mql5.com/en/articles/17595",
       "title": "Triangular and Sawtooth Waves: Analytical Tools for Traders",
       "description": "Wave analysis is one of the methods used in technical analysis. This article focuses on two less conventional wave patterns: triangular and sawtooth waves. These formations underpin a number of technical indicators designed for market price analysis.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -801,7 +801,7 @@
       "url": "https://www.mql5.com/en/articles/21096",
       "title": "Automating Trading Strategies in MQL5 (Part 47): Nick Rypock Trailing Reverse (NRTR) with Hedging Features",
       "description": "In this article, we develop a Nick Rypock Trailing Reverse (NRTR) trading system in MQL5 that uses channel indicators for reversal signals, enabling trend-following entries with hedging support for buys and sells. We incorporate risk management features like auto lot sizing based on equity or balance, fixed or dynamic stop-loss and take-profit levels using ATR multipliers, and position limits.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -809,7 +809,7 @@
       "url": "https://www.mql5.com/en/articles/20996",
       "title": "Price Action Analysis Toolkit Development (Part 57): Developing a Market State Classification Module in MQL5",
       "description": "This article develops a market state classification module for MQL5 that interprets price behavior using completed price data. By examining volatility contraction, expansion, and structural consistency, the tool classifies market conditions as compression, transition, expansion, or trend, providing a clear contextual framework for price action analysis.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -817,7 +817,7 @@
       "url": "https://www.mql5.com/en/articles/21072",
       "title": "MQL5 Trading Tools (Part 14): Pixel-Perfect Scrollable Text Canvas with Antialiasing and Rounded Scrollbar",
       "description": "In this article, we enhance the canvas-based price dashboard in MQL5 by adding a pixel-perfect scrollable text panel for usage guides, overcoming native scrolling limitations through custom antialiasing and a rounded scrollbar design with hover-expand functionality. The text panel supports themed backgrounds with opacity, dynamic line wrapping for content like instructions and contacts, and interactive navigation via up/down buttons, slider dragging, and mouse wheel scrolling within the body are",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -825,7 +825,7 @@
       "url": "https://www.mql5.com/en/articles/21003",
       "title": "Larry Williams Market Secrets (Part 8): Combining Volatility, Structure and Time Filters",
       "description": "An in-depth walkthrough of building a Larry Williams inspired volatility breakout Expert Advisor in MQL5, combining swing structure, volatility-based entries, trade day of the week filtering, time filters, and flexible risk management, with a complete implementation and reproducible test setup.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -833,7 +833,7 @@
       "url": "https://www.mql5.com/en/articles/21083",
       "title": "Creating Custom Indicators in MQL5 (Part 6): Evolving RSI Calculations with Smoothing, Hue Shifts, and Multi-Timeframe Support",
       "description": "In this article, we build a versatile RSI indicator in MQL5 supporting multiple variants, data sources, and smoothing methods for improved analysis. We add hue shifts for color visuals, dynamic boundaries for overbought/oversold zones, and notifications for trend alerts. It includes multi-timeframe support with interpolation, offering us a customizable RSI tool for diverse strategies.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -841,7 +841,7 @@
       "url": "https://www.mql5.com/en/articles/20978",
       "title": "Introduction to MQL5 (Part 37): Mastering API and WebRequest Function in MQL5 (XI)",
       "description": "In this article, we show how to send authenticated requests to the Binance API using MQL5 to retrieve your account balance for all assets. Learn how to use your API key, server time, and signature to securely access account data, and how to save the response to a file for future use.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -849,7 +849,7 @@
       "url": "https://www.mql5.com/en/articles/20478",
       "title": "The MQL5 Standard Library Explorer (Part 6): Optimizing a generated Expert Advisor",
       "description": "In this discussion, we follow up on the previously developed multi-signal Expert Advisor with the objective of exploring and applying available optimization methods. The aim is to determine whether the trading performance of the EA can be meaningfully improved through systematic optimization based on historical data.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -857,7 +857,7 @@
       "url": "https://www.mql5.com/en/articles/18885",
       "title": "Data Science and ML (Part 48): Are Transformers a Big Deal for Trading?",
       "description": "From ChatGPT to Gemini and many model AI tools for text, image, and video generation. Transformers have rocked the AI-world. But, are they applicable in the financial (trading) space? Let's find out.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -865,7 +865,7 @@
       "url": "https://www.mql5.com/en/articles/21038",
       "title": "MQL5 Trading Tools (Part 13): Creating a Canvas-Based Price Dashboard with Graph and Stats Panels",
       "description": "In this article, we develop a canvas-based price dashboard in MQL5 using the CCanvas class to create interactive panels for visualizing recent price graphs and account statistics, with support for background images, fog effects, and gradient fills. The system includes draggable and resizable features via mouse event handling, theme toggling between dark and light modes with dynamic color adjustments, and minimize/maximize controls for efficient chart space management.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -873,7 +873,7 @@
       "url": "https://www.mql5.com/en/articles/17249",
       "title": "Risk Management (Part 3): Building the Main Class for Risk Management",
       "description": "In this article, we will begin creating a core risk management class that will be key to controlling risks in the system. We will focus on building the foundations, defining the basic structures, variables and functions. In addition, we will implement the necessary methods for setting maximum profit and loss values, thereby laying the foundation for risk management.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -881,7 +881,7 @@
       "url": "https://www.mql5.com/en/articles/20995",
       "title": "Price Action Analysis Toolkit Development (Part 56): Reading Session Acceptance and Rejection with CPI",
       "description": "This article presents a session-based analytical framework that combines time-defined market sessions with the Candle Pressure Index (CPI) to classify acceptance and rejection behavior at session boundaries using closed-candle data and clearly defined rules.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -889,7 +889,7 @@
       "url": "https://www.mql5.com/en/articles/20941",
       "title": "Larry Williams Market Secrets (Part 7): An Empirical Study of the Trade Day of the Week Concept",
       "description": "An empirical study of Larry Williams\u2019 Trade Day of the Week concept, showing how time-based market bias can be measured, tested, and applied using MQL5. This article presents a practical framework for analyzing win rates and performance across trading days to improve short-term trading systems.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -897,7 +897,7 @@
       "url": "https://www.mql5.com/en/articles/17526",
       "title": "Developing Trend Trading Strategies Using Machine Learning",
       "description": "This study introduces a novel methodology for the development of trend-following trading strategies. This section describes the process of annotating training data and using it to train classifiers. This process yields fully operational trading systems designed to run on MetaTrader 5.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -905,7 +905,7 @@
       "url": "https://www.mql5.com/en/articles/17279",
       "title": "Neural Networks in Trading: Hybrid Graph Sequence Models (GSM++)",
       "description": "Hybrid graph sequence models (GSM++) combine the advantages of different architectures to provide high-fidelity data analysis and optimized computational costs. These models adapt effectively to dynamic market data, improving the presentation and processing of financial information.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -913,7 +913,7 @@
       "url": "https://www.mql5.com/en/articles/20946",
       "title": "Statistical Arbitrage Through Cointegrated Stocks (Part 10): Detecting Structural Breaks",
       "description": "This article presents the Chow test for detecting structural breaks in pair relationships and the application of the Cumulative Sum of Squares - CUSUM - for structural breaks monitoring and early detection. The article uses the Nvidia/Intel partnership announcement and the US Gov foreign trade tariff announcement as examples of slope inversion and intercept shift, respectively. Python scripts for all the tests are provided.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -921,7 +921,7 @@
       "url": "https://www.mql5.com/en/articles/20973",
       "title": "Developing Market Memory Zones Indicator: Where Price Is Likely To Return",
       "description": "In this discussion, we will develop an indicator to identify price zones created by strong market activity, such as impulsive moves, structure shifts, and liquidity events. These zones represent areas where the market has left \u201cmemory\u201d due to unfilled orders or rapid price displacement. By marking these regions on the chart, the indicator highlights where price is statistically more likely to revisit and react in the future.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -929,7 +929,7 @@
       "url": "https://www.mql5.com/en/articles/20917",
       "title": "Python-MetaTrader 5 Strategy Tester (Part 04): Tester 101",
       "description": "In this fascinating article, we build our very first trading robot in the simulator and run a strategy testing action that resembles how the MetaTrader 5 strategy tester works, then compare the outcome produced in a custom simulation against our favorite terminal.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -937,7 +937,7 @@
       "url": "https://www.mql5.com/en/articles/17422",
       "title": "Forex Arbitrage Trading: Relationship Assessment Panel",
       "description": "This article presents the development of an arbitrage analysis panel in MQL5. How to get fair exchange rates on Forex in different ways? Create an indicator to obtain deviations of market prices from fair exchange rates, as well as to assess the benefits of arbitrage ways of exchanging one currency for another (as in triangular arbitrage).",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -945,7 +945,7 @@
       "url": "https://www.mql5.com/en/articles/17167",
       "title": "Central Force Optimization (CFO) algorithm",
       "description": "The article presents the Central Force Optimization (CFO) algorithm inspired by the laws of gravity. It explores how principles of physical attraction can solve optimization problems where \"heavier\" solutions attract less successful counterparts.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -953,7 +953,7 @@
       "url": "https://www.mql5.com/en/articles/20938",
       "title": "Introduction to MQL5 (Part 36): Mastering API and WebRequest Function in MQL5 (X)",
       "description": "This article introduces the basic concepts behind HMAC-SHA256 and API signatures in MQL5, explaining how messages and secret keys are combined to securely authenticate requests. It lays the foundation for signing API calls without exposing sensitive data.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -961,7 +961,7 @@
       "url": "https://www.mql5.com/en/articles/20962",
       "title": "MQL5 Trading Tools (Part 12): Enhancing the Correlation Matrix Dashboard with Interactivity",
       "description": "In this article, we enhance the correlation matrix dashboard in MQL5 with interactive features like panel dragging, minimizing/maximizing, hover effects on buttons and timeframes, and mouse event handling for improved user experience. We add sorting of symbols by average correlation strength in ascending/descending modes, toggle between correlation and p-value views, and incorporate light/dark theme switching with dynamic color updates.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -969,7 +969,7 @@
       "url": "https://www.mql5.com/en/articles/20862",
       "title": "Larry Williams Market Secrets (Part 6): Measuring Volatility Breakouts Using Market Swings",
       "description": "This article demonstrates how to design and implement a Larry Williams volatility breakout Expert Advisor in MQL5, covering swing-range measurement, entry-level projection, risk-based position sizing, and backtesting on real market data.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -977,7 +977,7 @@
       "url": "https://www.mql5.com/en/articles/17410",
       "title": "Build a Remote Forex Risk Management System in Python",
       "description": "We are making a remote professional risk manager for Forex in Python, deploying it on the server step by step. In the course of the article, we will understand how to programmatically manage Forex risks, and how not to waste a Forex deposit any more.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -985,7 +985,7 @@
       "url": "https://www.mql5.com/en/articles/17328",
       "title": "Developing a multi-currency Expert Advisor (Part 24): Adding a new strategy (II)",
       "description": "In this article, we will continue to connect the new strategy to the created auto optimization system. Let's look at what changes need to be made to the optimization project creation EA, as well as the second and third stage EAs.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -993,7 +993,7 @@
       "url": "https://www.mql5.com/en/articles/20782",
       "title": "Python-MetaTrader 5 Strategy Tester (Part 03): MT5-Like Trading Operations \u2014 Handling and Managing",
       "description": "In this article we introduce Python-MetaTrader5-like ways of handling trading operations such as opening, closing, and modifying orders in the simulator. To ensure the simulation behaves like MT5, a strict validation layer for trade requests is implemented, taking into account symbol trading parameters and typical brokerage restrictions.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1001,7 +1001,7 @@
       "url": "https://www.mql5.com/en/articles/20815",
       "title": "Creating Custom Indicators in MQL5 (Part 5): WaveTrend Crossover Evolution Using Canvas for Fog Gradients, Signal Bubbles, and Risk Management",
       "description": "In this article, we enhance the Smart WaveTrend Crossover indicator in MQL5 by integrating canvas-based drawing for fog gradient overlays, signal boxes that detect breakouts, and customizable buy/sell bubbles or triangles for visual alerts. We incorporate risk management features with dynamic take-profit and stop-loss levels calculated via candle multipliers or percentages, displayed through lines and a table, alongside options for trend filtering and box extensions.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1009,7 +1009,7 @@
       "url": "https://www.mql5.com/en/articles/20949",
       "title": "Price Action Analysis Toolkit (Part 55): Designing a CPI Mini-Candle Overlay for Intra-bar Pressure",
       "description": "This article presents the design and MetaTrader 5 implementation of the Candle Pressure Index (CPI)\u2014a CLV-based overlay that visualizes intra-Bar buying and selling pressure directly on price charts. The discussion focuses on candle structure, pressure classification, visualization mechanics, and a non-repainting, transition-based alert system designed for consistent behavior across timeframes and instruments.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1017,7 +1017,7 @@
       "url": "https://www.mql5.com/en/articles/20859",
       "title": "Introduction to MQL5 (Part 35): Mastering API and WebRequest Function in MQL5 (IX)",
       "description": "Discover how to detect user actions in MetaTrader 5, send requests to an AI API, extract responses, and implement scrolling text in your panel.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1025,7 +1025,7 @@
       "url": "https://www.mql5.com/en/articles/12673",
       "title": "Market Simulation (Part 09): Sockets (III)",
       "description": "Today's article is a continuation of the previous one. We will look at the implementation of an Expert Advisor, focusing mainly on how the server code is executed. The code given in the previous article is not enough to make everything work as expected, so we need to dig a little deeper into it. Therefore, it is necessary to read both articles to better understand what will happen.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1033,7 +1033,7 @@
       "url": "https://www.mql5.com/en/articles/17241",
       "title": "Neural Networks in Trading: Two-Dimensional Connection Space Models (Final Part)",
       "description": "We continue to explore the innovative Chimera framework \u2013 a two-dimensional state-space model that uses neural network technologies to analyze multidimensional time series. This method provides high forecasting accuracy with low computational cost.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1041,7 +1041,7 @@
       "url": "https://www.mql5.com/en/articles/20933",
       "title": "Reimagining Classic Strategies (Part 21): Bollinger Bands And RSI Ensemble Strategy Discovery",
       "description": "This article explores the development of an ensemble algorithmic trading strategy for the EURUSD market that combines the Bollinger Bands and the Relative Strength Indicator (RSI). Initial rule-based strategies produced high-quality signals but suffered from low trade frequency and limited profitability. Multiple iterations of the strategy were evaluated, revealing flaws in our understanding of the market, increased noise, and degraded performance. By appropriately employing statistical learning",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1049,7 +1049,7 @@
       "url": "https://www.mql5.com/en/articles/20945",
       "title": "MQL5 Trading Tools (Part 11): Correlation Matrix Dashboard (Pearson, Spearman, Kendall) with Heatmap and Standard Modes",
       "description": "In this article, we build a correlation matrix dashboard in MQL5 to compute asset relationships using Pearson, Spearman, and Kendall methods over a set timeframe and bars. The system offers standard mode with color thresholds and p-value stars, plus heatmap mode with gradient visuals for correlation strengths. It includes an interactive UI with timeframe selectors, mode toggles, and a dynamic legend for efficient analysis of symbol interdependencies.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1057,7 +1057,7 @@
       "url": "https://www.mql5.com/en/articles/17512",
       "title": "Forex arbitrage trading: Analyzing synthetic currencies movements and their mean reversion",
       "description": "In this article, we will examine the movements of synthetic currencies using Python and MQL5 and explore how feasible Forex arbitrage is today. We will also consider ready-made Python code for analyzing synthetic currencies and share more details on what synthetic currencies are in Forex.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1065,7 +1065,7 @@
       "url": "https://www.mql5.com/en/articles/19755",
       "title": "Optimizing Trend Strength: Trading in Trend Direction and Strength",
       "description": "This is a specialized trend-following EA that makes both short and long-term analyses, trading decisions, and executions based on the overall trend and its strength. This article will explore in detail an EA that is specifically designed for traders who are patient, disciplined, and focused enough to only execute trades and hold their positions only when trading with strength and in the trend direction without changing their bias frequently, especially against the trend, until take-profit target",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1073,7 +1073,7 @@
       "url": "https://www.mql5.com/en/articles/20851",
       "title": "Price Action Analysis Toolkit Development (Part 54): Filtering Trends with EMA and Smoothed Price Action",
       "description": "This article explores a method that combines Heikin\u2011Ashi smoothing with EMA20 High and Low boundaries and an EMA50 trend filter to improve trade clarity and timing. It demonstrates how these tools can help traders identify genuine momentum, filter out noise, and better navigate volatile or trending markets.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1081,7 +1081,7 @@
       "url": "https://www.mql5.com/en/articles/20745",
       "title": "Larry Williams Market Secrets (Part 5): Automating the Volatility Breakout Strategy in MQL5",
       "description": "This article demonstrates how to automate Larry Williams\u2019 volatility breakout strategy in MQL5 using a practical, step-by-step approach. You will learn how to calculate daily range expansions, derive buy and sell levels, manage risk with range-based stops and reward-based targets, and structure a professional Expert Advisor for MetaTrader 5. Designed for traders and developers looking to transform Larry Williams\u2019 market concepts into a fully testable and deployable automated trading system.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1089,7 +1089,7 @@
       "url": "https://www.mql5.com/en/articles/20455",
       "title": "Python-MetaTrader 5 Strategy Tester (Part 02): Dealing with Bars, Ticks, and Overloading Built-in Functions in a Simulator",
       "description": "In this article, we introduce functions similar to those provided by the Python-MetaTrader 5 module, providing a simulator with a familiar interface and a custom way of handling bars and ticks internally.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1097,7 +1097,7 @@
       "url": "https://www.mql5.com/en/articles/15732",
       "title": "From Basic to Intermediate: Events (I)",
       "description": "Given everything that has been shown so far, I think we can now start implementing some kind of application to run some symbol directly on the chart. However, first we need to talk about a concept that can be rather confusing for beginners. Namely, it's the fact that applications developed in MQL5 and intended for display on a chart are not created in the same way as we have seen so far. In this article, we'll begin to understand this a little better.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1105,7 +1105,7 @@
       "url": "https://www.mql5.com/en/articles/17424",
       "title": "Forex arbitrage trading: A simple synthetic market maker bot to get started",
       "description": "Today we will take a look at my first arbitrage robot \u2014 a liquidity provider (if you can call it that) for synthetic assets. Currently, this bot is successfully operating as a module in a large machine learning system, but I pulled up an old Forex arbitrage robot from the cloud, so let's take a look at it and think about what we can do with it today.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1113,7 +1113,7 @@
       "url": "https://www.mql5.com/en/articles/20802",
       "title": "Introduction to MQL5 (Part 34): Mastering API and WebRequest Function in MQL5 (VIII)",
       "description": "In this article, you will learn how to create an interactive control panel in MetaTrader 5. We cover the basics of adding input fields, action buttons, and labels to display text. Using a project-based approach, you will see how to set up a panel where users can type messages and eventually display server responses from an API.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1121,7 +1121,7 @@
       "url": "https://www.mql5.com/en/articles/20811",
       "title": "Creating Custom Indicators in MQL5 (Part 4): Smart WaveTrend Crossover with Dual Oscillators",
       "description": "In this article, we develop a custom indicator in MQL5 called Smart WaveTrend Crossover, utilizing dual WaveTrend oscillators\u2014one for generating crossover signals and another for trend filtering\u2014with customizable parameters for channel, average, and moving average lengths. The indicator plots colored candles based on the trend direction, displays buy and sell arrow signals on crossovers, and includes options to enable trend confirmation and adjust visual elements like colors and offsets.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1129,7 +1129,7 @@
       "url": "https://www.mql5.com/en/articles/17168",
       "title": "Fibonacci in Forex (Part I): Examining the Price-Time Relationship",
       "description": "How does the market observe Fibonacci-based relationships? This sequence, where each subsequent number is equal to the sum of the two previous ones (1, 1, 2, 3, 5, 8, 13, 21...), not only describes the growth of the rabbit population. We will consider the Pythagorean hypothesis that everything in the world is subject to certain relationships of numbers...",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1137,7 +1137,7 @@
       "url": "https://www.mql5.com/en/articles/17210",
       "title": "Neural Networks in Trading: Two-Dimensional Connection Space Models (Chimera)",
       "description": "In this article, we will explore the innovative Chimera framework: a two-dimensional state-space model that uses neural networks to analyze multivariate time series. This method offers high accuracy with low computational cost, outperforming traditional approaches and Transformer architectures.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1145,7 +1145,7 @@
       "url": "https://www.mql5.com/en/articles/20728",
       "title": "Sigma Score Indicator for MetaTrader 5: A Simple Statistical Anomaly Detector",
       "description": "Build a practical MetaTrader 5 \u201cSigma Score\u201d indicator from scratch and learn what it really measures: The z-score of log returns (how many standard deviations the latest move is from the recent average). The article walks through every code block in OnInit(), OnCalculate(), and OnDeinit(), then shows how to interpret thresholds (e.g., \u00b12) and apply the Sigma Score as a simple \u201cmarket stress meter\u201d for mean-reversion and momentum trading.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1153,7 +1153,7 @@
       "url": "https://www.mql5.com/en/articles/16992",
       "title": "Neuroboids Optimization Algorithm (NOA)",
       "description": "A new bioinspired optimization metaheuristic, NOA (Neuroboids Optimization Algorithm), combines the principles of collective intelligence and neural networks. Unlike conventional methods, the algorithm uses a population of self-learning \"neuroboids\", each with its own neural network that adapts its search strategy in real time. The article reveals the architecture of the algorithm, the mechanisms of self-learning of agents, and the prospects for applying this hybrid approach to complex optimizat",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1161,7 +1161,7 @@
       "url": "https://www.mql5.com/en/articles/20716",
       "title": "Larry Williams Market Secrets (Part 4): Automating Short-Term Swing Highs and Lows in MQL5",
       "description": "Master the automation of Larry Williams\u2019 short-term swing patterns using MQL5. In this guide, we develop a fully configurable Expert Advisor (EA) that leverages non-random market structures. We\u2019ll cover how to integrate robust risk management and flexible exit logic, providing a solid foundation for systematic strategy development and backtesting.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1169,7 +1169,7 @@
       "url": "https://www.mql5.com/en/articles/20589",
       "title": "Building Volatility models in MQL5 (Part I): The Initial Implementation",
       "description": "In this article, we present an MQL5 library for modeling volatility, designed to function similarly to Python's arch package. The library currently supports the specification of common conditional mean (HAR, AR, Constant Mean, Zero Mean) and conditional volatility (Constant Variance, ARCH, GARCH) models.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1177,7 +1177,7 @@
       "url": "https://www.mql5.com/en/articles/20700",
       "title": "Introduction to MQL5 (Part 33): Mastering API and WebRequest Function in MQL5 (VII)",
       "description": "This article demonstrates how to integrate the Google Generative AI API with MetaTrader 5 using MQL5. You will learn how to structure API requests, handle server responses, extract AI-generated content, manage rate limits, and save the results to a text file for easy access.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1185,7 +1185,7 @@
       "url": "https://www.mql5.com/en/articles/20722",
       "title": "Building AI-Powered Trading Systems in MQL5 (Part 8): UI Polish with Animations, Timing Metrics, and Response Management Tools",
       "description": "In this article, we enhance the AI-powered trading system in MQL5 with user interface improvements, including loading animations for request preparation and thinking phases, as well as timing metrics displayed in responses for better feedback. We add response management tools like regenerate buttons to re-query the AI and export options to save the last response to a file, streamlining interaction.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1193,7 +1193,7 @@
       "url": "https://www.mql5.com/en/articles/20510",
       "title": "Larry Williams Market Secrets (Part 3): Proving Non-Random Market Behavior with MQL5",
       "description": "Explore whether financial markets are truly random by recreating Larry Williams\u2019 market behavior experiments using MQL5. This article demonstrates how simple price-action tests can reveal statistical market biases using a custom Expert Advisor.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1201,7 +1201,7 @@
       "url": "https://www.mql5.com/en/articles/12672",
       "title": "Market Simulation (Part 08): Sockets (II)",
       "description": "How about creating something practical using sockets? In today's article, we'll start creating a mini-chat. Let's look together at how this is done - it will be very interesting. Please note that the code provided here is for educational purposes only. It should not be used for commercial purposes or in ready-made applications, as it does not provide data transfer security and the content transmitted over the socket can be accessed.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1209,7 +1209,7 @@
       "url": "https://www.mql5.com/en/articles/17380",
       "title": "Successful Restaurateur Algorithm (SRA)",
       "description": "Successful Restaurateur Algorithm (SRA) is an innovative optimization method inspired by restaurant business management principles. Unlike traditional approaches, SRA does not discard weak solutions, but improves them by combining with elements of successful ones. The algorithm shows competitive results and offers a fresh perspective on balancing exploration and exploitation in optimization problems.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1217,7 +1217,7 @@
       "url": "https://www.mql5.com/en/articles/17157",
       "title": "Neural Networks in Trading: Multi-Task Learning Based on the ResNeXt Model (Final Part)",
       "description": "We continue exploring a multi-task learning framework based on ResNeXt, which is characterized by modularity, high computational efficiency, and the ability to identify stable patterns in data. Using a single encoder and specialized \"heads\" reduces the risk of model overfitting and improves the quality of forecasts.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1225,7 +1225,7 @@
       "url": "https://www.mql5.com/en/articles/20695",
       "title": "Implementing Practical Modules from Other Languages in MQL5 (Part 06): Python-Like File IO operations in MQL5",
       "description": "This article shows how to simplify complex MQL5 file operations by building a Python-style interface for effortless reading and writing. It explains how to recreate Python\u2019s intuitive file-handling patterns through custom functions and classes. The result is a cleaner, more reliable approach to MQL5 file I/O.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1233,7 +1233,7 @@
       "url": "https://www.mql5.com/en/articles/20719",
       "title": "Creating Custom Indicators in MQL5 (Part 3): Multi-Gauge Enhancements with Sector and Round Styles",
       "description": "In this article, we enhance the gauge-based indicator in MQL5 to support multiple oscillators, allowing user selection through an enumeration for single or combined displays. We introduce sector and round gauge styles via derived classes from a base gauge framework, improving case rendering with arcs, lines, and polygons for a more refined visual appearance.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1241,7 +1241,7 @@
       "url": "https://www.mql5.com/en/articles/20571",
       "title": "Data Science and ML (Part 47): Forecasting the Market Using the DeepAR model in Python",
       "description": "In this article, we will attempt to predict the market with a decent model for time series forecasting named DeepAR. A model that is a combination of deep neural networks and autoregressive properties found in models like ARIMA and Vector Autoregressive (VAR).",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1249,7 +1249,7 @@
       "url": "https://www.mql5.com/en/articles/16457",
       "title": "Creating a mean-reversion strategy based on machine learning",
       "description": "This article proposes another original approach to creating trading systems based on machine learning, using clustering and trade labeling for mean reversion strategies.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1257,7 +1257,7 @@
       "url": "https://www.mql5.com/en/articles/20658",
       "title": "From Novice to Expert: Higher Probability Signals",
       "description": "In high-probability support and resistance zones, valid entry confirmation signals are always present once the zone has been correctly identified. In this discussion, we build an intelligent MQL5 program that automatically detects entry conditions within these zones. We leverage well-known candlestick patterns alongside native confirmation indicators to validate trade decisions. Click to read further.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1265,7 +1265,7 @@
       "url": "https://www.mql5.com/en/articles/17325",
       "title": "Billiards Optimization Algorithm (BOA)",
       "description": "The BOA method is inspired by the classic game of billiards and simulates the search for optimal solutions as a game with balls trying to fall into pockets representing the best results. In this article, we will consider the basics of BOA, its mathematical model, and its efficiency in solving various optimization problems.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1273,7 +1273,7 @@
       "url": "https://www.mql5.com/en/articles/20512",
       "title": "Larry Williams Market Secrets (Part 2): Automating a Market Structure Trading System",
       "description": "Learn how to automate Larry Williams market structure concepts in MQL5 by building a complete Expert Advisor that reads swing points, generates trade signals, manages risk, and applies a dynamic trailing stop strategy.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1281,7 +1281,7 @@
       "url": "https://www.mql5.com/en/articles/19979",
       "title": "Tables in the MVC Paradigm in MQL5: Customizable and sortable table columns",
       "description": "In the article, we will make the table column widths adjustable using the mouse cursor, sort the table by column data, and add a new class to simplify the creation of tables based on any data sets.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1289,7 +1289,7 @@
       "url": "https://www.mql5.com/en/articles/20530",
       "title": "Reimagining Classic Strategies (Part 20): Modern Stochastic Oscillators",
       "description": "This article demonstrates how the stochastic oscillator, a classical technical indicator, can be repurposed beyond its conventional use as a mean-reversion tool. By viewing the indicator through a different analytical lens, we show how familiar strategies can yield new value and support alternative trading rules, including trend-following interpretations. Ultimately, the article highlights how every technical indicator in the MetaTrader 5 terminal holds untapped potential, and how thoughtful tri",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1297,7 +1297,7 @@
       "url": "https://www.mql5.com/en/articles/20645",
       "title": "From Novice to Expert: Navigating Market Irregularities",
       "description": "Market rules are continuously evolving, and many once-reliable principles gradually lose their effectiveness. What worked in the past no longer works consistently over time. Today\u2019s discussion focuses on probability ranges and how they can be used to navigate market irregularities. We will leverage MQL5 to develop an algorithm capable of trading effectively even in the choppiest market conditions. Join this discussion to find out more.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1305,7 +1305,7 @@
       "url": "https://www.mql5.com/en/articles/20632",
       "title": "Creating Custom Indicators in MQL5 (Part 2): Building a Gauge-Style RSI Display with Canvas and Needle Mechanics",
       "description": "In this article, we develop a gauge-style RSI indicator in MQL5 that visualizes Relative Strength Index values on a circular scale with a dynamic needle, color-coded ranges for overbought and oversold levels, and customizable legends. We utilize the Canvas class to draw elements like arcs, ticks, and pies, ensuring smooth updates on new RSI data.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1313,7 +1313,7 @@
       "url": "https://www.mql5.com/en/articles/20657",
       "title": "Statistical Arbitrage Through Cointegrated Stocks (Part 9): Backtesting Portfolio Weights Updates",
       "description": "This article describes the use of CSV files for backtesting portfolio weights updates in a mean-reversion-based strategy that uses statistical arbitrage through cointegrated stocks. It goes from feeding the database with the results of a Rolling Windows Eigenvector Comparison (RWEC) to comparing the backtest reports. In the meantime, the article details the role of each RWEC parameter and its impact in the overall backtest result, showing how the comparison of the relative drawdown can help us t",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1321,7 +1321,7 @@
       "url": "https://www.mql5.com/en/articles/20273",
       "title": "Pure implementation of RSA encryption in MQL5",
       "description": "MQL5 lacks built-in asymmetric cryptography, making secure data exchange over insecure channels like HTTP difficult. This article presents a pure MQL5 implementation of RSA using PKCS#1 v1.5 padding, enabling safe transmission of AES session keys and small data blocks without external libraries. This approach provides HTTPS-like security over standard HTTP and even more, it fills an important gap in secure communication for MQL5 applications.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1329,7 +1329,7 @@
       "url": "https://www.mql5.com/en/articles/20511",
       "title": "Larry Williams Market Secrets (Part 1): Building a Swing Structure Indicator in MQL5",
       "description": "A practical guide to building a Larry Williams\u2013style market structure indicator in MQL5, covering buffer setup, swing-point detection, plot configuration, and how traders can apply the indicator in technical market analysis.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1337,7 +1337,7 @@
       "url": "https://www.mql5.com/en/articles/20610",
       "title": "Creating Custom Indicators in MQL5 (Part 1): Building a Pivot-Based Trend Indicator with Canvas Gradient",
       "description": "In this article, we create a Pivot-Based Trend Indicator in MQL5 that calculates fast and slow pivot lines over user-defined periods, detects trend directions based on price relative to these lines, and signals trend starts with arrows while optionally extending lines beyond the current bar. The indicator supports dynamic visualization with separate up/down lines in customizable colors, dotted fast lines that change color on trend shifts, and optional gradient filling between lines, using a canv",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1345,7 +1345,7 @@
       "url": "https://www.mql5.com/en/articles/19288",
       "title": "Tables in the MVC Paradigm in MQL5: Integrating the Model Component into the View Component",
       "description": "In the article, we will create the first version of the TableControl (TableView) control. This will be a simple static table being created based on the input data defined by two arrays \u2014 a data array and an array of column headers.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1353,7 +1353,7 @@
       "url": "https://www.mql5.com/en/articles/20591",
       "title": "Introduction to MQL5 (Part 32): Mastering API and WebRequest Function in MQL5 (VI)",
       "description": "This article will show you how to visualize candle data obtained via the WebRequest function and API in candle format. We'll use MQL5 to read the candle data from a CSV file and display it as custom candles on the chart, since indicators cannot directly use the WebRequest function.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1361,7 +1361,7 @@
       "url": "https://www.mql5.com/en/articles/20587",
       "title": "From Novice to Expert: Automating Trade Discipline with an MQL5 Risk Enforcement EA",
       "description": "For many traders, the gap between knowing a risk rule and following it consistently is where accounts go to die. Emotional overrides, revenge trading, and simple oversight can dismantle even the best strategy. Today, we will transform the MetaTrader 5 platform into an unwavering enforcer of your trading rules by developing a Risk Enforcement Expert Advisor. Join this discussion to find out more.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -1369,7 +1369,7 @@
       "url": "https://www.mql5.com/en/articles/20588",
       "title": "Building AI-Powered Trading Systems in MQL5 (Part 7): Further Modularization and Automated Trading",
       "description": "In this article, we enhance the AI-powered trading system's modularity by separating UI components into a dedicated include file. The system now automates trade execution based on AI-generated signals, parsing JSON responses for BUY/SELL/NONE with entry/SL/TP, visualizing patterns like engulfing or divergences on charts with arrows, lines, and labels, and optional auto-signal checks on new bars.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1377,7 +1377,7 @@
       "url": "https://www.mql5.com/en/articles/20595",
       "title": "Codex Pipelines, from Python to MQL5, for Indicator Selection: A Multi-Quarter Analysis of the XLF ETF with Machine Learning",
       "description": "We continue our look at how the selection of indicators can be pipelined when facing a \u2018none-typical\u2019 MetaTrader asset. MetaTrader 5 is primarily used to trade forex, and that is good given the liquidity on offer, however the case for trading outside of this \u2018comfort-zone\u2019, is growing bolder with not just the overnight rise of platforms like Robinhood, but also the relentless pursuit of an edge for most traders. We consider the XLF ETF for this article and also cap our revamped pipeline with a s",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1385,7 +1385,7 @@
       "url": "https://www.mql5.com/en/articles/18941",
       "title": "The View and Controller components for tables in the MQL5 MVC paradigm: Resizable elements",
       "description": "In the article, we will add the functionality of resizing controls by dragging edges and corners of the element with the mouse.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1393,7 +1393,7 @@
       "url": "https://www.mql5.com/en/articles/20554",
       "title": "From Novice to Expert: Trading the RSI with Market Structure Awareness",
       "description": "In this article, we will explore practical techniques for trading the Relative Strength Index (RSI) oscillator with market structure. Our focus will be on channel price action patterns, how they are typically traded, and how MQL5 can be leveraged to enhance this process. By the end, you will have a rule-based, automated channel-trading system designed to capture trend continuation opportunities with greater precision and consistency.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1401,7 +1401,7 @@
       "url": "https://www.mql5.com/en/articles/20546",
       "title": "Introduction to MQL5 (Part 31): Mastering API and WebRequest Function in MQL5 (V)",
       "description": "Learn how to use WebRequest and external API calls to retrieve recent candle data, convert each value into a usable type, and save the information neatly in a table format. This step lays the groundwork for building an indicator that visualizes the data in candle format.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1409,7 +1409,7 @@
       "url": "https://www.mql5.com/en/articles/20569",
       "title": "Automating Trading Strategies in MQL5 (Part 46): Liquidity Sweep on Break of Structure (BoS)",
       "description": "In this article, we build a Liquidity Sweep on Break of Structure (BoS) system in MQL5 that detects swing highs/lows over a user-defined length, labels them as HH/HL/LH/LL to identify BOS (HH in uptrend or LL in downtrend), and spots liquidity sweeps when price wicks beyond the swing but closes back inside on a bullish/bearish candle.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1417,7 +1417,7 @@
       "url": "https://www.mql5.com/en/articles/19655",
       "title": "Automated Risk Management for Passing Prop Firm Challenges",
       "description": "This article explains the design of a prop-firm Expert Advisor for GOLD, featuring breakout filters, multi-timeframe analysis, robust risk management, and strict drawdown protection. The EA helps traders pass prop-firm challenges by avoiding rule breaches and stabilizing trade execution under volatile market conditions.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -1425,7 +1425,7 @@
       "url": "https://www.mql5.com/en/articles/20550",
       "title": "Codex Pipelines: From Python to MQL5 for Indicator Selection \u2014 A Multi-Quarter Analysis of the FXI ETF",
       "description": "We continue our look at how MetaTrader can be used outside its forex trading \u2018comfort-zone\u2019 by looking at another tradable asset in the form of the FXI ETF. Unlike in the last article where we tried to do \u2018too-much\u2019 by delving into not just indicator selection, but also considering indicator pattern combinations, for this article we will swim slightly upstream by focusing more on indicator selection. Our end product for this is intended as a form of pipeline that can help recommend indicators fo",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1433,7 +1433,7 @@
       "url": "https://www.mql5.com/en/articles/20414",
       "title": "Adaptive Smart Money Architecture (ASMA): Merging SMC Logic With Market Sentiment for Dynamic Strategy Switching",
       "description": "This topic explores how to build an Adaptive Smart Money Architecture (ASMA)\u2014an intelligent Expert Advisor that merges Smart Money Concepts (Order Blocks, Break of Structure, Fair Value Gaps) with real-time market sentiment to automatically choose the best trading strategy depending on current market conditions.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1441,7 +1441,7 @@
       "url": "https://www.mql5.com/en/articles/20514",
       "title": "Overcoming The Limitation of Machine Learning (Part 9): Correlation-Based Feature Learning in Self-Supervised Finance",
       "description": "Self-supervised learning is a powerful paradigm of statistical learning that searches for supervisory signals generated from the observations themselves. This approach reframes challenging unsupervised learning problems into more familiar supervised ones. This technology has overlooked applications for our objective as a community of algorithmic traders. Our discussion, therefore, aims to give the reader an approachable bridge into the open research area of self-supervised learning and offers pr",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1449,7 +1449,7 @@
       "url": "https://www.mql5.com/en/articles/17277",
       "title": "Developing a multi-currency Expert Advisor (Part 24): Adding a new strategy (I)",
       "description": "In this article, we will look at how to connect a new strategy to the auto optimization system we have created. Let's see what kind of EAs we need to create and whether it will be possible to do without changing the EA library files or minimize the necessary changes.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1457,7 +1457,7 @@
       "url": "https://www.mql5.com/en/articles/20378",
       "title": "Mastering Kagi Charts in MQL5 (Part 2): Implementing Automated Kagi-Based Trading",
       "description": "Learn how to build a complete Kagi-based trading Expert Advisor in MQL5, from signal construction to order execution, visual markers, and a three-stage trailing stop. Includes full code, testing results, and a downloadable set file.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1465,7 +1465,7 @@
       "url": "https://www.mql5.com/en/articles/20449",
       "title": "Fortified Profit Architecture: Multi-Layered Account Protection",
       "description": "In this discussion, we introduce a structured, multi-layered defense system designed to pursue aggressive profit targets while minimizing exposure to catastrophic loss. The focus is on blending offensive trading logic with protective safeguards at every level of the trading pipeline. The idea is to engineer an EA that behaves like a \u201crisk-aware predator\u201d\u2014capable of capturing high-value opportunities, but always with layers of insulation that prevent blindness to sudden market stress.",
-      "category": "",
+      "category": "MODULE",
       "status": "new"
     },
     {
@@ -1473,7 +1473,7 @@
       "url": "https://www.mql5.com/en/articles/18658",
       "title": "The View and Controller components for tables in the MQL5 MVC paradigm: Containers",
       "description": "In this article, we will discuss creating a \"Container\" control that supports scrolling its contents. Within the process, the already implemented classes of graphics library controls will be improved.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1481,7 +1481,7 @@
       "url": "https://www.mql5.com/en/articles/20361",
       "title": "Automating Trading Strategies in MQL5 (Part 45): Inverse Fair Value Gap (IFVG)",
       "description": "In this article, we create an Inverse Fair Value Gap (IFVG) detection system in MQL5 that identifies bullish/bearish FVGs on recent bars with minimum gap size filtering, tracks their states as normal/mitigated/inverted based on price interactions (mitigation on far-side breaks, retracement on re-entry, inversion on close beyond far side from inside), and ignores overlaps while limiting tracked FVGs.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1489,7 +1489,7 @@
       "url": "https://www.mql5.com/en/articles/17047",
       "title": "Chaos Game Optimization (CGO)",
       "description": "The article presents a new metaheuristic algorithm, Chaos Game Optimization (CGO), which demonstrates a unique ability to maintain high efficiency when dealing with high-dimensional problems. Unlike most optimization algorithms, CGO not only does not lose, but sometimes even increases performance when scaling a problem, which is its key feature.",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1497,7 +1497,7 @@
       "url": "https://www.mql5.com/en/articles/20417",
       "title": "From Novice to Expert: Developing a Geographic Market Awareness with MQL5 Visualization",
       "description": "Trading without session awareness is like navigating without a compass\u2014you're moving, but not with purpose. Today, we're revolutionizing how traders perceive market timing by transforming ordinary charts into dynamic geographical displays. Using MQL5's powerful visualization capabilities, we'll build a live world map that illuminates active trading sessions in real-time, turning abstract market hours into intuitive visual intelligence. This journey sharpens your trading psychology and reveals pr",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1505,7 +1505,7 @@
       "url": "https://www.mql5.com/en/articles/20488",
       "title": "Reimagining Classic Strategies (Part 19): Deep Dive Into Moving Average Crossovers",
       "description": "This article revisits the classic moving average crossover strategy and examines why it often fails in noisy, fast-moving markets. It presents five alternative filtering methods designed to strengthen signal quality and remove weak or unprofitable trades. The discussion highlights how statistical models can learn and correct the errors that human intuition and traditional rules miss. Readers leave with a clearer understanding of how to modernize an outdated strategy and of the pitfalls of relyin",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1513,7 +1513,7 @@
       "url": "https://www.mql5.com/en/articles/20485",
       "title": "Statistical Arbitrage Through Cointegrated Stocks (Part 8): Rolling Windows Eigenvector Comparison for Portfolio Rebalancing",
       "description": "This article proposes using Rolling Windows Eigenvector Comparison for early imbalance diagnostics and portfolio rebalancing in a mean-reversion statistical arbitrage strategy based on cointegrated stocks. It contrasts this technique with traditional In-Sample/Out-of-Sample ADF validation, showing that eigenvector shifts can signal the need for rebalancing even when IS/OOS ADF still indicates a stationary spread. While the method is intended mainly for live trading monitoring, the article conclu",
-      "category": "",
+      "category": "SYSTEM",
       "status": "new"
     },
     {
@@ -1521,7 +1521,7 @@
       "url": "https://www.mql5.com/en/articles/17303",
       "title": "Currency pair strength indicator in pure MQL5",
       "description": "We are going to develop a professional indicator for currency strength analysis in MQL5. This step-by-step guide will show you how to develop a powerful trading tool with a visual dashboard for MetaTrader 5. You will learn how to calculate the strength of currency pairs across multiple timeframes (H1, H4, D1), implement dynamic data updates, and create a user-friendly interface.",
-      "category": "",
+      "category": "INDICATOR",
       "status": "new"
     },
     {
@@ -1529,7 +1529,7 @@
       "url": "https://www.mql5.com/en/articles/20458",
       "title": "Implementing Practical Modules from Other Languages in MQL5 (Part 05): The Logging module from Python, Log Like a Pro",
       "description": "Integrating Python's logging module with MQL5 empowers traders with a systematic logging approach, simplifying the process of monitoring, debugging, and documenting trading activities. This article explains the adaptation process, offering traders a powerful tool for maintaining clarity and organization in trading software development.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1537,7 +1537,7 @@
       "url": "https://www.mql5.com/en/articles/18221",
       "title": "The View and Controller components for tables in the MQL5 MVC paradigm: Simple controls",
       "description": "The article covers simple controls as components of more complex graphical elements of the View component within the framework of table implementation in the MVC (Model-View-Controller) paradigm. The basic functionality of the Controller is implemented for interaction of elements with the user and with each other. This is the second article on the View component and the fourth one in a series of articles on creating tables for the MetaTrader 5 client terminal.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1545,7 +1545,7 @@
       "url": "https://www.mql5.com/en/articles/15731",
       "title": "From Basic to Intermediate: Structs (II)",
       "description": "In this article, we will try to understand why programming languages like MQL5 have structures, and why in some cases structures are the ideal way to pass values between functions and procedures, while in other cases they may not be the best way to do it.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1553,7 +1553,7 @@
       "url": "https://www.mql5.com/en/articles/17282",
       "title": "Capital management in trading and the trader's home accounting program with a database",
       "description": "How can a trader manage capital? How can a trader and investor keep track of expenses, income, assets, and liabilities? I am not just going to introduce you to accounting software; I am going to show you a tool that might become your reliable financial navigator in the stormy sea of trading.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1561,7 +1561,7 @@
       "url": "https://www.mql5.com/en/articles/20469",
       "title": "Developing a Trading Strategy: Using a Volume-Bound Approach",
       "description": "In the world of technical analysis, price often takes center stage. Traders meticulously map out support, resistance, and patterns, yet frequently ignore the critical force that drives these movements: volume. This article delves into a novel approach to volume analysis: the Volume Boundary indicator. This transformation, utilizing sophisticated smoothing functions like the butterfly and triple sine curves, allows for clearer interpretation and the development of systematic trading strategies.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1569,7 +1569,7 @@
       "url": "https://www.mql5.com/en/articles/20425",
       "title": "Introduction to MQL5 (Part 30): Mastering API and WebRequest Function in MQL5 (IV)",
       "description": "Discover a step-by-step tutorial that simplifies the extraction, conversion, and organization of candle data from API responses within the MQL5 environment. This guide is perfect for newcomers looking to enhance their coding skills and develop robust strategies for managing market data efficiently.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
@@ -1577,7 +1577,7 @@
       "url": "https://www.mql5.com/en/articles/20355",
       "title": "Automating Trading Strategies in MQL5 (Part 44): Change of Character (CHoCH) Detection with Swing High/Low Breaks",
       "description": "In this article, we develop a Change of Character (CHoCH) detection system in MQL5 that identifies swing highs and lows over a user-defined bar length, labels them as HH/LH for highs or LL/HL for lows to determine trend direction, and triggers trades on breaks of these swing points, indicating a potential reversal, and trades the breaks when the structure changes.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1585,7 +1585,7 @@
       "url": "https://www.mql5.com/en/articles/17142",
       "title": "Neural Networks in Trading: Multi-Task Learning Based on the ResNeXt Model",
       "description": "A multi-task learning framework based on ResNeXt optimizes the analysis of financial data, taking into account its high dimensionality, nonlinearity, and time dependencies. The use of group convolution and specialized heads allows the model to effectively extract key features from the input data.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1593,7 +1593,7 @@
       "url": "https://www.mql5.com/en/articles/20289",
       "title": "The MQL5 Standard Library Explorer (Part 5): Multiple Signal Expert",
       "description": "In this session, we will build a sophisticated, multi-signal Expert Advisor using the MQL5 Standard Library. This approach allows us to seamlessly blend built-in signals with our own custom logic, demonstrating how to construct a powerful and flexible trading algorithm. For more, click to read further.",
-      "category": "",
+      "category": "STRATEGY",
       "status": "new"
     },
     {
@@ -1601,7 +1601,7 @@
       "url": "https://www.mql5.com/en/articles/17960",
       "title": "The View component for tables in the MQL5 MVC paradigm: Base graphical element",
       "description": "The article covers the process of developing a base graphical element for the View component as part of the implementation of tables in the MVC (Model-View-Controller) paradigm in MQL5. This is the first article on the View component and the third one in a series of articles on creating tables for the MetaTrader 5 client terminal.",
-      "category": "",
+      "category": "SKIP",
       "status": "new"
     },
     {
