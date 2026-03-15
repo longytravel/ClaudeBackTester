@@ -6,9 +6,11 @@ import backtester.strategies.always_buy  # noqa: F401
 import backtester.strategies.bollinger_reversion  # noqa: F401
 import backtester.strategies.donchian_breakout  # noqa: F401
 import backtester.strategies.ema_crossover  # noqa: F401
+import backtester.strategies.hidden_smash_day  # noqa: F401
 import backtester.strategies.macd_crossover  # noqa: F401
 import backtester.strategies.rsi_mean_reversion  # noqa: F401
 import backtester.strategies.stochastic_crossover  # noqa: F401
+import backtester.strategies.verification_test  # noqa: F401
 
 from backtester.strategies.base import (
     Direction,
