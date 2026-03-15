@@ -32,6 +32,9 @@ output/
 state/
 logs/
 
+# Results run logs (console output, not data)
+results/*/run.log
+
 # Environment and secrets
 .env
 .env.local
@@ -53,6 +56,16 @@ dashboard/.env
 # OS
 Thumbs.db
 .DS_Store
+NUL
+
+# Framework/tool artifacts (not part of project)
+.agents/
+.gemini/
+.playwright-mcp/
+_bmad/
+
+# Screenshots (debug session artifacts)
+*.png
 
 # Jupyter
 .ipynb_checkpoints/
@@ -61,3 +74,29 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# ── GSD baseline (auto-generated) ──
+.gsd/activity/
+.gsd/runtime/
+.gsd/worktrees/
+.gsd/auto.lock
+.gsd/metrics.json
+.gsd/completed-units.json
+.gsd/STATE.md
+.gsd/gsd.db
+.gsd/DISCUSSION-MANIFEST.json
+.gsd/milestones/**/*-CONTINUE.md
+.gsd/milestones/**/continue.md
+*~
+*.code-workspace
+.env.*
+!.env.example
+node_modules/
+.next/
+*.pyc
+target/
+vendor/
+*.log
+coverage/
+.cache/
+tmp/

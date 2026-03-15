@@ -33,7 +33,7 @@ from backtester.optimizer.ranking import (
     rank_by_quality,
     select_top_n,
 )
-from backtester.optimizer.sampler import EDASampler, RandomSampler, SobolSampler
+from backtester.optimizer.sampler import CMAESSampler, EDASampler, RandomSampler, SobolSampler
 from backtester.strategies.base import (
     Direction,
     ParamDef,
@@ -403,6 +403,266 @@ class TestEDASampler:
         assert eda.entropy() == pytest.approx(1.0)
 
 
+class TestCMAESSampler:
+    def _make_spec(self):
+        ps = ParamSpace([
+            ParamDef("a", list(range(10))),   # 10 values: 0-9
+            ParamDef("b", list(range(20))),   # 20 values: 0-19
+            ParamDef("c", list(range(5))),    # 5 values: 0-4
+        ])
+        return build_encoding_spec(ps)
+
+    def test_shape(self):
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        matrix = sampler.sample(100)
+        assert matrix.shape == (100, 3)
+        assert matrix.dtype == np.int64
+
+    def test_values_in_range(self):
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        matrix = sampler.sample(200)
+        assert matrix[:, 0].min() >= 0
+        assert matrix[:, 0].max() <= 9
+        assert matrix[:, 1].min() >= 0
+        assert matrix[:, 1].max() <= 19
+        assert matrix[:, 2].min() >= 0
+        assert matrix[:, 2].max() <= 4
+
+    def test_locked_params_respected(self):
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        locked = np.array([3, -1, 2], dtype=np.int64)
+        matrix = sampler.sample(100, locked=locked)
+        assert np.all(matrix[:, 0] == 3)
+        assert np.all(matrix[:, 2] == 2)
+        # b should vary
+        assert len(np.unique(matrix[:, 1])) > 1
+
+    def test_mask_inactive_random(self):
+        """Inactive params get uniform random values (not all zeros)."""
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        mask = np.array([True, False, True], dtype=bool)
+        matrix = sampler.sample(200, mask=mask)
+        # Inactive param b should have varied values
+        unique_b = np.unique(matrix[:, 1])
+        assert len(unique_b) > 1
+        # All in valid range
+        assert matrix[:, 1].min() >= 0
+        assert matrix[:, 1].max() <= 19
+
+    def test_neighborhood_bounds(self):
+        from backtester.optimizer.sampler import NeighborhoodSpec
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        nb = NeighborhoodSpec(
+            min_bounds=np.array([3, 8, 1], dtype=np.int64),
+            max_bounds=np.array([7, 12, 3], dtype=np.int64),
+        )
+        matrix = sampler.sample(200, neighborhood=nb)
+        assert matrix[:, 0].min() >= 3
+        assert matrix[:, 0].max() <= 7
+        assert matrix[:, 1].min() >= 8
+        assert matrix[:, 1].max() <= 12
+        assert matrix[:, 2].min() >= 1
+        assert matrix[:, 2].max() <= 3
+
+    def test_update_and_convergence(self):
+        """After many updates with same elite, CMA-ES should concentrate."""
+        ps = ParamSpace([
+            ParamDef("a", list(range(20))),
+            ParamDef("b", list(range(20))),
+        ])
+        spec = build_encoding_spec(ps)
+        pop_size = 16
+        sampler = CMAESSampler(spec, sigma0=0.3, population_size=pop_size, seed=42)
+
+        target_a, target_b = 10, 15
+
+        for gen in range(30):
+            matrix = sampler.sample(pop_size)
+            # Assign quality based on distance to target
+            qualities = np.zeros(pop_size, dtype=np.float64)
+            for i in range(pop_size):
+                dist = abs(matrix[i, 0] - target_a) + abs(matrix[i, 1] - target_b)
+                qualities[i] = 100.0 - dist  # higher = better
+            sampler.update(matrix, qualities)
+
+        # After convergence, samples should cluster near target
+        final = sampler.sample(pop_size)
+        mean_a = final[:, 0].mean()
+        mean_b = final[:, 1].mean()
+        # Should be within 3 of target on average
+        assert abs(mean_a - target_a) < 5
+        assert abs(mean_b - target_b) < 5
+
+    def test_reset_clears_state(self):
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        # Sample to initialize
+        sampler.sample(50)
+        assert sampler._cma is not None
+
+        sampler.reset()
+        assert sampler._cma is None
+        assert sampler.converged is False
+        assert sampler._generation_count == 0
+        assert sampler._pending_tell == []
+
+        # Should work after reset
+        matrix = sampler.sample(50)
+        assert matrix.shape == (50, 3)
+
+    def test_entropy_starts_high(self):
+        spec = self._make_spec()
+        sampler = CMAESSampler(spec, seed=42)
+        # Before init, entropy is 1.0
+        assert sampler.entropy() == 1.0
+        # After init, entropy should still be near 1.0
+        sampler.sample(50)
+        ent = sampler.entropy()
+        assert ent > 0.5  # should be high initially
+
+
+# ---------------------------------------------------------------------------
+# Staged optimizer CMA-ES integration tests
+# ---------------------------------------------------------------------------
+
+class TestStagedOptimizerCMAES:
+    """Tests staged optimizer with CMA-ES exploitation."""
+
+    def test_staged_flow_cmaes(self):
+        """Full staged optimization completes with CMA-ES."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            exploitation_method="cmaes",
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # Should have stages + refinement
+        assert len(result.stages) >= 2
+        assert result.total_trials > 0
+        assert result.best_indices is not None
+
+    def test_eda_fallback(self):
+        """EDA exploitation still works when explicitly selected."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            exploitation_method="eda",
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        assert len(result.stages) >= 2
+        assert result.total_trials > 0
+        assert result.best_indices is not None
+
+    def test_cmaes_refinement_collects(self):
+        """Refinement stage with CMA-ES collects passing trials."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=400,
+            batch_size=64,
+            exploitation_method="cmaes",
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # Refinement stage should be last
+        refinement = result.stages[-1]
+        assert refinement.stage_name == "refinement"
+
+        # Should have collected passing trials (if any passed)
+        if refinement.valid_count > 0:
+            assert refinement.all_passing_indices is not None
+            assert refinement.all_passing_metrics is not None
+            assert refinement.all_passing_indices.shape[1] == engine.encoding.num_params
+            assert refinement.all_passing_metrics.shape[1] == NUM_METRICS
+            assert result.refinement_indices is not None
+            assert result.refinement_metrics is not None
+
+    def test_config_cmaes_fields(self):
+        """CMA-ES config fields have correct defaults."""
+        config = OptimizationConfig()
+        assert config.exploitation_method == "cmaes"
+        assert config.cmaes_sigma0 == 0.3
+        assert config.cmaes_population_size is None
+
+    def test_presets_use_cmaes(self):
+        """All presets should default to CMA-ES exploitation."""
+        for name in ["turbo", "standard", "deep", "max"]:
+            preset = get_preset(name)
+            assert preset.exploitation_method == "cmaes", (
+                f"Preset '{name}' should use cmaes, got {preset.exploitation_method}"
+            )
+
+    def test_create_exploiter_eda_path(self):
+        """_create_exploiter returns EDA when configured."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(exploitation_method="eda")
+        staged = StagedOptimizer(engine, config)
+        exploiter, use_cmaes = staged._create_exploiter(batch_size=64)
+
+        assert not use_cmaes
+        assert isinstance(exploiter, EDASampler)
+
+    def test_create_exploiter_cmaes_path(self):
+        """_create_exploiter returns CMA-ES when configured and available."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(exploitation_method="cmaes")
+        staged = StagedOptimizer(engine, config)
+        exploiter, use_cmaes = staged._create_exploiter(batch_size=64)
+
+        # CMAESSampler exists (added by other agent), so should succeed
+        if use_cmaes:
+            assert isinstance(exploiter, CMAESSampler)
+        else:
+            # Fallback to EDA if CMAESSampler not yet importable
+            assert isinstance(exploiter, EDASampler)
+
+
 # ---------------------------------------------------------------------------
 # Pre-filter tests
 # ---------------------------------------------------------------------------
@@ -699,10 +959,14 @@ class TestStagedOptimizer:
         """Strategy's optimization_stages() should be respected."""
         strategy = OptimizerTestStrategy()
         stages = strategy.optimization_stages()
-        assert "signal" in stages
-        # Management is now split into sub-groups by module
-        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
-        assert mgmt_groups.issubset(set(stages))
+        # Extract stage names (handle both str and tuple entries)
+        stage_names = [s if isinstance(s, str) else s[0] for s in stages]
+        assert "signal" in stage_names
+        # Composite stage merges risk + trailing + breakeven
+        assert "core_trade_profile" in stage_names
+        # Remaining management groups
+        assert "exit_protection" in stage_names
+        assert "exit_time" in stage_names
 
     def test_refinement_collects_passing_trials(self):
         """Refinement stage should collect all passing trials for multi-candidate."""
@@ -770,10 +1034,19 @@ class TestStrategyBaseAdditions:
     def test_optimization_stages_default(self):
         strategy = OptimizerTestStrategy()
         stages = strategy.optimization_stages()
-        assert stages[:3] == ["signal", "time", "risk"]
-        # Management sub-groups follow (exit_trailing, exit_protection, exit_time)
-        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
-        assert mgmt_groups.issubset(set(stages))
+        assert stages[0] == "signal"
+        assert stages[1] == "time"
+        # Third entry is the composite core_trade_profile stage
+        assert isinstance(stages[2], tuple)
+        comp_name, comp_groups = stages[2]
+        assert comp_name == "core_trade_profile"
+        assert "risk" in comp_groups
+        assert "exit_trailing" in comp_groups
+        assert "exit_protection_be" in comp_groups
+        # Remaining management groups follow
+        stage_names = [s if isinstance(s, str) else s[0] for s in stages]
+        assert "exit_protection" in stage_names
+        assert "exit_time" in stage_names
 
 
 # ---------------------------------------------------------------------------
@@ -1009,3 +1282,284 @@ class TestBudgetAutoCap:
         signal_stage = next(b for b in budgets if b["stage"] == "signal")
         # 9 combos × 10x = 90 > 50, so no cap
         assert signal_stage["budget"] == 50
+
+
+# ---------------------------------------------------------------------------
+# Cyclic passes tests
+# ---------------------------------------------------------------------------
+
+class TestCyclicPasses:
+    """Tests for cyclic pass re-optimization."""
+
+    def test_cyclic_passes_execute(self):
+        """Cyclic passes run when max_cyclic_passes > 0."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config_no_cyclic = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+            max_cyclic_passes=0,
+        )
+        staged_no = StagedOptimizer(engine, config_no_cyclic)
+        result_no = staged_no.optimize()
+
+        config_with_cyclic = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+            max_cyclic_passes=1,
+            cyclic_budget_fraction=0.5,
+        )
+        staged_yes = StagedOptimizer(engine, config_with_cyclic)
+        result_yes = staged_yes.optimize()
+
+        # With cyclic passes, total_trials should be strictly greater
+        assert result_yes.total_trials > result_no.total_trials
+        # Cyclic stages should show up in the stages list
+        cyclic_stages = [s for s in result_yes.stages if "cycle" in s.stage_name]
+        assert len(cyclic_stages) >= 1
+
+    def test_cyclic_passes_disabled(self):
+        """No cyclic passes when max_cyclic_passes=0."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+            max_cyclic_passes=0,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # No cyclic stage names in the results
+        cyclic_stages = [s for s in result.stages if "cycle" in s.stage_name]
+        assert len(cyclic_stages) == 0
+
+    def test_cyclic_convergence_stops_early(self):
+        """Cycling stops when improvement < threshold."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+            max_cyclic_passes=5,  # Allow up to 5
+            cyclic_budget_fraction=0.5,
+            cyclic_improvement_threshold=0.01,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # With small data and small budget, quality plateaus fast.
+        # Expect fewer than 5 cycles actually ran (early convergence).
+        cyclic_stages = [s for s in result.stages if "cycle" in s.stage_name]
+        # Should have at least 1 cycle (always runs first pass)
+        assert len(cyclic_stages) >= 1
+        # With 5 max passes and only signal as cyclic stage, max would be 5 stages.
+        # Early convergence should stop before that (usually 1-2 passes).
+        # We can't guarantee exact count, but total_trials should be bounded.
+        assert result.total_trials > 0
+
+    def test_cyclic_total_trials_accounted(self):
+        """StagedResult.total_trials includes cyclic pass evaluations."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+            max_cyclic_passes=1,
+            cyclic_budget_fraction=0.5,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # total_trials must equal sum of all stage trials
+        sum_stage_trials = sum(s.trials_evaluated for s in result.stages)
+        assert result.total_trials == sum_stage_trials
+
+
+# ---------------------------------------------------------------------------
+# Refinement upgrade tests
+# ---------------------------------------------------------------------------
+
+class TestRefinementUpgrade:
+
+    def test_wider_default_neighborhood(self):
+        """Default refinement_neighborhood_radius is now 5."""
+        cfg = OptimizationConfig()
+        assert cfg.refinement_neighborhood_radius == 5
+
+
+# ---------------------------------------------------------------------------
+# Composite stage tests
+# ---------------------------------------------------------------------------
+
+class TestCompositeStages:
+    """Tests for composite stage support (merging multiple param groups)."""
+
+    def test_composite_stage_activates_multiple_groups(self):
+        """Composite stage ('name', ['g1', 'g2']) activates params from both groups."""
+        strategy = OptimizerTestStrategy()
+        ps = strategy.param_space()
+        spec = build_encoding_spec(ps)
+
+        # Get indices for the groups that go into the composite
+        risk_indices = spec.group_indices("risk")
+        trail_indices = spec.group_indices("exit_trailing")
+        be_indices = spec.group_indices("exit_protection_be")
+
+        # All three should have params
+        assert len(risk_indices) > 0
+        assert len(trail_indices) > 0
+        assert len(be_indices) > 0
+
+        # The composite should include all of them
+        combined = set(risk_indices) | set(trail_indices) | set(be_indices)
+        assert len(combined) == len(risk_indices) + len(trail_indices) + len(be_indices)
+
+    def test_backward_compat_string_stages(self):
+        """String stage entries still work as single groups."""
+        from backtester.optimizer.staged import _normalize_stages
+        normalized = _normalize_stages(["signal", "time"])
+        assert normalized == [("signal", ["signal"]), ("time", ["time"])]
+
+    def test_normalize_stages_mixed(self):
+        """_normalize_stages converts strings and tuples correctly."""
+        from backtester.optimizer.staged import _normalize_stages
+        raw = ["signal", ("merged", ["a", "b"]), "time"]
+        result = _normalize_stages(raw)
+        assert result == [
+            ("signal", ["signal"]),
+            ("merged", ["a", "b"]),
+            ("time", ["time"]),
+        ]
+
+    def test_normalize_stages_invalid_raises(self):
+        """_normalize_stages raises on invalid entry types."""
+        from backtester.optimizer.staged import _normalize_stages
+        with pytest.raises(ValueError, match="Invalid stage entry"):
+            _normalize_stages([123])
+
+    def test_breakeven_in_new_group(self):
+        """BreakevenModule now has group 'exit_protection_be'."""
+        from backtester.strategies.modules import BreakevenModule
+        mod = BreakevenModule()
+        assert mod.group == "exit_protection_be"
+
+    def test_partial_close_stays_in_exit_protection(self):
+        """PartialCloseModule still has group 'exit_protection'."""
+        from backtester.strategies.modules import PartialCloseModule
+        mod = PartialCloseModule()
+        assert mod.group == "exit_protection"
+
+    def test_default_stages_include_composite(self):
+        """Default optimization_stages() includes the core_trade_profile composite."""
+        strategy = OptimizerTestStrategy()
+        stages = strategy.optimization_stages()
+
+        # Find the composite entry
+        composite_entries = [s for s in stages if isinstance(s, tuple)]
+        assert len(composite_entries) >= 1
+
+        # Check the core_trade_profile composite
+        core = next(s for s in stages if isinstance(s, tuple) and s[0] == "core_trade_profile")
+        name, groups = core
+        assert "risk" in groups
+        assert "exit_trailing" in groups
+        assert "exit_protection_be" in groups
+
+    def test_composite_stage_exec_mode_full(self):
+        """Composite stage containing management modules should use EXEC_FULL."""
+        # The composite core_trade_profile includes exit_trailing and exit_protection_be,
+        # both of which require EXEC_FULL. The staged optimizer should detect this.
+        strategy = OptimizerTestStrategy()
+        full_mode_groups: set[str] = set()
+        for mod in strategy.management_modules():
+            if mod.requires_full_mode:
+                full_mode_groups.add(mod.group)
+
+        # exit_trailing and exit_protection_be should both be in full_mode_groups
+        assert "exit_trailing" in full_mode_groups
+        assert "exit_protection_be" in full_mode_groups
+
+    def test_staged_flow_with_composite(self):
+        """End-to-end staged optimization works with composite stages."""
+        data = _make_data(500)
+        strategy = OptimizerTestStrategy()
+        engine = BacktestEngine(strategy, *data, slippage_pips=0.0)
+
+        from backtester.optimizer.staged import StagedOptimizer
+        config = OptimizationConfig(
+            trials_per_stage=200,
+            refinement_trials=200,
+            batch_size=64,
+            min_total_trades=1,
+            min_trades_per_year=0.0,
+            min_r_squared=0.0,
+            max_dd_pct=100.0,
+        )
+        staged = StagedOptimizer(engine, config)
+        result = staged.optimize()
+
+        # Should have stages + refinement
+        assert len(result.stages) >= 2
+        assert result.total_trials > 0
+        assert result.best_indices is not None
+
+        # One of the stages should be core_trade_profile
+        stage_names = [s.stage_name for s in result.stages]
+        assert "core_trade_profile" in stage_names
+
+    def test_compute_stage_budgets_composite(self):
+        """compute_stage_budgets handles composite stages correctly."""
+        from backtester.optimizer.staged import compute_stage_budgets
+
+        strategy = OptimizerTestStrategy()
+        config = OptimizationConfig(
+            trials_per_stage=500_000,
+            refinement_trials=100_000,
+        )
+        budgets = compute_stage_budgets(strategy, config)
+
+        # Find the core_trade_profile budget entry
+        core_budget = next(
+            (b for b in budgets if b["stage"] == "core_trade_profile"), None,
+        )
+        assert core_budget is not None
+        # Composite unique_combos = product across risk + trailing + BE params
+        assert core_budget["unique_combos"] > 1

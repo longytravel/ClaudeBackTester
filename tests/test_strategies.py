@@ -276,7 +276,7 @@ class TestParamSpace:
 
         mp = management_params()
         # Management params now have sub-group names from modules
-        valid_groups = {"exit_trailing", "exit_protection", "exit_time"}
+        valid_groups = {"exit_trailing", "exit_protection", "exit_protection_be", "exit_time"}
         assert all(p.group in valid_groups for p in mp)
         # Verify defaults are OFF (REQ-S13)
         trailing = next(p for p in mp if p.name == "trailing_mode")

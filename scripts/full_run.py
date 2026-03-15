@@ -977,7 +977,10 @@ def main():
 
     # Send run config to dashboard
     if dashboard:
-        stages = strategy.optimization_stages() + ["refinement"]
+        raw_stages = strategy.optimization_stages()
+        stages = [
+            s if isinstance(s, str) else s[0] for s in raw_stages
+        ] + ["refinement"]
         dashboard.broadcast({
             "type": "run_config",
             "strategy": strategy.name,

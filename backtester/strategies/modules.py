@@ -111,7 +111,7 @@ class BreakevenModule(ManagementModule):
 
     @property
     def group(self) -> str:
-        return "exit_protection"
+        return "exit_protection_be"
 
     def param_defs(self) -> list[ParamDef]:
         return [

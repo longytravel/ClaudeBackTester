@@ -171,10 +171,20 @@ class TestMetadata:
     def test_optimization_stages(self, strategy):
         # No time stage: EMA crossover is time-agnostic
         stages = strategy.optimization_stages()
-        assert stages[:2] == ["signal", "risk"]
-        # Management sub-groups follow (no time stage for EMA)
-        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
-        assert mgmt_groups.issubset(set(stages))
+        assert stages[0] == "signal"
+        # Second entry should be the composite core_trade_profile stage
+        assert isinstance(stages[1], tuple)
+        comp_name, comp_groups = stages[1]
+        assert comp_name == "core_trade_profile"
+        assert "risk" in comp_groups
+        assert "exit_trailing" in comp_groups
+        assert "exit_protection_be" in comp_groups
+        # Remaining management groups follow (exit_protection, exit_time)
+        remaining_names = [
+            s if isinstance(s, str) else s[0] for s in stages[2:]
+        ]
+        assert "exit_protection" in remaining_names
+        assert "exit_time" in remaining_names
 
 
 class TestRegistry:

@@ -73,12 +73,25 @@ class EMACrossover(Strategy):
         ]
         return ParamSpace(params)
 
-    def optimization_stages(self) -> list[str]:
+    def optimization_stages(self) -> list[str | tuple[str, list[str]]]:
         # Skip time — EMA crossover has fixed time params (1 value each)
-        stages = ["signal", "risk"]
+        composite_groups_ordered = ["risk", "exit_trailing", "exit_protection_be"]
+        module_groups = {mod.group for mod in self.management_modules()}
+        composite_groups = [
+            g for g in composite_groups_ordered
+            if g == "risk" or g in module_groups
+        ]
+
+        stages: list[str | tuple[str, list[str]]] = ["signal"]
+        if len(composite_groups) > 1:
+            stages.append(("core_trade_profile", composite_groups))
+        else:
+            stages.append("risk")
+
+        composite_set = set(composite_groups)
         seen: set[str] = set()
         for mod in self.management_modules():
-            if mod.group not in seen:
+            if mod.group not in composite_set and mod.group not in seen:
                 stages.append(mod.group)
                 seen.add(mod.group)
         return stages

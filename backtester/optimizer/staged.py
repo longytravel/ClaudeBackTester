@@ -37,9 +37,39 @@ from backtester.optimizer.prefilter import postfilter_results, prefilter_invalid
 from backtester.optimizer.sampler import (
     EDASampler, NeighborhoodSpec, RandomSampler, SobolSampler, build_neighborhood,
 )
+# CMAESSampler imported lazily inside _create_exploiter() to avoid hard
+# dependency when not yet available (built by separate agent).
+
 from backtester.strategies.base import Strategy
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_stages(
+    raw_stages: list[str | tuple[str, list[str]]],
+) -> list[tuple[str, list[str]]]:
+    """Convert stage entries to uniform (name, groups) form.
+
+    Accepts:
+        - ``"signal"`` → ``("signal", ["signal"])``
+        - ``("core_trade_profile", ["risk", "exit_trailing"])`` → as-is
+
+    Returns:
+        List of ``(stage_name, group_list)`` tuples.
+    """
+    normalized: list[tuple[str, list[str]]] = []
+    for entry in raw_stages:
+        if isinstance(entry, str):
+            normalized.append((entry, [entry]))
+        elif isinstance(entry, tuple) and len(entry) == 2:
+            name, groups = entry
+            normalized.append((name, list(groups)))
+        else:
+            raise ValueError(
+                f"Invalid stage entry: {entry!r}. "
+                "Expected str or (str, list[str])."
+            )
+    return normalized
 
 
 def compute_stage_budgets(
@@ -52,18 +82,22 @@ def compute_stage_budgets(
         [{"stage": "signal", "unique_combos": 75, "budget": 200000, "coverage": 2667.0}, ...]
     """
     ps = strategy.param_space()
-    stages = strategy.optimization_stages()
+    raw_stages = strategy.optimization_stages()
     spec = build_encoding_spec(ps)
+    stages = _normalize_stages(raw_stages)
 
     results = []
-    for stage_name in stages:
-        group_indices = spec.group_indices(stage_name)
-        if not group_indices:
+    for stage_name, stage_groups in stages:
+        # Collect indices from all groups in this (possibly composite) stage
+        group_idxs: list[int] = []
+        for g in stage_groups:
+            group_idxs.extend(spec.group_indices(g))
+        if not group_idxs:
             continue
 
         # Count unique combos = product of value counts for all params in group
         unique_combos = 1
-        for idx in group_indices:
+        for idx in group_idxs:
             unique_combos *= len(spec.columns[idx].values)
 
         budget = config.trials_per_stage
@@ -151,9 +185,11 @@ class StagedOptimizer:
         """Run staged optimization.
 
         Reads stage order from strategy.optimization_stages().
+        Supports both simple string stages and composite (name, [groups]) stages.
         """
         strategy = self.engine.strategy
-        stages = strategy.optimization_stages()
+        raw_stages = strategy.optimization_stages()
+        stages = _normalize_stages(raw_stages)
 
         result = StagedResult()
 
@@ -169,14 +205,20 @@ class StagedOptimizer:
         else:
             full_mode_groups.add("management")  # legacy fallback
 
-        for stage_idx, stage_name in enumerate(stages):
-            # Determine execution mode
-            exec_mode = EXEC_FULL if stage_name in full_mode_groups else EXEC_BASIC
+        for stage_idx, (stage_name, stage_groups) in enumerate(stages):
+            # Determine execution mode: EXEC_FULL if ANY group requires it
+            exec_mode = EXEC_BASIC
+            for g in stage_groups:
+                if g in full_mode_groups:
+                    exec_mode = EXEC_FULL
+                    break
 
-            # Build mask: which params are active this stage
-            group_indices = self.spec.group_indices(stage_name)
+            # Build mask: which params are active this stage (all groups combined)
+            group_indices: list[int] = []
+            for g in stage_groups:
+                group_indices.extend(self.spec.group_indices(g))
             if not group_indices:
-                logger.info(f"Stage '{stage_name}': no params in group, skipping")
+                logger.info(f"Stage '{stage_name}': no params in group(s) {stage_groups}, skipping")
                 continue
 
             active_mask = np.zeros(self.spec.num_params, dtype=np.bool_)
@@ -228,6 +270,120 @@ class StagedOptimizer:
                     elapsed_secs=time.time() - t_stage,
                 ))
 
+        # --- Cyclic passes: re-optimize interacting stages ---
+        # Signal and composite stages have strong cross-stage interactions.
+        # Re-optimizing them after all stages are locked captures interactions
+        # that single-pass staged optimization misses.
+        if self.config.max_cyclic_passes > 0:
+            # Identify cyclic stages: "signal" and any composite stage
+            # (one with multiple groups in its group list).
+            cyclic_stage_entries: list[tuple[str, list[str], int]] = []
+            for _stage_name, _stage_groups in stages:
+                is_signal = _stage_name == "signal"
+                is_composite = isinstance(_stage_groups, list) and len(_stage_groups) > 1
+                if is_signal or is_composite:
+                    # Determine exec_mode: EXEC_FULL if ANY group requires it
+                    _exec_mode = EXEC_BASIC
+                    for g in _stage_groups:
+                        if g in full_mode_groups:
+                            _exec_mode = EXEC_FULL
+                            break
+                    cyclic_stage_entries.append((_stage_name, _stage_groups, _exec_mode))
+
+            if cyclic_stage_entries:
+                # Track best quality across all stages so far for convergence check
+                cyclic_best_quality = max(
+                    (s.best_quality for s in result.stages if s.best_quality > -np.inf),
+                    default=-np.inf,
+                )
+
+                for cycle in range(self.config.max_cyclic_passes):
+                    prev_quality = cyclic_best_quality
+
+                    for c_name, c_groups, c_exec_mode in cyclic_stage_entries:
+                        # Collect group indices for this cyclic stage
+                        group_idxs: list[int] = []
+                        for g in c_groups:
+                            group_idxs.extend(self.spec.group_indices(g))
+
+                        if not group_idxs:
+                            continue
+
+                        # Unlock this stage's params for re-optimization
+                        cyclic_locked = locked.copy()
+                        for idx in group_idxs:
+                            cyclic_locked[idx] = -1
+
+                        # Reduced budget for cyclic stages
+                        cyclic_budget = int(
+                            self.config.trials_per_stage * self.config.cyclic_budget_fraction
+                        )
+
+                        # Build active mask
+                        active_mask = np.zeros(self.spec.num_params, dtype=np.bool_)
+                        for idx in group_idxs:
+                            active_mask[idx] = True
+
+                        t_cyclic = time.time()
+                        cyclic_result = self._run_stage(
+                            stage_name=f"{c_name}_cycle{cycle + 1}",
+                            active_mask=active_mask,
+                            locked=cyclic_locked,
+                            exec_mode=c_exec_mode,
+                            trials=cyclic_budget,
+                            stage_index=len(stages) + cycle,
+                            total_stages=len(stages) + 1 + self.config.max_cyclic_passes,
+                        )
+
+                        # Re-lock with new best if stage found anything
+                        if cyclic_result.best_quality > -np.inf:
+                            for idx in group_idxs:
+                                locked[idx] = cyclic_result.best_indices[idx]
+                            if cyclic_result.best_quality > cyclic_best_quality:
+                                cyclic_best_quality = cyclic_result.best_quality
+
+                        result.stages.append(cyclic_result)
+                        result.total_trials += cyclic_result.trials_evaluated
+
+                        logger.info(
+                            f"Cyclic pass {cycle + 1}, stage '{c_name}': "
+                            f"quality={cyclic_result.best_quality:.2f}, "
+                            f"valid={cyclic_result.valid_count}/{cyclic_result.trials_evaluated}"
+                        )
+
+                        if self._on_stage:
+                            self._on_stage(StageComplete(
+                                stage_name=f"{c_name}_cycle{cycle + 1}",
+                                stage_index=len(stages) + cycle,
+                                total_stages=len(stages) + 1 + self.config.max_cyclic_passes,
+                                best_quality=cyclic_result.best_quality,
+                                best_metrics={
+                                    "sharpe": float(cyclic_result.best_metrics[M_SHARPE]),
+                                    "trades": float(cyclic_result.best_metrics[M_TRADES]),
+                                    "quality": float(cyclic_result.best_quality),
+                                },
+                                trials_evaluated=cyclic_result.trials_evaluated,
+                                valid_count=cyclic_result.valid_count,
+                                elapsed_secs=time.time() - t_cyclic,
+                            ))
+
+                    # Convergence check
+                    if prev_quality > 0:
+                        improvement = (cyclic_best_quality - prev_quality) / abs(prev_quality)
+                    else:
+                        improvement = 1.0  # Always do at least one pass if quality was 0
+
+                    logger.info(
+                        f"Cyclic pass {cycle + 1} improvement: {improvement:.4f} "
+                        f"(threshold: {self.config.cyclic_improvement_threshold})"
+                    )
+
+                    if improvement < self.config.cyclic_improvement_threshold:
+                        logger.info(
+                            f"Cyclic passes converged after {cycle + 1} passes"
+                        )
+                        break  # Converged
+
         # --- Refinement stage: all params active, full mode ---
         t_stage = time.time()
         refinement_result = self._run_stage(
@@ -273,6 +429,44 @@ class StagedOptimizer:
             ))
 
         return result
+
+    def _create_exploiter(self, batch_size: int) -> tuple:
+        """Create the exploitation sampler based on config.
+
+        Returns:
+            (exploiter, use_cmaes): The sampler instance and whether it's CMA-ES.
+        """
+        if self.config.exploitation_method == "cmaes":
+            try:
+                from backtester.optimizer.sampler import CMAESSampler
+                pop_size = self.config.cmaes_population_size or batch_size
+                exploiter = CMAESSampler(
+                    self.spec,
+                    sigma0=self.config.cmaes_sigma0,
+                    population_size=pop_size,
+                    seed=self.config.seed,
+                )
+                logger.info(
+                    f"Using CMA-ES exploitation (sigma0={self.config.cmaes_sigma0}, "
+                    f"pop_size={pop_size})"
+                )
+                return exploiter, True
+            except ImportError:
+                logger.warning(
+                    "CMAESSampler not available, falling back to EDA exploitation"
+                )
+                # Fall through to EDA
+
+        exploiter = EDASampler(
+            self.spec,
+            learning_rate=self.config.eda_learning_rate,
+            lr_decay=self.config.eda_lr_decay,
+            lr_floor=self.config.eda_lr_floor,
+            min_prob=self.config.eda_min_prob,
+            seed=self.config.seed,
+        )
+        logger.info("Using EDA exploitation")
+        return exploiter, False
 
     def _run_stage(
         self,
@@ -353,14 +547,7 @@ class StagedOptimizer:
 
         # Initialize samplers
         sobol = SobolSampler(self.spec, seed=self.config.seed)
-        eda = EDASampler(
-            self.spec,
-            learning_rate=self.config.eda_learning_rate,
-            lr_decay=self.config.eda_lr_decay,
-            lr_floor=self.config.eda_lr_floor,
-            min_prob=self.config.eda_min_prob,
-            seed=self.config.seed,
-        )
+        exploiter, use_cmaes = self._create_exploiter(batch_size)
 
         best_quality = -np.inf
         best_indices = np.zeros(self.spec.num_params, dtype=np.int64)
@@ -383,13 +570,13 @@ class StagedOptimizer:
             remaining = trials - total_evaluated
             n = min(batch_size, remaining)
 
-            # Choose sampler: exploration phase uses Sobol, exploitation uses EDA
+            # Choose sampler: exploration phase uses Sobol, exploitation uses exploiter
             if total_evaluated < exploration_budget:
                 index_batch = sobol.sample(
                     n, mask=active_mask, locked=stage_locked, neighborhood=neighborhood,
                 )
             else:
-                index_batch = eda.sample(
+                index_batch = exploiter.sample(
                     n, mask=active_mask, locked=stage_locked, neighborhood=neighborhood,
                 )
 
@@ -443,18 +630,42 @@ class StagedOptimizer:
                     all_indices_list.append(valid_batch[passing].copy())
                     all_metrics_list.append(metrics[passing].copy())
 
-                # Update EDA with elite subset
-                n_elite = max(1, int(len(passing) * self.config.elite_pct))
-                elite_order = np.argsort(-qualities)[:n_elite]
-                elite_indices = valid_batch[passing[elite_order]]
-                eda.update(elite_indices, mask=active_mask)
+            # Update exploiter (outside passing check — CMA-ES needs all results)
+            if total_evaluated >= exploration_budget:
+                if use_cmaes:
+                    # CMA-ES update: pass full batch + quality scores
+                    # Quality 0.0 for filtered-out rows (post-filter failures)
+                    quality_scores = np.zeros(len(valid_batch), dtype=np.float64)
+                    if len(passing) > 0:
+                        quality_scores[passing] = metrics[passing, M_QUALITY]
+                    exploiter.update(valid_batch, quality_scores, mask=active_mask)
 
-                # Log entropy diagnostics during exploitation phase
-                if total_evaluated >= exploration_budget:
-                    ent = eda.entropy(mask=active_mask)
+                    # Check convergence — if converged, do IPOP restart
+                    if exploiter.converged:
+                        logger.info(
+                            f"Stage '{stage_name}': CMA-ES converged, "
+                            f"performing IPOP restart"
+                        )
+                        exploiter.reset()
+
+                    # Log diagnostics
+                    ent = exploiter.entropy(mask=active_mask)
                     logger.debug(
-                        f"Stage '{stage_name}' EDA update #{eda.update_count}: "
-                        f"lr={eda.effective_lr:.3f}, entropy={ent:.3f}"
+                        f"Stage '{stage_name}' CMA-ES update: entropy={ent:.3f}"
+                    )
+                elif len(passing) > 0:
+                    # EDA update: pass elite subset only
+                    qualities = metrics[passing, M_QUALITY]
+                    n_elite = max(1, int(len(passing) * self.config.elite_pct))
+                    elite_order = np.argsort(-qualities)[:n_elite]
+                    elite_indices_batch = valid_batch[passing[elite_order]]
+                    exploiter.update(elite_indices_batch, mask=active_mask)
+
+                    # Log entropy diagnostics
+                    ent = exploiter.entropy(mask=active_mask)
+                    logger.debug(
+                        f"Stage '{stage_name}' EDA update #{exploiter.update_count}: "
+                        f"lr={exploiter.effective_lr:.3f}, entropy={ent:.3f}"
                     )
 
             # Fire progress callback AFTER best update so dashboard sees latest
@@ -469,8 +680,8 @@ class StagedOptimizer:
                 ent = None
                 lr = None
                 if phase == "exploitation":
-                    ent = float(eda.entropy(mask=active_mask))
-                    lr = float(eda.effective_lr)
+                    ent = float(exploiter.entropy(mask=active_mask))
+                    lr = float(exploiter.effective_lr) if hasattr(exploiter, 'effective_lr') else None
 
                 # Batch quality stats (cap to prevent inf/garbage from
                 # combos with 1-2 trades producing infinite Sharpe/PF)

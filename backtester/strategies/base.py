@@ -304,22 +304,54 @@ class Strategy(ABC):
         from backtester.strategies.modules import DEFAULT_MODULES
         return list(DEFAULT_MODULES)
 
-    def optimization_stages(self) -> list[str]:
+    def optimization_stages(self) -> list[str | tuple[str, list[str]]]:
         """Define the optimization stage order for this strategy.
 
-        Each stage optimizes one parameter group at a time, locking
-        best values from prior stages. Override to customize.
+        Each entry is either:
+        - ``str`` — a single param group (backward compatible)
+        - ``(name, [group1, group2, ...])`` — a composite stage that
+          optimizes multiple groups jointly
 
-        Default: signal → time → risk → then each management module group.
+        Default: signal → time → core_trade_profile (risk + trailing + BE)
+        → remaining management groups → exit_time.
+
+        The core_trade_profile composite stage optimizes SL/TP, trailing
+        stop, and breakeven jointly because these parameters are tightly
+        coupled (e.g., trailing distance must be consistent with SL size).
+
         Auto-generates management sub-groups from management_modules().
         Any param group NOT listed is included in the final refinement stage.
         """
-        stages = ["signal", "time", "risk"]
+        # Groups to merge into the composite core_trade_profile stage
+        composite_groups_ordered = ["risk", "exit_trailing", "exit_protection_be"]
+
+        # Determine which composite groups actually have params
+        # (strategy may not use all modules)
+        module_groups: set[str] = set()
+        for mod in self.management_modules():
+            module_groups.add(mod.group)
+
+        composite_groups = [
+            g for g in composite_groups_ordered
+            if g == "risk" or g in module_groups  # risk always exists
+        ]
+
+        stages: list[str | tuple[str, list[str]]] = ["signal", "time"]
+
+        # Add composite stage (only if it has more than just "risk")
+        if len(composite_groups) > 1:
+            stages.append(("core_trade_profile", composite_groups))
+        else:
+            stages.append("risk")
+
+        # Add remaining management module groups NOT already in the composite
+        composite_set = set(composite_groups)
         seen: set[str] = set()
         for mod in self.management_modules():
-            if mod.group not in seen:
+            if mod.group not in composite_set and mod.group not in seen:
                 stages.append(mod.group)
                 seen.add(mod.group)
+
         return stages
 
     def signal_pl_mapping(self) -> dict[str, int]:
