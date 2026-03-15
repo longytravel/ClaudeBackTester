@@ -5,53 +5,64 @@
 ### Modular Staged Optimizer (Phases 1-4)
 - Expanded Rust NUM_PL from 27 → 64 (10 signal slots PL_SIGNAL_P0-P9 + 27 reserved)
 - Created ManagementModule system: 5 built-in modules in `strategies/modules.py`
-- Each module has its own optimization sub-group (exit_trailing, exit_protection, exit_time)
-- Added generic signal filter loop in Rust for expanded signal params
-- Updated live trader with `signal_pl_mapping()` support
-- 520 tests pass, zero behavior change for existing strategies
+- Sub-grouped optimization stages (exit_trailing, exit_protection, exit_time)
+- Generic signal filter loop in Rust + live trader wiring
+- 520 tests pass, zero behavior change
 
 ### Strategy Research Pipeline
-- Built crawler: `scripts/crawl_mql5_articles.py` — 2,731 articles catalogued
-- Built Haiku triage: `scripts/triage_articles.py` — 200 articles classified
-- Results: 62 STRATEGY, 11 MODULE, 24 INDICATOR, 31 SYSTEM, 72 SKIP
+- Crawler: 2,731 MQL5 articles in `Research/mql5_catalogue.json`
+- Haiku triage: 200 classified (62 STRATEGY, 11 MODULE, 24 INDICATOR, 31 SYSTEM, 72 SKIP)
+- First strategy built: Hidden Smash Day (article 21391, Larry Williams)
 
-### First Article Strategy
-- Built Hidden Smash Day strategy from MQL5 article 21391 (Larry Williams)
-- 36 signal variants, fully vectorized, uses modular management stages
-- NOT YET TESTED through optimizer/pipeline
+### Tooling Installed
+- claude-mem (auto session memory), claude-mermaid MCP (diagrams)
+- docs/architecture.md (system overview), docs/tooling-setup.md
 
-### Tooling
-- Installed claude-mem plugin (automatic session memory)
-- Installed claude-mermaid MCP (architecture diagrams)
-- Created docs/architecture.md with full system overview
-- Created docs/tooling-setup.md with plugin install instructions
+## Next Steps — Quality Pipeline First
 
-## Next Steps
+### Step 1: Codex Review of Hidden Smash Day
+- Run `/codex` to review `backtester/strategies/hidden_smash_day.py`
+- Codex checks: does signal logic match article rules? Vectorization correct? Edge cases?
+- Review against the article source (MQL5 article 21391)
+- Fix any issues found
 
-1. **Run Hidden Smash Day through optimizer + pipeline** on real EUR/USD H1 data
-   - Command: `/run-backtest` or `uv run python scripts/full_run.py --strategy hidden_smash_day --pair EURUSD --timeframe H1`
-   - This is the first test of a research-pipeline strategy
+### Step 2: Codex Review of Management Modules
+- Run `/codex` to review `backtester/strategies/modules.py` + `rust/src/trade_full.rs`
+- These modules affect EVERY strategy — must be correct
+- Check: param ranges sensible? PL slot mappings correct? Rust logic matches Python config?
 
-2. **Codex review** the Hidden Smash Day strategy code
-   - `/codex` to review `backtester/strategies/hidden_smash_day.py`
-   - Check signal logic matches article rules
+### Step 3: Define the Strategy Creation Flow
+- Document the exact end-to-end process for building a new strategy
+- This becomes a repeatable workflow / skill
+- Flow: article → scrape → extract rules → build strategy → Codex review → fix → write tests → run backtest → analyse results
 
-3. **Slim CLAUDE.md to <200 lines**
-   - Architecture moved to docs/architecture.md
-   - History/learnings in .claude/memory/
-   - Keep only rules, conventions, gotchas
+### Step 4: Run Hidden Smash Day Backtest
+- Only AFTER Codex review passes
+- `uv run python scripts/full_run.py --strategy hidden_smash_day --pair EURUSD --timeframe H1`
 
-4. **Pick next strategy** from the 62 classified
-   - Good candidates: Adaptive Channel Breakout (21443), Liquidity + Trend Filter (21133), NRTR (21096)
+### Step 5: Slim CLAUDE.md to <200 lines
+- Move architecture/history to docs/ and memory (partially done)
 
-5. **Classify remaining 2,531 articles** (optional, ~$3 cost)
+## Strategy Creation Flow (DRAFT — to be finalized in Step 3)
+
+```
+1. PICK article from Research/mql5_catalogue.json (category=STRATEGY)
+2. SCRAPE full article → Research/articles/{id}.md
+3. EXTRACT trading rules (entry, exit, filters, params, indicators needed)
+4. BUILD Python strategy class following base.py pattern
+5. CODEX REVIEW — /codex reviews strategy code against article rules
+6. FIX issues from review
+7. WRITE unit tests for signal generation
+8. RUN backtest through optimizer + pipeline
+9. ANALYSE results — does it pass? What worked/didn't?
+10. ITERATE or NEXT article
+```
 
 ## Blockers
 - None
 
 ## Key Context
-- ANTHROPIC_API_KEY is in `.env` (for Haiku triage script)
-- Rust build must target MAIN venv, not rust/.venv:
-  `cd rust && VIRTUAL_ENV=../.venv PATH="../.venv/Scripts:$PATH" ../.venv/Scripts/python.exe -m maturin develop --release`
-- Management params now use sub-groups (exit_trailing, exit_protection, exit_time) not "management"
-- New strategies can use `signal_pl_mapping()` + `sig_filter_N` arrays for expanded signal params
+- ANTHROPIC_API_KEY in `.env` (for Haiku triage)
+- Rust build: `cd rust && VIRTUAL_ENV=../.venv PATH="../.venv/Scripts:$PATH" ../.venv/Scripts/python.exe -m maturin develop --release`
+- Management params use sub-groups (exit_trailing, exit_protection, exit_time) not "management"
+- Codex setup guide: `docs/codex-setup-guide.md`
