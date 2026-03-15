@@ -6,6 +6,7 @@ and runs a candle-close loop: manage positions → generate signals → place or
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import signal
@@ -41,12 +42,23 @@ TF_MINUTES = {
 }
 
 
+def _deterministic_magic(instance_id: str) -> int:
+    """Compute a deterministic magic number from instance_id.
+
+    Python's built-in hash() is randomized per process (PYTHONHASHSEED),
+    so the same instance_id produces different magic numbers on different
+    machines. This uses MD5 for a stable, cross-machine result.
+    """
+    digest = hashlib.md5(instance_id.encode()).hexdigest()
+    return int(digest[:8], 16) % (2**31)
+
+
 class LiveTrader:
     """Runs one strategy on one pair in an event loop."""
 
     def __init__(self, config: LiveConfig):
         self.config = config
-        self.magic = abs(hash(config.instance_id)) % (2**31)
+        self.magic = _deterministic_magic(config.instance_id)
         self.strategy = create_strategy(config.strategy_name)
         self.risk_manager = RiskManager(config)
         self.params: dict[str, Any] = {}

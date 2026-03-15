@@ -124,10 +124,47 @@ uv run python scripts/live_trade.py --strategy stochastic_crossover --pair EURUS
 
 ---
 
+## Progress Since Initial Audit (2026-03-15)
+
+### COMPLETED: Backtest-to-Live Verification Module
+
+Built the automated trade comparison system (item #3 from original "What's Next"):
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Core module | `backtester/verification/comparator.py` | Fetch MT5 trades → refresh data → replay backtest → match → compare → report |
+| CLI script | `scripts/verify_trades.py` | `--strategy/--pair/--checkpoint` or `--all` to verify all deployed strategies |
+| Claude skill | `.claude/commands/verify-trades.md` | `/verify-trades` interactive skill with trade discovery + interpretation |
+
+**Verification workflow:**
+1. Fetch closed trades from MT5 (or audit.jsonl for offline use)
+2. Download latest Dukascopy data to cover the trade period
+3. Replay backtest with identical params via telemetry (EXEC_FULL mode)
+4. Match live trades to backtest trades by direction + time proximity (±2 hour window)
+5. Compare per trade: entry slippage, exit price/reason, SL/TP levels, PnL delta, timing gaps
+6. Generate console report + JSON archive in `results/` directory
+
+### BUG FIX: Deterministic Magic Numbers
+
+**File**: `backtester/live/trader.py`
+**Bug**: Python's `hash()` is randomized per process (PYTHONHASHSEED). The same `instance_id` produced different magic numbers on different machines/restarts. This meant the verification module could never find live trades by magic number.
+**Impact**: Trade lookup by magic number was unreliable across VPS restarts and local verification.
+**Fix**: Replaced `abs(hash(instance_id)) % (2**31)` with `hashlib.md5`-based deterministic hash. Same fix applied in `comparator.py`.
+**Action required**: Redeploy VPS traders (`DEPLOY.bat`) to pick up new magic numbers.
+
+### MT5 Account Status Check (2026-03-15)
+
+- Account 52754648 (IC Markets SC-Demo), balance $2,975
+- 3 strategies deployed (ema, macd, stochastic on EURUSD H1) — freshly deployed, no trades yet
+- 17 old "always_buy" test trades from earlier deployment (magic `2043666237`)
+- Verification module confirmed working: imports clean, deterministic magic cross-checked
+
+---
+
 ## What's Next
 
-1. **Wait for market open** (Sunday evening) — traders will start generating signals
-2. **Compare backtest vs live trades** — check MT5 history against backtest predictions
-3. **Build backtest-to-live comparison tool** — automated matching of live trades to backtest expectations
-4. **Address remaining issues** from the list above
-5. **Test dashboard** with `--dashboard` flag during a live run
+1. **Redeploy VPS** with magic number fix (`DEPLOY.bat`) — required before trades can be verified
+2. **Wait for trades to fire** — market open will trigger signals on the 3 deployed strategies
+3. **Run `/verify-trades`** to compare backtest vs live once trades exist
+4. **Iterate on discrepancies** — adjust slippage, spread, management logic based on verification findings
+5. **Address remaining issues** from the list above
