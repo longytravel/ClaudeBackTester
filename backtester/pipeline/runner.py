@@ -598,7 +598,7 @@ class PipelineRunner:
 
         # Map stage names to their numeric order for advisory detection
         _stage_order = {
-            "forward_gate": 2, "trade_density": 3, "walk_forward": 3, "cpcv": 3,
+            "trade_density": 3, "walk_forward": 3, "cpcv": 3,
             "stability": 4, "monte_carlo": 5, "confidence": 6,
         }
 

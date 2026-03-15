@@ -85,7 +85,7 @@ class TestCheckpoint:
             forward_back_score=70.0, stability_score=80.0,
             dsr_score=90.0, backtest_quality_score=65.0,
             composite_score=78.0, rating=Rating.GREEN,
-            gates_passed={"forward_back_ratio": True, "dsr": True},
+            gates_passed={"wf_pass_rate": True, "wf_mean_sharpe": True, "dsr": True},
             all_gates_passed=True,
         )
         state.candidates.append(c)

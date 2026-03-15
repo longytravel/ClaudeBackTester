@@ -2,52 +2,59 @@
 
 ## Last Completed (Mar 15 2026)
 
-### Multi-AI Quality Loop + Bug Fixes
-- Built `/new-strategy` skill — 7-stage repeatable workflow (scrape → extract → build → review → test → smoke → backtest)
-- Built `/review` skill — multi-AI code review (Codex GPT-5.4 + Gemini 3 + Claude Opus 4.6)
-- Built `scripts/smoke_test_strategy.py` — integration test on real data + Rust engine (~1 sec)
-- Built `scripts/scrape_mql5_article.py` — MQL5 article scraper
-- Gemini CLI installed (0.33.1) and authenticated via Google Account (Pro plan)
-- Ran first multi-AI review on all 8 strategies + 5 management modules
-- Fixed 4 confirmed bugs (all verified by both Codex and Gemini):
-  1. Entry price look-ahead bias in all 8 strategies (close → open[bar_idx+1] with np.where fallback for live)
-  2. Breakeven offset > trigger in modules.py (capped offset values)
-  3. Partial close missing slippage in Rust + telemetry
-  4. Sell spread not proportional after partial close
-- Redeployed to VPS — 3 traders running (EMA, MACD, Stochastic on EURUSD H1)
+### Pipeline Candidate Selection Redesign
+Major redesign of how candidates flow from optimizer to validation pipeline, based on research from Codex GPT-5.4, NotebookLM (55 papers), and our own analysis.
+
+**Problem**: MAP-Elites diversity archive (3×4=12 cell grid) collapsed 58K candidates to 4. Forward/back gate killed all 4. Walk-forward was skipped entirely. Pipeline produced 0 survivors.
+
+**Fix**: Replaced with DSR prefilter → signal+risk param deduplication → top N by IS quality → forward-test for reporting only (not selection).
+
+**Result**: Same strategy (Hidden Smash Day, EUR/USD H1) went from 0/4 survivors to 10/10 survivors. Walk-forward now actually runs (4/6 windows pass, mean Sharpe 1.49). Strategy is forward-profitable (+128 pips).
+
+**Files changed**:
+- `backtester/optimizer/run.py` — new `_select_pipeline_candidates()` replacing `_add_multi_candidates()`
+- `backtester/optimizer/config.py` — added `max_pipeline_candidates`, `dsr_prefilter_threshold`, `dsr_prefilter_fallback`, `max_per_dedup_group`
+- `scripts/full_run.py` — removed forward_gate pre-elimination
+- `backtester/pipeline/confidence.py` — forward_back_ratio demoted from hard gate to soft score
+- `backtester/pipeline/runner.py` — removed forward_gate from stage ordering
+- `dashboard/src/components/results/EquityCurve.tsx` — £ currency conversion, 500px height, fitContent(), pair-aware pip value
+- `dashboard/src/components/results/PipelineFunnel.tsx` — new funnel labels (DSR, dedup, pipeline candidates)
+- `dashboard/src/components/results/RunSummary.tsx` — updated narrative
+- `dashboard/src/types/api.ts` — new OptimizerFunnel fields
+- All 521 tests pass
+
+**Research briefs saved**: `research/briefs/candidate_selection_*.md`
 
 ### Previous Work
-- Modular Staged Optimizer: NUM_PL 27→64, ManagementModule system, sub-grouped stages
-- Strategy Research Pipeline: 2,731 articles, 200 triaged (62 STRATEGY)
-- First strategy: Hidden Smash Day (article 21391, Larry Williams)
-- Live trading engine built and deployed on IC Markets demo
+- Multi-AI Quality Loop + Bug Fixes (entry price, breakeven, partial close, sell spread)
+- Modular Staged Optimizer: NUM_PL 27→64, ManagementModule system
+- Live trading engine deployed on IC Markets demo (EMA, MACD, Stochastic)
 
 ## Next Steps
 
-### Step 1: Run `/new-strategy` on a Fresh Article
-- Pick a STRATEGY article from the catalogue (62 available)
-- Run the full 7-stage pipeline end-to-end
-- This is the real test of the quality loop
+### Step 1: Run Hidden Smash Day with Standard Preset
+- Turbo only tested 200K trials (50K/stage). Standard does 200K/stage = 4× more exploration.
+- Turbo `max_pipeline_candidates=10`. Standard = 20.
+- Run: `/run-backtest hidden_smash_day EUR/USD H1 standard`
+- Compare candidate diversity and pipeline survival rates vs turbo
 
-### Step 2: Investigate Remaining Review Findings
-- ATR units question (Gemini flagged atr_pips as wrong unit — verify what Rust expects)
-- HSD variant wiring (Codex flagged — verify encoding path)
-- StaleExit naming/logic mismatch (cosmetic but should document)
+### Step 2: Commit Pipeline Redesign
+- Commit all changes with descriptive message
+- Update PROGRESS.md
 
-### Step 3: Monitor Live Traders
-- Wait for market open, check traders are generating signals
-- Use `/verify-trades` to compare backtest vs live once we have data
+### Step 3: Run a Different Strategy
+- Pick a strategy with more signal parameters (EMA, MACD, Bollinger) to test dedup diversity
+- Hidden Smash Day has very few signal params (just hsd_variant) — not a great diversity test
 
-### Step 4: Slim CLAUDE.md to <200 lines
-- Move architecture/history to docs/ and memory
+### Step 4: Monitor Live Traders
+- Market opens Monday — check traders generating signals
+- Use `/verify-trades` to compare backtest vs live
 
 ## Blockers
-- Gemini 3.1 Pro Preview has capacity issues (429 errors) — use auto-routing which falls back to Gemini 3 Pro
-- Market closed until Monday — can't verify live traders until then
+- None
 
 ## Key Context
-- Deployed strategies: EMA, MACD, Stochastic on EURUSD H1 (VPS, IC Markets demo, --testing mode)
-- Skills: `/new-strategy`, `/review`, `/run-backtest`, `/deploy`, `/verify-trades`
-- Codex: authenticated via ChatGPT subscription, model gpt-5.4
-- Gemini: authenticated via Google Account (Pro plan), auto-routing (Gemini 3 Pro / 3.1 when available)
-- Rust build: `cd rust && bash build.sh` (Windows) or `maturin develop --release`
+- Pipeline redesign: DSR prefilter → dedup → top N → pipeline (no forward gate elimination)
+- Dashboard: equity curve now in £ (£3K start, 0.01 lot, GBP account)
+- Account settings in EquityCurve.tsx constants (STARTING_CAPITAL, LOT_SIZE, ACCOUNT_RATE)
+- Presets: turbo (50K/stage, 10 candidates), standard (200K/stage, 20 candidates), deep (500K/stage, 30), max (1M/stage, 50)

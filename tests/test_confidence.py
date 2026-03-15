@@ -140,7 +140,8 @@ class TestGates:
     def test_bad_candidate_fails_gates(self):
         cfg = PipelineConfig()
         gates = apply_gates(_bad_candidate(), cfg)
-        assert not gates["forward_back_ratio"]
+        # forward_back_ratio is no longer a hard gate (soft score only)
+        assert "forward_back_ratio" not in gates
         assert not gates["wf_pass_rate"]
         assert not gates["wf_mean_sharpe"]
         assert not gates["dsr"]
@@ -150,19 +151,17 @@ class TestGates:
         c = CandidateResult(candidate_index=0, forward_back_ratio=0.5)
         cfg = PipelineConfig()
         gates = apply_gates(c, cfg)
-        assert gates["forward_back_ratio"] is True
+        # forward_back_ratio is no longer a gate
+        assert "forward_back_ratio" not in gates
         assert gates["wf_pass_rate"] is False
         assert gates["dsr"] is False
 
-    def test_borderline_forward_back(self):
+    def test_forward_back_not_a_gate(self):
+        """forward_back_ratio is a soft score, not a hard gate."""
         cfg = PipelineConfig()
-        c = CandidateResult(candidate_index=0, forward_back_ratio=0.4)
+        c = CandidateResult(candidate_index=0, forward_back_ratio=0.1)
         gates = apply_gates(c, cfg)
-        assert gates["forward_back_ratio"] is True
-
-        c2 = CandidateResult(candidate_index=0, forward_back_ratio=0.39)
-        gates2 = apply_gates(c2, cfg)
-        assert gates2["forward_back_ratio"] is False
+        assert "forward_back_ratio" not in gates
 
 
 # ---------------------------------------------------------------------------
@@ -232,15 +231,19 @@ class TestScoreForwardBack:
     def test_ratio_above_1_is_100(self):
         assert score_forward_back(1.5) == 100.0
 
-    def test_ratio_0_4_is_0(self):
-        assert score_forward_back(0.4) == 0.0
+    def test_ratio_0_4_scores_40(self):
+        # Linear scale: 0.4 → 40 (no longer the gate threshold cutoff)
+        assert score_forward_back(0.4) == 40.0
 
-    def test_ratio_below_0_4_is_0(self):
-        assert score_forward_back(0.2) == 0.0
+    def test_ratio_0_2_scores_20(self):
+        assert score_forward_back(0.2) == 20.0
 
-    def test_ratio_0_7_is_middle(self):
-        score = score_forward_back(0.7)
-        assert 40 < score < 60
+    def test_ratio_0_is_0(self):
+        assert score_forward_back(0.0) == 0.0
+
+    def test_ratio_0_7_scores_70(self):
+        # Linear: 0.7 → 70
+        assert score_forward_back(0.7) == 70.0
 
 
 class TestScoreStability:
@@ -315,12 +318,11 @@ class TestComputeConfidence:
         """Even high composite score is RED if gates fail."""
         cfg = PipelineConfig()
         c = _good_candidate()
-        # Break one gate
-        c.forward_back_ratio = 0.2
+        # Break a real gate (walk-forward)
+        c.walk_forward = None
         result = compute_confidence(c, cfg)
         assert result.rating == Rating.RED
-        # Composite score may still be high, but rating is RED
-        assert result.gates_passed["forward_back_ratio"] is False
+        assert result.gates_passed["wf_pass_rate"] is False
 
     def test_composite_score_range(self):
         cfg = PipelineConfig()

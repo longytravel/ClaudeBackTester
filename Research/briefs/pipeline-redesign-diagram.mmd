@@ -1,0 +1,46 @@
+graph TB
+    subgraph OPT["OPTIMIZER PHASE"]
+        direction TB
+        A["Staged Optimization<br/>200K+ trials<br/>Sobol + EDA + MAP-Elites"] --> B["Refinement Stage<br/>~58K passing trials<br/>quality > 0"]
+        B --> C{"DSR Prefilter<br/>(IS data only)<br/>DSR >= 0.95"}
+        C -->|"~5K-20K pass"| D["Signal+Risk Dedup<br/>Group by signal params<br/>+ sl_mode + tp_mode"]
+        C -->|"0 pass: fallback 0.90"| C2["Relaxed DSR<br/>>= 0.90"]
+        C2 --> D
+        D --> E["Top 3 per Group<br/>by IS quality"]
+        E --> F["Top N Overall<br/>(default 20)<br/>by IS quality"]
+        F --> G["Forward Test<br/>(reporting only)<br/>NOT for selection"]
+    end
+
+    subgraph PIPE["VALIDATION PIPELINE"]
+        direction TB
+        H["Stage 3: Walk-Forward<br/>Rolling OOS windows<br/>Gate: pass_rate >= 0.6<br/>mean_sharpe >= 0.3"] --> I["Stage 3b: CPCV<br/>45-fold combinatorial CV<br/>Gate: pct_positive >= 0.6"]
+        I --> J["Stage 4: Stability<br/>Param perturbation +/-3 steps<br/>Advisory only (no gate)"]
+        J --> K["Stage 5: Monte Carlo<br/>Bootstrap + Permutation<br/>Gate: DSR >= 0.95<br/>perm_p <= 0.05"]
+        K --> L["Stage 6: Confidence<br/>Composite score 0-100<br/>Forward/back = soft score<br/>Rating: GREEN/YELLOW/RED"]
+    end
+
+    subgraph OUT["OUTPUT"]
+        direction TB
+        M["Survivors<br/>Ready for paper trading"]
+        N["Report + Dashboard<br/>Equity curves, regime analysis<br/>Funnel visualization"]
+    end
+
+    G -->|"20 candidates<br/>all active"| H
+    L -->|"Survivors"| M
+    L --> N
+
+    style A fill:#6366f1,stroke:#818cf8,color:#fff
+    style B fill:#6366f1,stroke:#818cf8,color:#fff
+    style C fill:#f59e0b,stroke:#fbbf24,color:#000
+    style C2 fill:#f59e0b,stroke:#fbbf24,color:#000
+    style D fill:#8b5cf6,stroke:#a78bfa,color:#fff
+    style E fill:#8b5cf6,stroke:#a78bfa,color:#fff
+    style F fill:#22c55e,stroke:#4ade80,color:#000
+    style G fill:#3b82f6,stroke:#60a5fa,color:#fff
+    style H fill:#ef4444,stroke:#f87171,color:#fff
+    style I fill:#ef4444,stroke:#f87171,color:#fff
+    style J fill:#f97316,stroke:#fb923c,color:#000
+    style K fill:#ef4444,stroke:#f87171,color:#fff
+    style L fill:#06b6d4,stroke:#22d3ee,color:#000
+    style M fill:#22c55e,stroke:#4ade80,color:#000
+    style N fill:#3b82f6,stroke:#60a5fa,color:#fff

@@ -29,10 +29,10 @@ def apply_gates(candidate: CandidateResult, config: PipelineConfig) -> dict[str,
     """Apply sequential hard gates. Returns dict of gate_name -> passed."""
     gates: dict[str, bool] = {}
 
-    # Gate 1: Forward/back quality ratio (from Stage 2)
-    gates["forward_back_ratio"] = candidate.forward_back_ratio >= 0.4
+    # Forward/back ratio is a soft score only — no longer a hard gate.
+    # Selection-on-forward converts OOS into secondary IS (Bailey et al. 2014).
 
-    # Gate 2: Walk-forward pass rate (from Stage 3)
+    # Gate 1: Walk-forward pass rate (from Stage 3)
     wf = candidate.walk_forward
     if wf is not None:
         gates["wf_pass_rate"] = wf.pass_rate >= config.wf_pass_rate_gate
@@ -161,15 +161,14 @@ def score_monte_carlo(mc: MonteCarloResult | None) -> float:
 def score_forward_back(ratio: float) -> float:
     """Score forward/back quality ratio (0-100).
 
-    ratio >= 1.0 → 100 (forward as good or better)
-    ratio = 0.4 → 0 (at the gate threshold)
+    Linear scale: 0.0 → 0, 1.0 → 100.
+    Forward/back is a soft signal, not a hard gate.
     """
-    if ratio <= 0.4:
+    if ratio <= 0.0:
         return 0.0
     if ratio >= 1.0:
         return 100.0
-    # Linear scale from 0.4 → 0 to 1.0 → 100
-    return (ratio - 0.4) / 0.6 * 100.0
+    return ratio * 100.0
 
 
 def score_stability(stab: StabilityResult | None) -> float:

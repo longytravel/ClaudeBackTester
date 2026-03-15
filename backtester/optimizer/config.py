@@ -30,14 +30,20 @@ class OptimizationConfig:
     max_dd_pct: float = 30.0
     min_r_squared: float = 0.5
 
-    # --- Ranking ---
+    # --- Ranking (legacy, kept for backward compat) ---
     forward_weight: float = 1.5
-    min_forward_back_ratio: float = 0.4
-    top_n_candidates: int = 10
-    top_n_candidates_pct: float | None = None  # e.g. 0.25 for top 25% of passing
+    min_forward_back_ratio: float = 0.4  # No longer used as hard gate (soft score only)
+    top_n_candidates: int = 25  # Deprecated: use max_pipeline_candidates
+    top_n_candidates_pct: float | None = None  # Deprecated
 
     # --- DSR ---
     dsr_threshold: float = 0.95   # DSR must exceed this to be "significant"
+
+    # --- Candidate selection (post-refinement) ---
+    max_pipeline_candidates: int = 20     # Max candidates sent to validation pipeline
+    dsr_prefilter_threshold: float = 0.95  # DSR threshold for IS prefilter
+    dsr_prefilter_fallback: float = 0.90   # Relaxed threshold if zero pass at 0.95
+    max_per_dedup_group: int = 3           # Max candidates per signal+risk param group
 
     # --- Refinement ---
     refinement_neighborhood_radius: int = 2  # ±2 index steps around locked best
@@ -59,6 +65,7 @@ TURBO = OptimizationConfig(
     refinement_trials=100_000,
     batch_size=2048,
     exploration_pct=0.35,
+    max_pipeline_candidates=10,
 )
 
 STANDARD = OptimizationConfig(
@@ -73,6 +80,7 @@ DEEP = OptimizationConfig(
     refinement_trials=1_000_000,
     batch_size=4096,
     exploration_pct=0.25,
+    max_pipeline_candidates=30,
 )
 
 MAX = OptimizationConfig(
@@ -80,6 +88,7 @@ MAX = OptimizationConfig(
     refinement_trials=2_000_000,
     batch_size=8192,
     exploration_pct=0.20,
+    max_pipeline_candidates=50,
 )
 
 PRESETS: dict[str, OptimizationConfig] = {

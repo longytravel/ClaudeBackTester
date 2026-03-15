@@ -32,14 +32,11 @@ from backtester.core.encoding import (
     indices_to_values,
 )
 from backtester.core.engine import BacktestEngine
-from backtester.optimizer.archive import DiversityArchive, select_top_n_diverse
+from backtester.optimizer.archive import DiversityArchive  # Used for optimizer search diversity
 from backtester.optimizer.config import OptimizationConfig, get_preset
 from backtester.optimizer.prefilter import postfilter_results
 from backtester.optimizer.ranking import (
-    combined_rank,
     deflated_sharpe_ratio,
-    forward_back_gate,
-    select_top_n,
 )
 from backtester.optimizer.staged import StagedOptimizer, StagedResult
 from backtester.strategies.base import Strategy
@@ -57,6 +54,7 @@ class Candidate:
     combined_rank: float = 0.0
     dsr: float = 0.0
     forward_back_ratio: float = 0.0
+    forward_gate_passed: bool = False
 
 
 @dataclass
@@ -67,6 +65,7 @@ class OptimizationResult:
     total_trials: int = 0
     elapsed_seconds: float = 0.0
     evals_per_second: float = 0.0
+    optimizer_funnel: dict = field(default_factory=dict)
 
 
 def _estimate_memory_mb(n_bars: int, n_signals: int, batch_size: int, n_params: int) -> float:
@@ -129,17 +128,44 @@ def _add_single_best_candidate(
         candidate.forward_back_ratio = fwd_q / back_q if back_q > 0 else 0.0
 
     result.candidates.append(candidate)
+    result.optimizer_funnel["sent_to_pipeline"] = 1
+    result.optimizer_funnel.setdefault("dsr_surviving", 0)
+    result.optimizer_funnel.setdefault("dedup_groups", 0)
+    result.optimizer_funnel.setdefault("after_dedup", 0)
+    result.optimizer_funnel.setdefault("pipeline_candidates", 1)
+    result.optimizer_funnel.setdefault("forward_tested", 0)
     logger.info("Single-best candidate selected (fallback)")
 
 
-def _add_multi_candidates(
+def _build_dedup_key(spec: Any, index_row: np.ndarray) -> tuple:
+    """Build deduplication key from signal params + sl_mode + tp_mode.
+
+    Candidates with the same key produce identical trade entries (they differ
+    only in management params like trailing/breakeven/partial close).
+    """
+    key_parts = []
+    for col in spec.columns:
+        if col.group == "signal":
+            key_parts.append(int(index_row[col.index]))
+        elif col.name in ("sl_mode", "tp_mode"):
+            key_parts.append(int(index_row[col.index]))
+    return tuple(key_parts)
+
+
+def _select_pipeline_candidates(
     result: OptimizationResult,
     staged_result: StagedResult,
     spec: Any,
     engine_fwd: BacktestEngine | None,
     config: OptimizationConfig,
 ) -> bool:
-    """Select multiple diverse candidates from refinement passing trials.
+    """Select candidates for validation pipeline using DSR prefilter + dedup.
+
+    Flow:
+    1. DSR prefilter on IS Sharpe (statistical significance gate)
+    2. Group by signal+risk params, keep top K per group (deduplication)
+    3. Take top N by IS quality (pipeline capacity limit)
+    4. Forward-test for reporting only (NOT for selection/elimination)
 
     Returns True if at least one candidate was added, False otherwise.
     """
@@ -147,90 +173,117 @@ def _add_multi_candidates(
     ref_metrics = staged_result.refinement_metrics
 
     if ref_indices is None or ref_metrics is None or len(ref_indices) == 0:
-        logger.info("No refinement passing trials for multi-candidate selection")
+        logger.info("No refinement passing trials for candidate selection")
+        result.optimizer_funnel["refinement_passing"] = 0
         return False
 
-    n_candidates = config.top_n_candidates
-    if config.top_n_candidates_pct is not None:
-        pct_count = int(len(ref_indices) * config.top_n_candidates_pct)
-        n_candidates = max(n_candidates, pct_count)
-        n_candidates = min(n_candidates, 1000)  # Cap to prevent OOM
-        logger.info(
-            f"Multi-candidate: selecting top {config.top_n_candidates_pct:.0%} "
-            f"= {n_candidates:,} of {len(ref_indices):,} passing trials"
+    n_passing = len(ref_indices)
+    result.optimizer_funnel["refinement_passing"] = n_passing
+    logger.info(f"Candidate selection: {n_passing:,} refinement passing trials")
+
+    # --- Step 1: DSR prefilter on IS data ---
+    dsr_threshold = config.dsr_prefilter_threshold
+    dsr_values = np.array([
+        deflated_sharpe_ratio(
+            float(ref_metrics[i, M_SHARPE]),
+            staged_result.total_trials,
+            int(ref_metrics[i, M_TRADES]),
         )
-    n_candidates = min(n_candidates, len(ref_indices))
+        for i in range(n_passing)
+    ])
+    dsr_mask = dsr_values >= dsr_threshold
+    n_dsr = int(dsr_mask.sum())
+
+    if n_dsr == 0:
+        # Fallback to relaxed threshold
+        dsr_threshold = config.dsr_prefilter_fallback
+        dsr_mask = dsr_values >= dsr_threshold
+        n_dsr = int(dsr_mask.sum())
+        if n_dsr > 0:
+            logger.warning(
+                f"DSR prefilter: 0 passed at {config.dsr_prefilter_threshold}, "
+                f"relaxed to {dsr_threshold} → {n_dsr:,} passed"
+            )
+        else:
+            logger.warning(
+                f"DSR prefilter: 0 passed even at fallback {dsr_threshold}. "
+                "Skipping DSR filter, using top candidates by quality."
+            )
+            # Use all passing trials, sorted by quality
+            dsr_mask = np.ones(n_passing, dtype=np.bool_)
+            n_dsr = n_passing
+
+    logger.info(f"DSR prefilter: {n_dsr:,}/{n_passing:,} passed (threshold={dsr_threshold})")
+    result.optimizer_funnel["dsr_surviving"] = n_dsr
+
+    # Get DSR-surviving subset
+    dsr_indices = np.where(dsr_mask)[0]
+    surviving_ref_indices = ref_indices[dsr_indices]
+    surviving_ref_metrics = ref_metrics[dsr_indices]
+    surviving_dsr_values = dsr_values[dsr_indices]
+
+    # --- Step 2: Signal+risk param deduplication ---
+    groups: dict[tuple, list[int]] = {}
+    for local_idx in range(len(surviving_ref_indices)):
+        key = _build_dedup_key(spec, surviving_ref_indices[local_idx])
+        groups.setdefault(key, []).append(local_idx)
+
+    result.optimizer_funnel["dedup_groups"] = len(groups)
     logger.info(
-        f"Multi-candidate: {len(ref_indices)} passing trials, "
-        f"selecting top {n_candidates} diverse"
+        f"Dedup: {len(surviving_ref_indices):,} trials → "
+        f"{len(groups):,} unique signal+risk groups"
     )
 
-    # Step 1: Diversity selection from refinement passing trials
-    selected_local = select_top_n_diverse(
-        ref_metrics, n=n_candidates, params=ref_indices,
+    # Keep top K per group by IS quality
+    max_per_group = config.max_per_dedup_group
+    deduped_local: list[int] = []
+    for group_members in groups.values():
+        # Sort by quality descending within group
+        group_members.sort(
+            key=lambda idx: -float(surviving_ref_metrics[idx, M_QUALITY])
+        )
+        deduped_local.extend(group_members[:max_per_group])
+
+    result.optimizer_funnel["after_dedup"] = len(deduped_local)
+    logger.info(
+        f"Dedup: kept top {max_per_group} per group → "
+        f"{len(deduped_local):,} candidates"
     )
 
-    if not selected_local:
-        return False
+    # --- Step 3: Top N by IS quality ---
+    max_n = config.max_pipeline_candidates
+    # Sort all deduped candidates by quality descending
+    deduped_local.sort(
+        key=lambda idx: -float(surviving_ref_metrics[idx, M_QUALITY])
+    )
+    selected_local = deduped_local[:max_n]
 
-    # Build selected arrays (indices are into ref_indices/ref_metrics)
-    sel_back_indices = ref_indices[selected_local]  # (K, P) index-space
-    sel_back_metrics = ref_metrics[selected_local]  # (K, NUM_METRICS)
+    logger.info(
+        f"Pipeline candidates: top {len(selected_local)} "
+        f"(max {max_n}) by IS quality"
+    )
+    result.optimizer_funnel["pipeline_candidates"] = len(selected_local)
 
-    # Step 2: Convert to value space for forward evaluation
+    # Build selected arrays
+    sel_back_indices = surviving_ref_indices[selected_local]
+    sel_back_metrics = surviving_ref_metrics[selected_local]
+    sel_dsr_values = surviving_dsr_values[selected_local]
+
+    # Convert to value space
     sel_value_matrix = indices_to_values(spec, sel_back_indices)
 
-    # Step 3: Forward-test all if forward engine available
+    # --- Step 4: Forward-test for reporting only (NOT for selection) ---
     sel_fwd_metrics = None
     if engine_fwd is not None:
-        logger.info(f"Forward-testing {len(sel_value_matrix)} candidates...")
+        logger.info(f"Forward-testing {len(sel_value_matrix)} candidates (reporting only)...")
         sel_fwd_metrics = engine_fwd.evaluate_batch(sel_value_matrix, EXEC_FULL)
-
-        # Step 4: Forward/back gate
-        gate_mask = forward_back_gate(
-            sel_back_metrics, sel_fwd_metrics,
-            min_ratio=config.min_forward_back_ratio,
-        )
-        n_passed = int(gate_mask.sum())
-        logger.info(
-            f"Forward/back gate: {n_passed}/{len(gate_mask)} passed "
-            f"(min ratio={config.min_forward_back_ratio})"
-        )
-
-        if n_passed == 0:
-            # No candidates pass gate — return False to fallback
-            logger.warning("All multi-candidates failed forward/back gate")
-            return False
-
-        # Filter to passing candidates only
-        passing_idx = np.where(gate_mask)[0]
-        sel_back_indices = sel_back_indices[passing_idx]
-        sel_back_metrics = sel_back_metrics[passing_idx]
-        sel_value_matrix = sel_value_matrix[passing_idx]
-        sel_fwd_metrics = sel_fwd_metrics[passing_idx]
-
-        # Step 5: Compute DSR and combined rank
-        dsrs = np.array([
-            deflated_sharpe_ratio(
-                float(sel_back_metrics[i, M_SHARPE]),
-                staged_result.total_trials,
-                int(sel_back_metrics[i, M_TRADES]),
-            )
-            for i in range(len(sel_back_metrics))
-        ])
-        comb_ranks = combined_rank(
-            sel_back_metrics, sel_fwd_metrics,
-            forward_weight=config.forward_weight,
-        )
-
-        # Sort by combined rank (lower = better)
-        sort_order = np.argsort(comb_ranks)
+        result.optimizer_funnel["forward_tested"] = len(sel_value_matrix)
     else:
-        # No forward data — sort by back quality descending
-        sort_order = np.argsort(-sel_back_metrics[:, M_QUALITY])
-        dsrs = np.zeros(len(sel_back_metrics))
+        result.optimizer_funnel["forward_tested"] = 0
 
-    # Step 6: Build Candidate objects
+    # --- Step 5: Build Candidate objects sorted by IS quality ---
+    sort_order = np.argsort(-sel_back_metrics[:, M_QUALITY])
+
     for rank, orig_idx in enumerate(sort_order):
         params_dict = decode_params(spec, sel_value_matrix[orig_idx])
 
@@ -244,7 +297,8 @@ def _add_multi_candidates(
             index=rank,
             params=params_dict,
             back_metrics=back_metrics_dict,
-            dsr=float(dsrs[orig_idx]),
+            dsr=float(sel_dsr_values[orig_idx]),
+            forward_gate_passed=True,  # No longer used as gate
         )
 
         if sel_fwd_metrics is not None:
@@ -256,11 +310,11 @@ def _add_multi_candidates(
             back_q = back_metrics_dict.get("quality_score", 0)
             fwd_q = candidate.forward_metrics.get("quality_score", 0)
             candidate.forward_back_ratio = fwd_q / back_q if back_q > 0 else 0.0
-            candidate.combined_rank = float(comb_ranks[orig_idx])
 
         result.candidates.append(candidate)
 
-    logger.info(f"Multi-candidate selection: {len(result.candidates)} candidates")
+    result.optimizer_funnel["sent_to_pipeline"] = len(result.candidates)
+    logger.info(f"Candidate selection complete: {len(result.candidates)} candidates")
     return True
 
 
@@ -357,6 +411,7 @@ def optimize(
     result = OptimizationResult()
     result.staged_result = staged_result
     result.total_trials = staged_result.total_trials
+    result.optimizer_funnel["total_trials"] = staged_result.total_trials
     spec = engine_back.encoding
 
     # Free back-test engine BEFORE creating forward engine to keep peak RSS bounded.
@@ -383,8 +438,8 @@ def optimize(
                 **m1_fwd_kwargs,
             )
 
-        # Try multi-candidate path first
-        multi_ok = _add_multi_candidates(
+        # Select candidates via DSR prefilter + dedup + top N
+        multi_ok = _select_pipeline_candidates(
             result, staged_result, spec, engine_fwd, config,
         )
 

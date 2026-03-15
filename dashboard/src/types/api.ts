@@ -53,12 +53,26 @@ export interface RunComplete {
   report: Report;
 }
 
+export interface OptimizerFunnel {
+  total_trials: number;
+  refinement_passing: number;
+  dsr_surviving?: number;
+  dedup_groups?: number;
+  after_dedup?: number;
+  pipeline_candidates?: number;
+  diverse_selected?: number;  // Legacy
+  forward_tested: number;
+  sent_to_pipeline: number;
+}
+
 export interface Report {
   strategy: string;
   version: string;
   pair: string;
   timeframe: string;
   candidates: CandidateReport[];
+  back_forward_split_timestamp?: number;
+  optimizer_funnel?: OptimizerFunnel;
 }
 
 export interface CandidateReport {

@@ -335,14 +335,8 @@ def run_validation(strategy, data_full, opt_result, pair, timeframe, pip_value, 
             back_trades=int(cand.back_metrics.get("trades", 0)),
             n_trials=opt_result.total_trials,
         )
-        # Pre-eliminate candidates that failed the forward gate (advisory pipeline stages still run)
-        if not cand.forward_gate_passed:
-            cr.eliminated = True
-            cr.eliminated_at_stage = "forward_gate"
-            cr.elimination_reason = (
-                f"Forward/back ratio {fb_ratio:.3f} below threshold "
-                f"(back_q={back_q:.2f}, fwd_q={fwd_q:.2f})"
-            )
+        # Forward/back ratio stored for soft scoring — no pre-elimination.
+        # Selection is done by DSR prefilter + dedup in the optimizer.
         candidate_results.append(cr)
 
     # Auto-size walk-forward windows from the candidate's actual trade frequency.

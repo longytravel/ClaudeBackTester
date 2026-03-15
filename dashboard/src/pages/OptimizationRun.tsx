@@ -15,6 +15,7 @@ import { PipelineFunnel } from "../components/results/PipelineFunnel";
 import { ParamHeatmap } from "../components/results/ParamHeatmap";
 import { MonteCarloHist } from "../components/results/MonteCarloHist";
 import { RegimeRadar } from "../components/results/RegimeRadar";
+import { RunSummary } from "../components/results/RunSummary";
 
 export function OptimizationRun() {
   const status = useRunStore((s) => s.status);
@@ -107,6 +108,12 @@ export function OptimizationRun() {
             </h2>
           </div>
 
+          {/* Run summary narrative */}
+          <RunSummary
+            report={report}
+            optimizerFunnel={report.optimizer_funnel}
+          />
+
           {/* Confidence + Pipeline row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {bestSurvivor && (
@@ -119,11 +126,20 @@ export function OptimizationRun() {
                 eliminationReason={bestSurvivor.elimination_reason}
               />
             )}
-            <PipelineFunnel stages={pipelineStages} />
+            <PipelineFunnel
+              stages={pipelineStages}
+              optimizerFunnel={report.optimizer_funnel}
+            />
           </div>
 
           {/* Equity curve */}
-          {candidate && <EquityCurve candidate={candidate} />}
+          {candidate && (
+            <EquityCurve
+              candidate={candidate}
+              splitTimestamp={report.back_forward_split_timestamp}
+              pair={report.pair}
+            />
+          )}
 
           {/* Walk-forward + Monte Carlo row */}
           {candidate && (
