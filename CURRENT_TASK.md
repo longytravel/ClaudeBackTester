@@ -1,69 +1,45 @@
-# Current Task
+# Current Task: E2E Audit Complete — Waiting for Live Trades
 
-## Status: System Accurate & Deployed to Practice — Ready for Live Verification
+## Status: VPS Deployed, Awaiting Market Open
 
-All phases through Phase 6 are built. Rust backend verified accurate. Telemetry matches batch evaluator. Live trading infrastructure deployed to practice account. Next: verify live trades match backtest predictions.
+## What Was Done (2026-03-15)
 
-## What's Built
+### E2E Pipeline Audit
+- Ran full pipeline for 3 strategies (stochastic, ema, macd) on EUR/USD H1
+- Tested deployment locally (dry_run + practice) and on VPS
+- Found and fixed 4 bugs (see `docs/e2e-audit-report.md`)
 
-### Phases 1-4: Core System
-- **Phase 1**: Data pipeline (Dukascopy downloader, timeframes, validation, splitting, MT5 broker)
-- **Phase 2**: Strategy framework (14 indicators, base class, param space, SL/TP calc, registry)
-- **Phase 3**: Backtest engine (Rust batch evaluator, metrics, encoding, telemetry, orchestrator)
-- **Phase 4**: Parameter optimizer (Sobol/EDA samplers, staged optimization, ranking, diversity archive)
-- **Execution Cost Modeling**: SELL exit spread, round-trip commission, max spread filter
+### Critical Bugs Fixed
+1. **`.env` never loaded** — traders connected to wrong MT5 account (831 instead of 648)
+2. **No rating warning on deployment** — now shows elimination reason + failed gates
+3. **Report.json missing metadata** — added run_date, verdict, data_summary, run_config, confidence_breakdown
+4. **DEPLOY.bat didn't clean state** — now stops old traders + cleans state dir
 
-### Phase 5: Validation Pipeline
-- Walk-forward, stability, Monte Carlo, confidence scoring, checkpoint/resume, JSON reports
-- **VP-1**: CPCV — C(N,k) purged cross-validation, 45 folds
-- **VP-2**: Multi-candidate pipeline — optimizer returns top N, pipeline validates all
-- **VP-3**: Regime-aware validation — ADX+NATR 4-quadrant, per-regime stats
-- **OPT-1**: Adaptive LR + entropy diagnostics for EDA sampler
-- **Causality Contract**: SignalCausality enum, guards, verification tests
+### Deployed to VPS
+- 3 strategies on EUR/USD H1 (stochastic, ema, macd)
+- Account 52754648 (IC Markets Demo)
+- VPS: 104.128.63.239
+- Waiting for market open Sunday evening
 
-### Rust Backend
-- PyO3 + Rayon native extension replaces Numba JIT hot loop
-- 2.7x faster than Numba (EXEC_FULL), handles M1 without segfaults
-- Bit-for-bit parity verified against Numba
-- Telemetry matches batch evaluator at 0.0000 diff (11 parity tests)
-- Subprocess isolation removed (no longer needed)
+## What To Do Next
 
-### Phase 6: Live Trading (BUILT)
-- **Live trader** (`backtester/live/trader.py`, 568 lines): Candle-close event loop, MT5 integration, signal generation, order placement, position management, broker sync, state persistence, heartbeat, audit trail
-- **Position manager** (`backtester/live/position_manager.py`, 220 lines): Mirrors backtest check order — max bars, stale, breakeven, trailing, partial close
-- **Risk manager** (`backtester/risk/manager.py`, 187 lines): Pre-trade checks (circuit breaker, daily limits, drawdown, max positions, spread filter), risk-based position sizing
-- **Broker integration** (`backtester/broker/mt5.py` + `mt5_orders.py`, 556 lines): MT5 connect, candle fetch, market orders, modify SL/TP, partial close, position queries
-- **Deployment** (`DEPLOY.bat`, `start_all.py`, `stop_all.py`, `status_all.py`): One-click VPS deploy, safe restart (doesn't interrupt running traders), process monitoring
-- **Types & state** (`types.py`, `config.py`, `state.py`): LivePosition, DailyStats, TraderState, TradingMode, atomic state persistence
-- **Tests**: 3 test files (test_live_state.py, test_position_manager.py, test_risk_manager.py)
-- **533 tests passing**
+### Step 1: Check live trades (Monday)
+- Run STATUS.bat on VPS to confirm traders are generating signals
+- Check MT5 account history for new trades
+- Verify signals_found > 0 on each strategy
 
-### Deployed Strategies (Practice Mode)
-- ema_crossover EUR/USD M15
-- ema_crossover EUR/USD H1
+### Step 2: Build backtest-to-live comparison
+- Compare MT5 trade history against backtest predictions
+- Check: entry price, SL/TP levels, direction, timing
+- Build automated comparison tool if manual check reveals useful patterns
 
-## Completed Milestones
-- [x] Phases 1-4: Core system (data, strategies, engine, optimizer)
-- [x] Phase 5: Validation pipeline (walk-forward, CPCV, Monte Carlo, stability, confidence, regime)
-- [x] Phase 5b: Enhancements (VP-1, VP-2, VP-3, OPT-1, causality contract)
-- [x] Rust backend: PyO3 + Rayon, M1 stable, 2.7x faster, subprocess isolation removed
-- [x] Accuracy verification: Rust == Numba, telemetry == batch evaluator (0.0000 diff)
-- [x] Phase 6: Live trading engine, risk management, broker integration, deployment scripts
-- [x] Practice deployment: ema_crossover running on demo account
+### Step 3: Address remaining audit issues
+- Suppress noisy debug logs
+- Add next-steps recommendations to console output
+- Build out dashboard RunHistory page
+- See full list in `docs/e2e-audit-report.md`
 
-## Old Saved Results — INVALID
-Results in `results/` were generated before:
-- Cost consistency fix (commit 7859907)
-- Deferred SL fix (commit 1c616ea)
-- Adverse exit slippage fix (commit 5c4e503)
-
-These need to be re-run with the current (corrected) engine.
-
-## Next Steps
-1. **Verify live trades match backtest** — compare practice trade results against telemetry predictions
-2. **Re-run strategies** with corrected Rust backend to generate valid pipeline results
-3. **OPT-2: GT-Score Objective** — A/B test vs Quality Score
-4. **OPT-3: Batch Size Auto-Tuning** — Benchmark and auto-select
-
-## Blockers
-- None
+## Commits This Session
+- `9f9b01d` — E2E audit: deploy safety gate, report metadata, fresh backtests
+- `cda0c0d` — Update DEPLOY.bat: stop old traders, clean state, use --testing
+- `a47ab65` — Fix: load .env credentials so traders connect to correct MT5 account
