@@ -24,6 +24,7 @@ dependencies = [
     # Logging
     "structlog>=24.1",
     "websockets>=16.0",
+    "python-dotenv>=1.2.2",
 ]
 
 [project.optional-dependencies]

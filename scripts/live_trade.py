@@ -13,6 +13,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 # Ensure strategy registry is populated — import all strategies
 import backtester.strategies  # noqa: F401

@@ -13,6 +13,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 
 def find_strategies(results_dir: str, testing: bool = False) -> list[dict]:
     """Find all checkpoint.json files and extract strategy info."""
