@@ -51,6 +51,19 @@ PL_SIGNAL_VARIANT = backtester_core.PL_SIGNAL_VARIANT
 PL_BUY_FILTER_MAX = backtester_core.PL_BUY_FILTER_MAX
 PL_SELL_FILTER_MIN = backtester_core.PL_SELL_FILTER_MIN
 
+# Generic signal param slots (for expanded signal filtering)
+PL_SIGNAL_P0 = backtester_core.PL_SIGNAL_P0
+PL_SIGNAL_P1 = backtester_core.PL_SIGNAL_P1
+PL_SIGNAL_P2 = backtester_core.PL_SIGNAL_P2
+PL_SIGNAL_P3 = backtester_core.PL_SIGNAL_P3
+PL_SIGNAL_P4 = backtester_core.PL_SIGNAL_P4
+PL_SIGNAL_P5 = backtester_core.PL_SIGNAL_P5
+PL_SIGNAL_P6 = backtester_core.PL_SIGNAL_P6
+PL_SIGNAL_P7 = backtester_core.PL_SIGNAL_P7
+PL_SIGNAL_P8 = backtester_core.PL_SIGNAL_P8
+PL_SIGNAL_P9 = backtester_core.PL_SIGNAL_P9
+NUM_SIGNAL_PARAMS = backtester_core.NUM_SIGNAL_PARAMS
+
 
 def get_backend_name() -> str:
     """Return the name of the active backend."""

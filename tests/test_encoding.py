@@ -78,7 +78,7 @@ class TestBuildEncodingSpec:
         groups = spec.groups
         assert "signal" in groups
         assert "risk" in groups
-        assert "management" in groups
+        assert "management" in groups  # test fixture uses "management" directly
         assert "time" in groups
 
     def test_num_values(self):

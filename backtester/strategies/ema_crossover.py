@@ -74,7 +74,14 @@ class EMACrossover(Strategy):
         return ParamSpace(params)
 
     def optimization_stages(self) -> list[str]:
-        return ["signal", "risk", "management"]
+        # Skip time — EMA crossover has fixed time params (1 value each)
+        stages = ["signal", "risk"]
+        seen: set[str] = set()
+        for mod in self.management_modules():
+            if mod.group not in seen:
+                stages.append(mod.group)
+                seen.add(mod.group)
+        return stages
 
     def generate_signals(
         self,

@@ -275,7 +275,9 @@ class TestParamSpace:
         assert all(p.group == "risk" for p in rp)
 
         mp = management_params()
-        assert all(p.group == "management" for p in mp)
+        # Management params now have sub-group names from modules
+        valid_groups = {"exit_trailing", "exit_protection", "exit_time"}
+        assert all(p.group in valid_groups for p in mp)
         # Verify defaults are OFF (REQ-S13)
         trailing = next(p for p in mp if p.name == "trailing_mode")
         assert trailing.values[0] == "off"

@@ -700,7 +700,9 @@ class TestStagedOptimizer:
         strategy = OptimizerTestStrategy()
         stages = strategy.optimization_stages()
         assert "signal" in stages
-        assert "management" in stages
+        # Management is now split into sub-groups by module
+        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
+        assert mgmt_groups.issubset(set(stages))
 
     def test_refinement_collects_passing_trials(self):
         """Refinement stage should collect all passing trials for multi-candidate."""
@@ -768,7 +770,10 @@ class TestStrategyBaseAdditions:
     def test_optimization_stages_default(self):
         strategy = OptimizerTestStrategy()
         stages = strategy.optimization_stages()
-        assert stages == ["signal", "time", "risk", "management"]
+        assert stages[:3] == ["signal", "time", "risk"]
+        # Management sub-groups follow (exit_trailing, exit_protection, exit_time)
+        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
+        assert mgmt_groups.issubset(set(stages))
 
 
 # ---------------------------------------------------------------------------

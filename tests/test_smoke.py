@@ -9,7 +9,7 @@ def test_rust_backend_imports():
 
     assert hasattr(backtester_core, "batch_evaluate")
     assert backtester_core.NUM_METRICS == 10
-    assert backtester_core.NUM_PL == 27
+    assert backtester_core.NUM_PL == 64
 
 
 def test_parquet_roundtrip(tmp_path):

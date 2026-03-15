@@ -160,11 +160,18 @@ class StagedOptimizer:
         # Start with all params unlocked
         locked = np.full(self.spec.num_params, -1, dtype=np.int64)
 
+        # Build set of groups that require EXEC_FULL from management modules
+        full_mode_groups: set[str] = set()
+        if hasattr(strategy, "management_modules"):
+            for mod in strategy.management_modules():
+                if mod.requires_full_mode:
+                    full_mode_groups.add(mod.group)
+        else:
+            full_mode_groups.add("management")  # legacy fallback
+
         for stage_idx, stage_name in enumerate(stages):
             # Determine execution mode
-            exec_mode = EXEC_BASIC
-            if stage_name == "management":
-                exec_mode = EXEC_FULL
+            exec_mode = EXEC_FULL if stage_name in full_mode_groups else EXEC_BASIC
 
             # Build mask: which params are active this stage
             group_indices = self.spec.group_indices(stage_name)

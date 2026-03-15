@@ -438,5 +438,18 @@ fn backtester_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("PL_BUY_FILTER_MAX", PL_BUY_FILTER_MAX)?;
     m.add("PL_SELL_FILTER_MIN", PL_SELL_FILTER_MIN)?;
 
+    // Generic signal param slots
+    m.add("PL_SIGNAL_P0", PL_SIGNAL_P0)?;
+    m.add("PL_SIGNAL_P1", PL_SIGNAL_P1)?;
+    m.add("PL_SIGNAL_P2", PL_SIGNAL_P2)?;
+    m.add("PL_SIGNAL_P3", PL_SIGNAL_P3)?;
+    m.add("PL_SIGNAL_P4", PL_SIGNAL_P4)?;
+    m.add("PL_SIGNAL_P5", PL_SIGNAL_P5)?;
+    m.add("PL_SIGNAL_P6", PL_SIGNAL_P6)?;
+    m.add("PL_SIGNAL_P7", PL_SIGNAL_P7)?;
+    m.add("PL_SIGNAL_P8", PL_SIGNAL_P8)?;
+    m.add("PL_SIGNAL_P9", PL_SIGNAL_P9)?;
+    m.add("NUM_SIGNAL_PARAMS", NUM_SIGNAL_PARAMS)?;
+
     Ok(())
 }

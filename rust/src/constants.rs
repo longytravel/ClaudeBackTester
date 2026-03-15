@@ -74,4 +74,20 @@ pub const PL_STALE_ATR_THRESH: usize = 23;
 pub const PL_SIGNAL_VARIANT: usize = 24;
 pub const PL_BUY_FILTER_MAX: usize = 25;
 pub const PL_SELL_FILTER_MIN: usize = 26;
-pub const NUM_PL: usize = 27;
+
+// Generic signal parameter slots (for expanded signal filtering)
+pub const PL_SIGNAL_P0: usize = 27;
+pub const PL_SIGNAL_P1: usize = 28;
+pub const PL_SIGNAL_P2: usize = 29;
+pub const PL_SIGNAL_P3: usize = 30;
+pub const PL_SIGNAL_P4: usize = 31;
+pub const PL_SIGNAL_P5: usize = 32;
+pub const PL_SIGNAL_P6: usize = 33;
+pub const PL_SIGNAL_P7: usize = 34;
+pub const PL_SIGNAL_P8: usize = 35;
+pub const PL_SIGNAL_P9: usize = 36;
+pub const NUM_SIGNAL_PARAMS: usize = 10;
+
+// Slots 37-63 reserved for future management modules
+
+pub const NUM_PL: usize = 64;

@@ -61,9 +61,6 @@ class RSIMeanReversion(Strategy):
         params += time_params()
         return ParamSpace(params)
 
-    def optimization_stages(self) -> list[str]:
-        return ["signal", "time", "risk", "management"]
-
     def generate_signals(
         self,
         open: np.ndarray,

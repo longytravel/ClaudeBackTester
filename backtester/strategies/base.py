@@ -159,28 +159,20 @@ def risk_params() -> list[ParamDef]:
 
 
 def management_params() -> list[ParamDef]:
-    """Standard Management parameter group (REQ-S13: all default to OFF)."""
-    return [
-        # Trailing stop (REQ-S18)
-        ParamDef("trailing_mode", ["off", "fixed_pip", "atr_chandelier"], group="management"),
-        ParamDef("trail_activate_pips", [0, 10, 15, 20, 30, 40, 50], group="management"),
-        ParamDef("trail_distance_pips", [5, 10, 15, 20, 30], group="management"),
-        ParamDef("trail_atr_mult", [1.0, 1.5, 2.0, 2.5, 3.0], group="management"),
-        # Breakeven (REQ-S19)
-        ParamDef("breakeven_enabled", [False, True], group="management"),
-        ParamDef("breakeven_trigger_pips", [7, 10, 15, 20, 30], group="management"),
-        ParamDef("breakeven_offset_pips", [2, 3, 5, 7, 10], group="management"),
-        # Partial close (REQ-S20)
-        ParamDef("partial_close_enabled", [False, True], group="management"),
-        ParamDef("partial_close_pct", [30, 40, 50, 60, 70], group="management"),
-        ParamDef("partial_close_trigger_pips", [10, 15, 20, 30, 50], group="management"),
-        # Max bars exit (REQ-S21)
-        ParamDef("max_bars", [0, 50, 100, 200, 500, 1000], group="management"),
-        # Stale exit (REQ-S22)
-        ParamDef("stale_exit_enabled", [False, True], group="management"),
-        ParamDef("stale_exit_bars", [20, 50, 100], group="management"),
-        ParamDef("stale_exit_atr_threshold", [0.3, 0.5, 0.75, 1.0], group="management"),
-    ]
+    """Standard Management parameter group (REQ-S13: all default to OFF).
+
+    Delegates to the default ManagementModule set. Each module declares
+    its own group name (exit_trailing, exit_protection, exit_time), which
+    enables sub-grouped optimization stages.
+
+    For backward compatibility, strategies that call this directly still work.
+    New strategies should use management_modules() on the Strategy class instead.
+    """
+    from backtester.strategies.modules import DEFAULT_MODULES
+    params: list[ParamDef] = []
+    for mod in DEFAULT_MODULES:
+        params.extend(mod.param_defs())
+    return params
 
 
 def time_params() -> list[ParamDef]:
@@ -300,16 +292,35 @@ class Strategy(ABC):
         """
         return SignalCausality.CAUSAL
 
+    def management_modules(self) -> list:
+        """Declare which management modules this strategy uses.
+
+        Returns a list of ManagementModule instances. Override to add/remove
+        modules. Each module's param_defs() and group are used automatically
+        by param_space() and optimization_stages().
+
+        Default: trailing stop, breakeven, partial close, max bars, stale exit.
+        """
+        from backtester.strategies.modules import DEFAULT_MODULES
+        return list(DEFAULT_MODULES)
+
     def optimization_stages(self) -> list[str]:
         """Define the optimization stage order for this strategy.
 
         Each stage optimizes one parameter group at a time, locking
         best values from prior stages. Override to customize.
 
-        Default: signal → time → risk → management
+        Default: signal → time → risk → then each management module group.
+        Auto-generates management sub-groups from management_modules().
         Any param group NOT listed is included in the final refinement stage.
         """
-        return ["signal", "time", "risk", "management"]
+        stages = ["signal", "time", "risk"]
+        seen: set[str] = set()
+        for mod in self.management_modules():
+            if mod.group not in seen:
+                stages.append(mod.group)
+                seen.add(mod.group)
+        return stages
 
     def validate_params(self, params: dict[str, Any]) -> list[str]:
         """Validate a parameter combination, returning list of error strings.

@@ -70,8 +70,9 @@ from backtester.strategies.base import Strategy
 from backtester.strategies.sl_tp import _find_recent_swing
 
 
-# Standard param name → PL_* layout index mapping
-_PARAM_TO_PL: dict[str, int] = {
+# Static param name → PL_* layout index mapping (risk, time, base signal filters)
+_RISK_TIME_SIGNAL_PL: dict[str, int] = {
+    # Risk params
     "sl_mode": PL_SL_MODE,
     "sl_fixed_pips": PL_SL_FIXED_PIPS,
     "sl_atr_mult": PL_SL_ATR_MULT,
@@ -79,47 +80,54 @@ _PARAM_TO_PL: dict[str, int] = {
     "tp_rr_ratio": PL_TP_RR_RATIO,
     "tp_atr_mult": PL_TP_ATR_MULT,
     "tp_fixed_pips": PL_TP_FIXED_PIPS,
+    # Time params
     "allowed_hours_start": PL_HOURS_START,
     "allowed_hours_end": PL_HOURS_END,
     "allowed_days": PL_DAYS_BITMASK,
-    "trailing_mode": PL_TRAILING_MODE,
-    "trail_activate_pips": PL_TRAIL_ACTIVATE,
-    "trail_distance_pips": PL_TRAIL_DISTANCE,
-    "trail_atr_mult": PL_TRAIL_ATR_MULT,
-    "breakeven_enabled": PL_BREAKEVEN_ENABLED,
-    "breakeven_trigger_pips": PL_BREAKEVEN_TRIGGER,
-    "breakeven_offset_pips": PL_BREAKEVEN_OFFSET,
-    "partial_close_enabled": PL_PARTIAL_ENABLED,
-    "partial_close_pct": PL_PARTIAL_PCT,
-    "partial_close_trigger_pips": PL_PARTIAL_TRIGGER,
-    "max_bars": PL_MAX_BARS,
-    "stale_exit_enabled": PL_STALE_ENABLED,
-    "stale_exit_bars": PL_STALE_BARS,
-    "stale_exit_atr_threshold": PL_STALE_ATR_THRESH,
-    # Strategy-specific filter params (mapped to generic JIT filter mechanism)
-    # Any strategy can use these PL slots by defining params with matching names.
+    # Base signal filter params
     "signal_variant": PL_SIGNAL_VARIANT,
     "buy_filter_max": PL_BUY_FILTER_MAX,
     "sell_filter_min": PL_SELL_FILTER_MIN,
-    # RSI strategy maps its params to the generic filter:
-    "rsi_period": PL_SIGNAL_VARIANT,       # variant = RSI period value
-    "rsi_oversold": PL_BUY_FILTER_MAX,     # BUY if RSI <= oversold
-    "rsi_overbought": PL_SELL_FILTER_MIN,  # SELL if RSI >= overbought
-    # EMA crossover: composite variant = fast*1000 + slow
+}
+
+# Legacy strategy-specific signal param → PL slot mappings.
+# Existing strategies use combo encoding into the 3 base signal slots.
+# New strategies should use signal_pl_mapping() with PL_SIGNAL_P0-P9 instead.
+_LEGACY_SIGNAL_PL: dict[str, int] = {
+    "rsi_period": PL_SIGNAL_VARIANT,
+    "rsi_oversold": PL_BUY_FILTER_MAX,
+    "rsi_overbought": PL_SELL_FILTER_MIN,
     "ema_combo": PL_SIGNAL_VARIANT,
-    # MACD crossover: composite variant = fast*10000 + slow*100 + signal
     "macd_combo": PL_SIGNAL_VARIANT,
-    # Bollinger reversion: composite variant = period*100 + int(std*10)
     "bb_combo": PL_SIGNAL_VARIANT,
-    # Stochastic crossover: variant = k*100 + d, thresholds via filter
     "stoch_combo": PL_SIGNAL_VARIANT,
     "stoch_oversold": PL_BUY_FILTER_MAX,
     "stoch_overbought": PL_SELL_FILTER_MIN,
-    # Donchian breakout: variant = period directly
     "donchian_period": PL_SIGNAL_VARIANT,
-    # ADX trend: composite variant = period*100 + threshold
     "adx_combo": PL_SIGNAL_VARIANT,
 }
+
+
+def _build_param_to_pl(strategy: Strategy) -> dict[str, int]:
+    """Build param→PL slot mapping dynamically from strategy + modules.
+
+    Combines:
+    1. Static risk/time/signal params (shared, never change)
+    2. Management module mappings (from strategy.management_modules())
+    3. Strategy signal mapping (signal_pl_mapping() or legacy fallback)
+    """
+    mapping: dict[str, int] = {}
+    # Static risk, time, base signal filters
+    mapping.update(_RISK_TIME_SIGNAL_PL)
+    # Management modules (dynamic per strategy)
+    for mod in strategy.management_modules():
+        mapping.update(mod.pl_mapping())
+    # Strategy-specific signal mapping
+    if hasattr(strategy, "signal_pl_mapping"):
+        mapping.update(strategy.signal_pl_mapping())
+    # Legacy signal mappings (backward compat for existing strategies)
+    mapping.update(_LEGACY_SIGNAL_PL)
+    return mapping
 
 
 class BacktestEngine:
@@ -228,25 +236,21 @@ class BacktestEngine:
         logger.debug("Generated %d signals for %d bars", self.n_signals, len(high))
 
     def _build_param_layout(self) -> np.ndarray:
-        """Build the param_layout array that maps PL_* to encoding column indices."""
-        layout = np.zeros(NUM_PL, dtype=np.int64)
+        """Build the param_layout array that maps PL_* to encoding column indices.
 
-        # Filter PL slots default to -1 (disabled) when strategy doesn't define them.
-        # Without this, unmapped filter slots point to column 0 which contains
-        # an unrelated param value, causing incorrect signal filtering.
-        from backtester.core.rust_loop import (
-            PL_BUY_FILTER_MAX,
-            PL_SELL_FILTER_MIN,
-            PL_SIGNAL_VARIANT,
-        )
-        layout[PL_SIGNAL_VARIANT] = -1
-        layout[PL_BUY_FILTER_MAX] = -1
-        layout[PL_SELL_FILTER_MIN] = -1
+        Uses dynamic mapping from strategy's management modules and signal
+        mapping, not a hardcoded global dict.
+        """
+        # Default all slots to -1 (unmapped). Only slots that map to actual
+        # params in the strategy's ParamSpace get assigned a column index.
+        layout = np.full(NUM_PL, -1, dtype=np.int64)
 
-        for param_name, pl_index in _PARAM_TO_PL.items():
+        # Build dynamic mapping from strategy's modules + signal config
+        param_to_pl = _build_param_to_pl(self.strategy)
+
+        for param_name, pl_index in param_to_pl.items():
             if param_name in self.encoding.name_to_index:
                 layout[pl_index] = self.encoding.name_to_index[param_name]
-            # If param not in space, layout stays at its default (0 or -1 for filters)
 
         return layout
 

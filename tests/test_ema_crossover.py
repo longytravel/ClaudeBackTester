@@ -50,7 +50,9 @@ class TestParamSpace:
         groups = ps.groups
         assert "signal" in groups
         assert "risk" in groups
-        assert "management" in groups
+        # Management is now split into sub-groups by module
+        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
+        assert mgmt_groups.issubset(set(groups.keys()))
         assert "time" in groups
 
     def test_total_params(self, strategy):
@@ -168,7 +170,11 @@ class TestMetadata:
 
     def test_optimization_stages(self, strategy):
         # No time stage: EMA crossover is time-agnostic
-        assert strategy.optimization_stages() == ["signal", "risk", "management"]
+        stages = strategy.optimization_stages()
+        assert stages[:2] == ["signal", "risk"]
+        # Management sub-groups follow (no time stage for EMA)
+        mgmt_groups = {"exit_trailing", "exit_protection", "exit_time"}
+        assert mgmt_groups.issubset(set(stages))
 
 
 class TestRegistry:
