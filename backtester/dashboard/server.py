@@ -92,6 +92,14 @@ class DashboardServer:
                 status = "idle"
             return JSONResponse({"status": status})
 
+        @app.get("/api/run/snapshot")
+        async def run_snapshot():
+            """HTTP fallback for WebSocket snapshot — used when WS proxy fails."""
+            snapshot = self._build_snapshot()
+            if snapshot:
+                return JSONResponse(snapshot, headers={"Content-Type": "application/json"})
+            return JSONResponse({"type": "idle"}, status_code=200)
+
         @app.get("/api/runs")
         async def list_runs():
             results_dir = Path("results")

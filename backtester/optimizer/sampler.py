@@ -516,11 +516,25 @@ class CMAESSampler:
             return out
 
         # Generate samples via CMA-ES ask()
-        # CMA-ES requires exactly population_size ask() calls per generation
-        # before a tell(). We fill rows in batches of population_size.
+        # CMA-ES population_size may be much smaller than n (batch_size).
+        # We run multiple generations to fill the batch, then tell() in
+        # generation-sized chunks during update().
         pop_size = self._cma.population_size
         filled = 0
         self._pending_tell = []
+
+        # Precompute per-active-dim bounds (vectorized clip targets)
+        n_active = len(self._active_dims)
+        lo_arr = np.zeros(n_active, dtype=np.float64)
+        hi_arr = np.zeros(n_active, dtype=np.float64)
+        for j, dim_idx in enumerate(self._active_dims):
+            col = self._spec.columns[dim_idx]
+            if neighborhood is not None:
+                lo_arr[j] = float(neighborhood.min_bounds[dim_idx])
+                hi_arr[j] = float(neighborhood.max_bounds[dim_idx])
+            else:
+                lo_arr[j] = 0.0
+                hi_arr[j] = float(len(col.values) - 1)
 
         while filled < n:
             # IPOP restart if converged
@@ -528,18 +542,13 @@ class CMAESSampler:
                 self._ipop_restart(mask, locked, neighborhood)
                 if self._cma is None:
                     # Fallback to uniform random for remaining rows
-                    for row in range(filled, n):
-                        for j, dim_idx in enumerate(self._active_dims):
-                            col = self._spec.columns[dim_idx]
-                            n_vals = len(col.values)
-                            if neighborhood is not None:
-                                lo = int(neighborhood.min_bounds[dim_idx])
-                                hi = int(neighborhood.max_bounds[dim_idx])
-                            else:
-                                lo, hi = 0, n_vals - 1
-                            out[row, dim_idx] = self._rng.integers(lo, hi + 1)
+                    for j, dim_idx in enumerate(self._active_dims):
+                        remaining = n - filled
+                        lo, hi = int(lo_arr[j]), int(hi_arr[j])
+                        out[filled:n, dim_idx] = self._rng.integers(lo, hi + 1, size=remaining)
                     filled = n
                     break
+                pop_size = self._cma.population_size  # may have doubled
 
             # Ask for one generation worth of samples
             batch_x_eval = []
@@ -549,34 +558,22 @@ class CMAESSampler:
                 batch_x_eval.append(x_eval)
                 batch_x_tell.append(x_tell)
 
-            # Fill output rows from this generation
-            for k in range(pop_size):
-                if filled >= n:
-                    break
-                x_eval = batch_x_eval[k]
-                x_tell = batch_x_tell[k]
+            # Vectorized: stack into matrix, clip, round, fill output
+            use_count = min(pop_size, n - filled)
+            x_matrix = np.array(batch_x_eval[:use_count])  # (use_count, n_active)
+            rounded = np.clip(np.round(x_matrix), lo_arr, hi_arr).astype(np.int64)
 
-                for j, dim_idx in enumerate(self._active_dims):
-                    col = self._spec.columns[dim_idx]
-                    n_vals = len(col.values)
-                    if neighborhood is not None:
-                        lo = int(neighborhood.min_bounds[dim_idx])
-                        hi = int(neighborhood.max_bounds[dim_idx])
-                    else:
-                        lo, hi = 0, n_vals - 1
-                    val = int(np.clip(np.round(x_eval[j]), lo, hi))
-                    out[filled, dim_idx] = val
+            for j, dim_idx in enumerate(self._active_dims):
+                out[filled:filled + use_count, dim_idx] = rounded[:, j]
 
-                self._pending_tell.append((x_tell, filled))
-                filled += 1
+            # Store x_tell for update() — indexed by output row
+            for k in range(use_count):
+                self._pending_tell.append((batch_x_tell[k], filled + k))
+            # Store excess (beyond n) for tell() padding
+            for k in range(use_count, pop_size):
+                self._pending_tell.append((batch_x_tell[k], -1))  # -1 = not evaluated
 
-            # If we used fewer than pop_size, we still need to store the rest
-            # for tell() padding
-            for k in range(filled - (filled % pop_size if filled % pop_size else pop_size), pop_size):
-                if k < len(batch_x_tell) and (batch_x_tell[k] is not None):
-                    idx_in_pending = len(self._pending_tell) - 1
-                    # Already added above or excess — handled in update()
-                    pass
+            filled += use_count
 
         return out
 
@@ -605,7 +602,8 @@ class CMAESSampler:
         """Update CMA-ES with evaluation results.
 
         Args:
-            index_batch: (K, P) int64 -- the indices that were sampled
+            index_batch: (K, P) int64 -- the indices that were evaluated
+                (may be a pre-filtered subset of sample() output)
             qualities: (K,) float64 -- quality scores for each row
             mask: (P,) bool -- active params (same as sample())
 
@@ -616,70 +614,33 @@ class CMAESSampler:
 
         pop_size = self._cma.population_size
 
-        # Build a map from row_index -> quality for evaluated rows
-        # Match pending_tell entries to their qualities by comparing
-        # the active-dim indices in index_batch
-        quality_by_row: dict[int, float] = {}
-        for pt_x_tell, pt_row_idx in self._pending_tell:
-            # Find this row in index_batch
-            for k in range(index_batch.shape[0]):
-                match = True
-                for dim_idx in self._active_dims:
-                    if index_batch.shape[1] <= dim_idx:
-                        match = False
-                        break
-                    # Compare the rounded x_eval stored in out vs index_batch
-                    # We stored pt_row_idx as the row in the output matrix
-                    # index_batch[k] may be a subset, match by active dim values
-                    pass
-                break
-            # Simpler approach: use row index position directly
-            quality_by_row[pt_row_idx] = float("-inf")
-
-        # Better approach: pending_tell stores (x_tell, row_index).
-        # index_batch rows correspond to rows from sample() output.
-        # Match by finding which pending rows appear in index_batch.
-        #
-        # Since index_batch is typically a filtered subset of the sample() output,
-        # we match by active-dim values.
-        active_set = set(self._active_dims)
-
-        # Build lookup from active-dim tuple -> list of (x_tell, row_idx)
-        pending_by_active = {}
-        for x_tell, row_idx in self._pending_tell:
-            # We don't have the original out matrix, but we can reconstruct
-            # the active-dim values from x_tell by rounding
-            key_vals = []
-            for j, dim_idx in enumerate(self._active_dims):
-                col = self._spec.columns[dim_idx]
-                n_vals = len(col.values)
-                val = int(np.clip(np.round(x_tell[j]), 0, n_vals - 1))
-                key_vals.append(val)
-            key = tuple(key_vals)
-            if key not in pending_by_active:
-                pending_by_active[key] = []
-            pending_by_active[key].append((x_tell, row_idx))
-
-        # Process in generation-sized chunks
-        # Collect all (x_tell, fitness) pairs
-        tell_pairs: list[tuple[np.ndarray, float]] = []
-        used_pending = set()
-
+        # Build row_index -> quality map from evaluated batch.
+        # index_batch may be a subset (pre-filtered) of the sample() output.
+        # Match by active-dim values using a dict lookup.
+        quality_by_key: dict[tuple, float] = {}
         for k in range(index_batch.shape[0]):
-            key_vals = []
-            for dim_idx in self._active_dims:
-                key_vals.append(int(index_batch[k, dim_idx]))
-            key = tuple(key_vals)
+            key = tuple(int(index_batch[k, d]) for d in self._active_dims)
+            quality_by_key[key] = float(qualities[k])
 
-            if key in pending_by_active and pending_by_active[key]:
-                x_tell, row_idx = pending_by_active[key].pop(0)
-                tell_pairs.append((x_tell, -float(qualities[k])))  # negate for minimization
-                used_pending.add(row_idx)
-
-        # Fill remaining slots with worst fitness (large positive = bad for minimization)
+        # Pair each pending x_tell with its fitness
+        tell_pairs: list[tuple[np.ndarray, float]] = []
         worst_fitness = 1e18
+
         for x_tell, row_idx in self._pending_tell:
-            if row_idx not in used_pending:
+            if row_idx < 0:
+                # Excess sample beyond batch — assign worst fitness
+                tell_pairs.append((x_tell, worst_fitness))
+                continue
+
+            # Reconstruct the key from x_tell (same rounding as sample())
+            key = tuple(
+                int(np.clip(np.round(x_tell[j]), 0, len(self._spec.columns[d].values) - 1))
+                for j, d in enumerate(self._active_dims)
+            )
+
+            if key in quality_by_key:
+                tell_pairs.append((x_tell, -quality_by_key[key]))  # negate for minimization
+            else:
                 tell_pairs.append((x_tell, worst_fitness))
 
         # Tell in generation-sized chunks

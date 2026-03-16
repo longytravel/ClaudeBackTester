@@ -51,7 +51,7 @@ class PipelineConfig:
 
     # --- Stability (Stage 4) ---
     stab_perturbation_steps: int = 3      # +-3 steps per numeric param
-    stab_use_forward_data: bool = True    # Test perturbations on forward data
+    stab_use_forward_data: bool = False   # Test perturbations on back-test data (forward gives quality=0)
     # Rating thresholds (advisory only, no hard gate)
     stab_robust_mean: float = 0.8
     stab_robust_min: float = 0.5

@@ -6,6 +6,31 @@ strategy code.
 """
 
 import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
+
+
+# ---------------------------------------------------------------------------
+# Rolling helpers (vectorized, no Python loops)
+# ---------------------------------------------------------------------------
+
+def _rolling_max(data: np.ndarray, period: int) -> np.ndarray:
+    """Rolling maximum over a window. Output valid from index period-1."""
+    out = np.full(len(data), np.nan)
+    if period > len(data):
+        return out
+    windows = sliding_window_view(data, period)
+    out[period - 1:] = np.max(windows, axis=1)
+    return out
+
+
+def _rolling_min(data: np.ndarray, period: int) -> np.ndarray:
+    """Rolling minimum over a window. Output valid from index period-1."""
+    out = np.full(len(data), np.nan)
+    if period > len(data):
+        return out
+    windows = sliding_window_view(data, period)
+    out[period - 1:] = np.min(windows, axis=1)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -40,13 +65,12 @@ def ema(data: np.ndarray, period: int) -> np.ndarray:
 
 def true_range(high: np.ndarray, low: np.ndarray, close: np.ndarray) -> np.ndarray:
     """True Range for each bar (first bar uses high-low)."""
+    hl = high - low
+    hc = np.abs(high[1:] - close[:-1])
+    lc = np.abs(low[1:] - close[:-1])
     tr = np.empty(len(high))
-    tr[0] = high[0] - low[0]
-    for i in range(1, len(high)):
-        hl = high[i] - low[i]
-        hc = abs(high[i] - close[i - 1])
-        lc = abs(low[i] - close[i - 1])
-        tr[i] = max(hl, hc, lc)
+    tr[0] = hl[0]
+    tr[1:] = np.maximum(hl[1:], np.maximum(hc, lc))
     return tr
 
 
@@ -108,8 +132,16 @@ def bollinger_bands(
     """Bollinger Bands. Returns (upper, middle, lower)."""
     middle = sma(data, period)
     std = np.full(len(data), np.nan)
-    for i in range(period - 1, len(data)):
-        std[i] = np.std(data[i - period + 1 : i + 1], ddof=0)
+    if period <= len(data):
+        # Rolling std via cumsum: std = sqrt(mean(x²) - mean(x)²)
+        cumsum = np.cumsum(data)
+        cumsum2 = np.cumsum(data * data)
+        s = cumsum[period - 1:] - np.concatenate(([0.0], cumsum[:-period]))
+        s2 = cumsum2[period - 1:] - np.concatenate(([0.0], cumsum2[:-period]))
+        variance = s2 / period - (s / period) ** 2
+        # Clamp tiny negatives from floating-point to zero before sqrt
+        np.maximum(variance, 0.0, out=variance)
+        std[period - 1:] = np.sqrt(variance)
     upper = middle + num_std * std
     lower = middle - num_std * std
     return upper, middle, lower
@@ -129,19 +161,23 @@ def stochastic(
     """Stochastic Oscillator. Returns (%K, %D)."""
     n = len(close)
     k = np.full(n, np.nan)
-    for i in range(k_period - 1, n):
-        hh = np.max(high[i - k_period + 1 : i + 1])
-        ll = np.min(low[i - k_period + 1 : i + 1])
-        if hh == ll:
-            k[i] = 50.0
-        else:
-            k[i] = 100.0 * (close[i] - ll) / (hh - ll)
-    # %D = SMA of %K over d_period bars (rolling average of valid %K values)
+    if k_period <= n:
+        hh = _rolling_max(high, k_period)
+        ll = _rolling_min(low, k_period)
+        denom = hh - ll
+        valid = denom > 0
+        k[k_period - 1:] = np.where(
+            valid[k_period - 1:],
+            100.0 * (close[k_period - 1:] - ll[k_period - 1:]) / np.where(valid[k_period - 1:], denom[k_period - 1:], 1.0),
+            50.0,
+        )
+    # %D = SMA of %K (only over valid portion, since sma can't handle NaN)
     d_full = np.full(n, np.nan)
-    # %K is valid from index k_period-1 onward, so %D valid from k_period-1+d_period-1
-    start = k_period - 1
-    for i in range(start + d_period - 1, n):
-        d_full[i] = np.mean(k[i - d_period + 1 : i + 1])
+    k_start = k_period - 1  # first valid %K index
+    if k_start < n:
+        k_valid = k[k_start:]  # all valid %K values
+        d_valid = sma(k_valid, d_period)
+        d_full[k_start:] = d_valid
     return k, d_full
 
 
@@ -184,16 +220,17 @@ def adx(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """ADX with +DI and -DI. Returns (adx, plus_di, minus_di)."""
     n = len(high)
-    plus_dm = np.zeros(n)
-    minus_dm = np.zeros(n)
-
-    for i in range(1, n):
-        up = high[i] - high[i - 1]
-        down = low[i - 1] - low[i]
-        if up > down and up > 0:
-            plus_dm[i] = up
-        if down > up and down > 0:
-            minus_dm[i] = down
+    # Vectorized directional movement
+    up = np.empty(n)
+    up[0] = 0.0
+    up[1:] = high[1:] - high[:-1]
+    down = np.empty(n)
+    down[0] = 0.0
+    down[1:] = low[:-1] - low[1:]
+    plus_dm = np.where((up > down) & (up > 0), up, 0.0)
+    plus_dm[0] = 0.0
+    minus_dm = np.where((down > up) & (down > 0), down, 0.0)
+    minus_dm[0] = 0.0
 
     atr_val = atr(high, low, close, period)
 
@@ -258,14 +295,8 @@ def donchian(
     high: np.ndarray, low: np.ndarray, period: int = 20,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Donchian Channel. Returns (upper, middle, lower)."""
-    n = len(high)
-    upper = np.full(n, np.nan)
-    lower = np.full(n, np.nan)
-
-    for i in range(period - 1, n):
-        upper[i] = np.max(high[i - period + 1 : i + 1])
-        lower[i] = np.min(low[i - period + 1 : i + 1])
-
+    upper = _rolling_max(high, period)
+    lower = _rolling_min(low, period)
     middle = (upper + lower) / 2
     return upper, middle, lower
 
@@ -380,13 +411,18 @@ def williams_r(
     """Williams %R oscillator. Range: -100 to 0."""
     n = len(close)
     out = np.full(n, np.nan)
-    for i in range(period - 1, n):
-        hh = np.max(high[i - period + 1 : i + 1])
-        ll = np.min(low[i - period + 1 : i + 1])
-        if hh == ll:
-            out[i] = -50.0
-        else:
-            out[i] = -100.0 * (hh - close[i]) / (hh - ll)
+    if period > n:
+        return out
+    hh = _rolling_max(high, period)
+    ll = _rolling_min(low, period)
+    denom = hh - ll
+    valid = denom > 0
+    s = period - 1
+    out[s:] = np.where(
+        valid[s:],
+        -100.0 * (hh[s:] - close[s:]) / np.where(valid[s:], denom[s:], 1.0),
+        -50.0,
+    )
     return out
 
 
@@ -398,16 +434,23 @@ def cci(
     high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 20,
 ) -> np.ndarray:
     """Commodity Channel Index."""
+    n = len(close)
     tp = (high + low + close) / 3.0
     tp_sma = sma(tp, period)
-    out = np.full(len(close), np.nan)
-    for i in range(period - 1, len(close)):
-        window = tp[i - period + 1 : i + 1]
-        mean_dev = np.mean(np.abs(window - tp_sma[i]))
-        if mean_dev == 0:
-            out[i] = 0.0
-        else:
-            out[i] = (tp[i] - tp_sma[i]) / (0.015 * mean_dev)
+    out = np.full(n, np.nan)
+    if period > n:
+        return out
+    # Rolling mean absolute deviation: mean(|tp - sma|) over window
+    # Computed via sliding_window_view of tp, subtract corresponding sma
+    windows = sliding_window_view(tp, period)  # shape (n-period+1, period)
+    # tp_sma is valid from period-1 onward, align with windows
+    sma_vals = tp_sma[period - 1:]  # shape (n-period+1,)
+    deviations = np.abs(windows - sma_vals[:, np.newaxis])
+    mean_dev = np.mean(deviations, axis=1)
+    s = period - 1
+    diff = tp[s:] - tp_sma[s:]
+    valid = mean_dev > 0
+    out[s:] = np.where(valid, diff / (0.015 * np.where(valid, mean_dev, 1.0)), 0.0)
     return out
 
 
@@ -422,10 +465,16 @@ def swing_highs(high: np.ndarray, lookback: int = 5) -> np.ndarray:
     """
     n = len(high)
     out = np.full(n, np.nan)
-    for i in range(lookback, n - lookback):
-        window = high[i - lookback : i + lookback + 1]
-        if high[i] == np.max(window):
-            out[i] = high[i]
+    window_size = 2 * lookback + 1
+    if window_size > n:
+        return out
+    windows = sliding_window_view(high, window_size)  # (n - window_size + 1, window_size)
+    win_max = np.max(windows, axis=1)
+    # Center of each window is at index lookback within the window,
+    # which corresponds to global index i = lookback + row_index
+    center_vals = high[lookback: n - lookback]
+    is_swing = center_vals == win_max
+    out[lookback: n - lookback] = np.where(is_swing, center_vals, np.nan)
     return out
 
 
@@ -433,8 +482,12 @@ def swing_lows(low: np.ndarray, lookback: int = 5) -> np.ndarray:
     """Detect swing lows. Returns array of NaN except at swing low bars."""
     n = len(low)
     out = np.full(n, np.nan)
-    for i in range(lookback, n - lookback):
-        window = low[i - lookback : i + lookback + 1]
-        if low[i] == np.min(window):
-            out[i] = low[i]
+    window_size = 2 * lookback + 1
+    if window_size > n:
+        return out
+    windows = sliding_window_view(low, window_size)
+    win_min = np.min(windows, axis=1)
+    center_vals = low[lookback: n - lookback]
+    is_swing = center_vals == win_min
+    out[lookback: n - lookback] = np.where(is_swing, center_vals, np.nan)
     return out

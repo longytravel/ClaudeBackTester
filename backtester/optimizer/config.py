@@ -56,7 +56,7 @@ class OptimizationConfig:
     # --- Exploitation method ---
     exploitation_method: str = "cmaes"    # "cmaes" or "eda"
     cmaes_sigma0: float = 0.3            # Initial step size (fraction of param range)
-    cmaes_population_size: int | None = None  # None = use batch_size
+    cmaes_population_size: int | None = None  # None = use batch_size (acts as implicit regularization)
 
     # --- Execution ---
     # PnL buffer = batch_size × max_trades × 8 bytes. At batch_size=4096:
