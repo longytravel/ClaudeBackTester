@@ -54,9 +54,15 @@ class OptimizationConfig:
     cyclic_improvement_threshold: float = 0.01  # Stop if improvement < 1%
 
     # --- Exploitation method ---
-    exploitation_method: str = "cmaes"    # "cmaes" or "eda"
+    exploitation_method: str = "cmaes"    # "cmaes", "eda", "ga", or "sobol"
     cmaes_sigma0: float = 0.3            # Initial step size (fraction of param range)
     cmaes_population_size: int | None = None  # None = use batch_size (acts as implicit regularization)
+
+    # --- GA settings ---
+    ga_population_size: int = 200         # GA population (generates multiple gens per batch)
+    ga_mutation_rate: float = 0.08        # ~1/P for 12-25 params; avoids overfitting
+    ga_crossover_rate: float = 0.8        # Uniform crossover probability
+    ga_elite_pct: float = 0.2            # Top 20% survive unchanged
 
     # --- Execution ---
     # PnL buffer = batch_size × max_trades × 8 bytes. At batch_size=4096:

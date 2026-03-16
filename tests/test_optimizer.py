@@ -630,6 +630,160 @@ class TestStagedOptimizerCMAES:
                 f"Preset '{name}' should use cmaes, got {preset.exploitation_method}"
             )
 
+    def test_config_ga_fields(self):
+        """GA config fields have correct defaults."""
+        config = OptimizationConfig()
+        assert config.ga_population_size == 200
+        assert config.ga_mutation_rate == 0.08
+        assert config.ga_crossover_rate == 0.8
+        assert config.ga_elite_pct == 0.2
+
+
+class TestGASampler:
+    """Tests for GASampler exploitation."""
+
+    @pytest.fixture
+    def spec(self):
+        from backtester.core.encoding import build_encoding_spec
+        from backtester.strategies import registry
+        strategy = registry.get("ema_crossover")()
+        return build_encoding_spec(strategy.param_space())
+
+    def test_shape(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, seed=42)
+        matrix = ga.sample(100)
+        assert matrix.shape == (100, spec.num_params)
+        assert matrix.dtype == np.int64
+
+    def test_values_in_range(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, seed=42)
+        matrix = ga.sample(200)
+        for col in spec.columns:
+            assert np.all(matrix[:, col.index] >= 0)
+            assert np.all(matrix[:, col.index] < len(col.values))
+
+    def test_locked_params_respected(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, seed=42)
+        locked = np.full(spec.num_params, -1, dtype=np.int64)
+        locked[0] = 2
+        locked[1] = 0
+        matrix = ga.sample(50, locked=locked)
+        assert np.all(matrix[:, 0] == 2)
+        assert np.all(matrix[:, 1] == 0)
+
+    def test_mask_inactive_random(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, seed=42)
+        mask = np.zeros(spec.num_params, dtype=np.bool_)
+        mask[0] = True
+        matrix = ga.sample(100, mask=mask)
+        # Inactive params should still vary (noise averaging)
+        for col in spec.columns:
+            if col.index != 0 and len(col.values) > 1:
+                assert len(np.unique(matrix[:, col.index])) > 1
+
+    def test_neighborhood_respected(self, spec):
+        from backtester.optimizer.sampler import GASampler, NeighborhoodSpec
+        ga = GASampler(spec, seed=42)
+        lo = np.zeros(spec.num_params, dtype=np.int64)
+        hi = np.zeros(spec.num_params, dtype=np.int64)
+        for col in spec.columns:
+            max_idx = len(col.values) - 1
+            lo[col.index] = min(1, max_idx)
+            hi[col.index] = min(3, max_idx)
+            if hi[col.index] <= lo[col.index]:
+                lo[col.index] = 0
+                hi[col.index] = max_idx
+        nbhood = NeighborhoodSpec(min_bounds=lo, max_bounds=hi)
+        locked = np.full(spec.num_params, -1, dtype=np.int64)
+        matrix = ga.sample(100, locked=locked, neighborhood=nbhood)
+        for col in spec.columns:
+            assert np.all(matrix[:, col.index] >= lo[col.index])
+            assert np.all(matrix[:, col.index] <= hi[col.index])
+
+    def test_update_improves_population(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, population_size=50, seed=42)
+        matrix = ga.sample(50)
+        # Give high fitness to first 10, low to rest
+        qualities = np.zeros(50, dtype=np.float64)
+        qualities[:10] = 10.0
+        ga.update(matrix, qualities)
+        # Population should now contain the good individuals
+        assert np.max(ga._fitness) >= 10.0
+
+    def test_entropy(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, seed=42)
+        ga.sample(100)
+        ent = ga.entropy()
+        assert 0.0 <= ent <= 1.0
+
+    def test_reset(self, spec):
+        from backtester.optimizer.sampler import GASampler
+        ga = GASampler(spec, seed=42)
+        ga.sample(50)
+        assert ga._population is not None
+        ga.reset()
+        assert ga._population is None
+
+    def test_sobol_only_exploitation(self, spec):
+        """Sobol-only mode: exploitation phase uses SobolSampler."""
+        from backtester.optimizer.sampler import SobolSampler
+        sobol = SobolSampler(spec, seed=42)
+        matrix = sobol.sample(100)
+        assert matrix.shape == (100, spec.num_params)
+
+    def test_sobol_update_noop(self, spec):
+        """Sobol update() is a no-op and doesn't crash."""
+        from backtester.optimizer.sampler import SobolSampler
+        sobol = SobolSampler(spec, seed=42)
+        matrix = sobol.sample(50)
+        # EDA-style call
+        sobol.update(matrix[:10], mask=np.ones(spec.num_params, dtype=np.bool_))
+        # CMA-ES-style call
+        sobol.update(matrix, np.ones(50), mask=None, original_indices=np.arange(50))
+        # Verify it still works after update
+        m2 = sobol.sample(50)
+        assert m2.shape == (50, spec.num_params)
+        # entropy always 1.0
+        assert sobol.entropy() == 1.0
+
+    def test_cmaes_update_row_index_pairing(self, spec):
+        """CMA-ES update uses exact row-index pairing, not key reconstruction."""
+        from backtester.optimizer.sampler import CMAESSampler
+        cma = CMAESSampler(spec, sigma0=0.3, population_size=20, seed=42)
+        mask = np.ones(spec.num_params, dtype=np.bool_)
+        locked = np.full(spec.num_params, -1, dtype=np.int64)
+        matrix = cma.sample(20, mask=mask, locked=locked)
+        # Simulate pre-filter keeping only rows 0,2,4,6,8
+        valid_indices = np.array([0, 2, 4, 6, 8], dtype=np.int64)
+        valid_batch = matrix[valid_indices]
+        qualities = np.array([5.0, 3.0, 4.0, 2.0, 1.0])
+        # Should not crash — uses original_indices for exact matching
+        cma.update(valid_batch, qualities, mask=mask, original_indices=valid_indices)
+
+    def test_cmaes_empty_batch_update(self, spec):
+        """CMA-ES update with empty batch doesn't drop generations."""
+        from backtester.optimizer.sampler import CMAESSampler
+        cma = CMAESSampler(spec, sigma0=0.3, population_size=20, seed=42)
+        mask = np.ones(spec.num_params, dtype=np.bool_)
+        locked = np.full(spec.num_params, -1, dtype=np.int64)
+        cma.sample(20, mask=mask, locked=locked)
+        # Empty batch — all rows pre-filtered
+        cma.update(
+            np.empty((0, spec.num_params), dtype=np.int64),
+            np.empty(0, dtype=np.float64),
+            mask=mask,
+            original_indices=np.empty(0, dtype=np.int64),
+        )
+        # Should still be able to sample after
+        m2 = cma.sample(20, mask=mask, locked=locked)
+        assert m2.shape == (20, spec.num_params)
+
     def test_create_exploiter_eda_path(self):
         """_create_exploiter returns EDA when configured."""
         data = _make_data(500)

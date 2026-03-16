@@ -59,6 +59,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--param-width", default="1.0",
                         choices=["1.0", "1.5", "2.0", "3.0", "auto"],
                         help="Widen numeric param ranges (1.0=as-is, auto=fill budget)")
+    parser.add_argument("--exploiter", default=None,
+                        choices=["cmaes", "eda", "ga", "sobol"],
+                        help="Override exploitation method (default: use preset)")
     parser.add_argument("--dashboard", action="store_true", default=None,
                         help="Enable real-time dashboard (default: auto-detect TTY)")
     parser.add_argument("--no-dashboard", action="store_true",
@@ -233,11 +236,13 @@ def run_optimization_backonly(strategy, data_back, preset_name, pip_value):
 
 
 def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value,
-                     on_batch=None, on_stage=None):
+                     on_batch=None, on_stage=None, exploiter_override=None):
     from backtester.optimizer.config import get_preset
     from backtester.optimizer.run import optimize
 
     opt_config = get_preset(preset_name)
+    if exploiter_override:
+        opt_config.exploitation_method = exploiter_override
 
     print_header("SECTION 2: OPTIMIZATION")
     print(f"  Strategy:       {strategy.name} v{strategy.version}")
@@ -990,9 +995,11 @@ def main():
             "stages": stages,
         })
 
+    exploiter_override = getattr(args, 'exploiter', None)
     opt_result = run_optimization(
         strategy, data_back, data_fwd, preset, pip_value,
         on_batch=on_batch_cb, on_stage=on_stage_cb,
+        exploiter_override=exploiter_override,
     )
 
     # ---- Sections 3-6: Validation Pipeline ----

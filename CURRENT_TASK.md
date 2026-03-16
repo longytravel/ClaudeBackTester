@@ -1,60 +1,82 @@
 # Current Task
 
-## Last Completed (Mar 15 2026)
+## Last Completed (Mar 16 2026)
 
-### Pipeline Candidate Selection Redesign
-Major redesign of how candidates flow from optimizer to validation pipeline, based on research from Codex GPT-5.4, NotebookLM (55 papers), and our own analysis.
+### Exploitation Sampler Comparison Build
+Building 4 configurable exploitation methods for head-to-head comparison.
 
-**Problem**: MAP-Elites diversity archive (3×4=12 cell grid) collapsed 58K candidates to 4. Forward/back gate killed all 4. Walk-forward was skipped entirely. Pipeline produced 0 survivors.
+**Background — CMA-ES bugs discovered:**
+1. `update()` was using key-matching (rounded x_tell) instead of exact row-index pairing — CMAwM's internal discretization != simple rounding, so tell() received garbage fitness for many entries
+2. Dropped generations when prefilter removed all rows (pending_tell cleared without tell())
+3. Neighborhood bounds mismatch between sample() and update()
 
-**Fix**: Replaced with DSR prefilter → signal+risk param deduplication → top N by IS quality → forward-test for reporting only (not selection).
+**Result**: CMA-ES was NEVER learning properly. With pop_size=2048, it was effectively expensive random search (49 gens, broken feedback). All 3 bugs now fixed (Codex verified).
 
-**Result**: Same strategy (Hidden Smash Day, EUR/USD H1) went from 0/4 survivors to 10/10 survivors. Walk-forward now actually runs (4/6 windows pass, mean Sharpe 1.49). Strategy is forward-profitable (+128 pips).
+**Testing showed:**
+- Original (broken tell): YELLOW 54.1, 2 survivors, 328 evals/sec
+- pop_size=50 (overfitting): RED 33.4, 0 survivors, 328 evals/sec
+- Fixed tell + pop=2048: RED 44.8, 0 survivors, 456 evals/sec (+39% speed)
 
-**Files changed**:
-- `backtester/optimizer/run.py` — new `_select_pipeline_candidates()` replacing `_add_multi_candidates()`
-- `backtester/optimizer/config.py` — added `max_pipeline_candidates`, `dsr_prefilter_threshold`, `dsr_prefilter_fallback`, `max_per_dedup_group`
-- `scripts/full_run.py` — removed forward_gate pre-elimination
-- `backtester/pipeline/confidence.py` — forward_back_ratio demoted from hard gate to soft score
-- `backtester/pipeline/runner.py` — removed forward_gate from stage ordering
-- `dashboard/src/components/results/EquityCurve.tsx` — £ currency conversion, 500px height, fitContent(), pair-aware pip value
-- `dashboard/src/components/results/PipelineFunnel.tsx` — new funnel labels (DSR, dedup, pipeline candidates)
-- `dashboard/src/components/results/RunSummary.tsx` — updated narrative
-- `dashboard/src/types/api.ts` — new OptimizerFunnel fields
-- All 521 tests pass
+**Decision**: Build all exploitation methods, test head-to-head to find best approach.
 
-**Research briefs saved**: `research/briefs/candidate_selection_*.md`
+### 4 Exploitation Methods (all built, awaiting review)
+1. **Sobol-only** — `--exploiter sobol` — pure quasi-random baseline
+2. **EDA** — `--exploiter eda` — natively discrete, built-in regularization
+3. **CMA-ES** — `--exploiter cmaes` — fixed tell(), current default
+4. **GA** — `--exploiter ga` — NEW: tournament selection, uniform crossover, per-param mutation
+
+**Files changed:**
+- `backtester/optimizer/sampler.py` — new GASampler class + CMA-ES tell() fix
+- `backtester/optimizer/staged.py` — GA/Sobol branches in _create_exploiter() + empty batch fix
+- `backtester/optimizer/config.py` — GA config fields (pop=200, mutation=0.08)
+- `scripts/full_run.py` — `--exploiter` CLI flag
+- `tests/test_optimizer.py` — 10 new GASampler tests
+- `.claude/commands/run-backtest.md` — updated for new system
+- `.claude/skills/gemini/SKILL.md` — new Gemini 3.1 CLI skill
+- 579 tests pass, 0 regressions
 
 ### Previous Work
-- Multi-AI Quality Loop + Bug Fixes (entry price, breakeven, partial close, sell spread)
+- CMA-ES Optimizer Upgrade + Stage Merging (Mar 15)
+- Pipeline Candidate Selection Redesign (DSR prefilter + dedup)
 - Modular Staged Optimizer: NUM_PL 27→64, ManagementModule system
-- Live trading engine deployed on IC Markets demo (EMA, MACD, Stochastic)
+- Live trading engine deployed on IC Markets demo
 
 ## Next Steps
 
-### Step 1: Run Hidden Smash Day with Standard Preset
-- Turbo only tested 200K trials (50K/stage). Standard does 200K/stage = 4× more exploration.
-- Turbo `max_pipeline_candidates=10`. Standard = 20.
-- Run: `/run-backtest hidden_smash_day EUR/USD H1 standard`
-- Compare candidate diversity and pipeline survival rates vs turbo
+### Step 1: Codex + Gemini Review (IN PROGRESS)
+- Both reviewing GASampler implementation for bugs
+- Fix any issues found
 
-### Step 2: Commit Pipeline Redesign
-- Commit all changes with descriptive message
-- Update PROGRESS.md
+### Step 2: E2E Comparison Test
+- Run hidden_smash_day EUR/USD H1 turbo × 4 methods:
+  ```
+  --exploiter sobol   (baseline)
+  --exploiter eda     (discrete native)
+  --exploiter cmaes   (fixed, current default)
+  --exploiter ga      (new)
+  ```
+- Compare: IS quality, OOS quality, evals/sec, survivors, composite score
 
-### Step 3: Run a Different Strategy
-- Pick a strategy with more signal parameters (EMA, MACD, Bollinger) to test dedup diversity
-- Hidden Smash Day has very few signal params (just hsd_variant) — not a great diversity test
+### Step 3: Set Default Exploiter
+- Based on comparison results, set the best method as default
+- Update presets in config.py
 
-### Step 4: Monitor Live Traders
-- Market opens Monday — check traders generating signals
-- Use `/verify-trades` to compare backtest vs live
+### Step 4: Dashboard CMA-ES Metrics
+- SamplerInfo shows wrong metrics for CMA-ES/GA
+- Add generation count, sigma tracking, IPOP restart markers
+- Update funnel for new candidate selection flow
+
+### Step 5: Report Serialization Bug
+- report.json shows 0 metrics for all candidates (console output correct)
+- Need to investigate and fix
 
 ## Blockers
 - None
 
 ## Key Context
-- Pipeline redesign: DSR prefilter → dedup → top N → pipeline (no forward gate elimination)
-- Dashboard: equity curve now in £ (£3K start, 0.01 lot, GBP account)
-- Account settings in EquityCurve.tsx constants (STARTING_CAPITAL, LOT_SIZE, ACCOUNT_RATE)
-- Presets: turbo (50K/stage, 10 candidates), standard (200K/stage, 20 candidates), deep (500K/stage, 30), max (1M/stage, 50)
+- 4 exploitation methods now available via `--exploiter` CLI flag
+- CMA-ES tell() bugs fixed (row-index pairing, empty batch handling)
+- GA: tournament(3) + uniform crossover + per-param mutation(0.08) + elitism(20%)
+- Default stages: signal → time → core_trade_profile → exit_protection → exit_time → refinement
+- Cyclic passes: turbo=0, standard=1, deep=2
+- Research: Gemini recommends GA or EDA over CMA-ES for discrete financial params

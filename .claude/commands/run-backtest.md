@@ -15,7 +15,7 @@ Every bash command in this skill MUST begin with this PATH setup:
 export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
 ```
 
-## Step 0: Gather Setup (FAST — single question if args provided)
+## Step 0: Gather Setup (FAST — skip straight to running if args provided)
 
 ### 0a. If ALL 4 args provided, skip to Step 1
 
@@ -30,8 +30,8 @@ Ask ONLY the missing arguments in a single AskUserQuestion call (up to 4 questio
 ### 0c. Parameter space review — SKIP unless user explicitly asks
 Show parameter space only if user says "show params", "review ranges", etc. Otherwise go straight to running.
 
-### 0d. Budget & candidate review
-Run `compute_stage_budgets()` to check for wasted compute, then ask the user what to do.
+### 0d. Budget info (show only, no questions)
+Run `compute_stage_budgets()` and show the table as FYI. Do NOT ask questions — just proceed.
 
 ```bash
 export PATH="$HOME/.cargo/bin:/c/Users/ROG/.local/bin:$PATH"
@@ -59,18 +59,16 @@ for b in budgets:
 "
 ```
 
-Show the table to the user and highlight any stages with coverage >100x (heavy waste) or <1x (under-explored).
+Show the table to the user. Notes:
+- **<1x coverage on composite stages** (e.g. core_trade_profile) is normal — CMA-ES intelligently searches the space
+- **10x coverage on small stages** is fine — ensures thorough exploration
+- Candidate selection is automatic: DSR prefilter → signal+risk dedup → top 25 by IS quality
+- Only flag issues if something looks broken (e.g. 0 combos, missing stages)
 
-Then ask via AskUserQuestion with options:
-- **"Run as-is (Recommended)"** — use current preset settings unchanged
-- **"Save time"** — for over-covered stages (>100x), reduce their budget to `unique_combos * 10` (10x coverage is plenty). Show estimated time savings
-- **"Bump candidates"** — increase candidates tested. Current default is 10. User can choose: 25, 50, or top 25% of passing trials. Explain: more candidates = more forward tests + validation runs, adds ~30s per extra candidate
-
-If user picks "Save time": modify the `full_run.py` command below to pass `--trials-per-stage` with the reduced value. Note: this only makes sense if ALL non-refinement stages are over-covered; otherwise keep the default.
-
-If user picks "Bump candidates": add `--top-n-candidates N` to the command. If they choose percentage, add `--top-n-candidates-pct 0.25`.
-
-If user picks "Run as-is": proceed with defaults.
+**Optional CLI overrides** (only if user explicitly asks for them):
+- `--param-width 1.5` / `2.0` / `auto` — widen parameter ranges
+- `--top-n-candidates N` — change candidate count (default 25)
+- `--trials-per-stage N` — override trial budget
 
 ## Step 1: Pre-Flight Data Check + Dashboard Startup
 
@@ -116,6 +114,8 @@ uv run python scripts/full_run.py \
   --dashboard
 ```
 
+Add any optional CLI overrides from Step 0d only if the user explicitly requested them.
+
 Run this as a **foreground** command with `timeout: 600000` (10 min). Do NOT run in background — the server stays alive after completion for the user to view results, and killing the process kills the dashboard.
 
 After launching, tell the user: **"Dashboard is live at http://localhost:5173 — open it to watch progress in real-time."**
@@ -124,10 +124,11 @@ Then use the Playwright browser to take a screenshot of the dashboard and show i
 
 The pipeline will:
 1. Load data, split 80/20 back/forward
-2. Run staged optimization (signal → time → risk → management → refinement)
-3. Run validation pipeline (walk-forward, CPCV, stability, Monte Carlo + regime, confidence)
-4. Run telemetry for trade statistics
-5. Print report + keep dashboard server alive for browsing
+2. Run CMA-ES staged optimization (strategy-defined stages, composite stages for coupled params like SL+TP+trailing+BE)
+3. Select candidates: DSR prefilter → signal+risk dedup → top 25 by IS quality (forward test for reporting only, NOT elimination)
+4. Run validation pipeline (walk-forward, CPCV, stability, Monte Carlo + regime, confidence)
+5. Run telemetry for trade statistics
+6. Print report + keep dashboard server alive for browsing
 
 After the pipeline prints results (look for `"Total elapsed"` in output), the server stays alive. Read the output and move to Step 3.
 

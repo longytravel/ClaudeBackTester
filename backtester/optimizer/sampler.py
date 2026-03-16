@@ -188,6 +188,18 @@ class SobolSampler:
 
         return matrix
 
+    def update(self, *args, **kwargs) -> None:
+        """No-op: Sobol has no learning state."""
+        pass
+
+    def reset(self) -> None:
+        """Reset Sobol sequence."""
+        self._init_sobol()
+
+    def entropy(self, mask: np.ndarray | None = None) -> float:
+        """Always 1.0 — Sobol provides maximum coverage."""
+        return 1.0
+
 
 class EDASampler:
     """Cross-Entropy / Estimation of Distribution Algorithm sampler.
@@ -598,6 +610,7 @@ class CMAESSampler:
         index_batch: np.ndarray,
         qualities: np.ndarray,
         mask: np.ndarray | None = None,
+        original_indices: np.ndarray | None = None,
     ) -> None:
         """Update CMA-ES with evaluation results.
 
@@ -606,6 +619,9 @@ class CMAESSampler:
                 (may be a pre-filtered subset of sample() output)
             qualities: (K,) float64 -- quality scores for each row
             mask: (P,) bool -- active params (same as sample())
+            original_indices: (K,) int64 -- row positions in the original
+                sample() output. Used for exact x_tell pairing (no key
+                reconstruction needed). If None, falls back to positional.
 
         CMA-ES minimizes, we maximize quality, so negate.
         """
@@ -613,34 +629,29 @@ class CMAESSampler:
             return
 
         pop_size = self._cma.population_size
-
-        # Build row_index -> quality map from evaluated batch.
-        # index_batch may be a subset (pre-filtered) of the sample() output.
-        # Match by active-dim values using a dict lookup.
-        quality_by_key: dict[tuple, float] = {}
-        for k in range(index_batch.shape[0]):
-            key = tuple(int(index_batch[k, d]) for d in self._active_dims)
-            quality_by_key[key] = float(qualities[k])
-
-        # Pair each pending x_tell with its fitness
-        tell_pairs: list[tuple[np.ndarray, float]] = []
         worst_fitness = 1e18
+
+        # Build row_index -> quality map using exact row positions
+        quality_by_row: dict[int, float] = {}
+        if original_indices is not None:
+            for i, row_idx in enumerate(original_indices):
+                quality_by_row[int(row_idx)] = float(qualities[i])
+        else:
+            # Fallback: assume sequential rows 0..K-1
+            for i in range(len(qualities)):
+                quality_by_row[i] = float(qualities[i])
+
+        # Pair each pending x_tell with its fitness via exact row index
+        tell_pairs: list[tuple[np.ndarray, float]] = []
 
         for x_tell, row_idx in self._pending_tell:
             if row_idx < 0:
                 # Excess sample beyond batch — assign worst fitness
                 tell_pairs.append((x_tell, worst_fitness))
-                continue
-
-            # Reconstruct the key from x_tell (same rounding as sample())
-            key = tuple(
-                int(np.clip(np.round(x_tell[j]), 0, len(self._spec.columns[d].values) - 1))
-                for j, d in enumerate(self._active_dims)
-            )
-
-            if key in quality_by_key:
-                tell_pairs.append((x_tell, -quality_by_key[key]))  # negate for minimization
+            elif row_idx in quality_by_row:
+                tell_pairs.append((x_tell, -quality_by_row[row_idx]))  # negate for minimization
             else:
+                # Row was pre-filtered out — assign worst fitness
                 tell_pairs.append((x_tell, worst_fitness))
 
         # Tell in generation-sized chunks
@@ -687,3 +698,271 @@ class CMAESSampler:
             return float(np.clip(ratio, 0.0, 1.0))
         except AttributeError:
             return 1.0
+
+
+class GASampler:
+    """Genetic Algorithm sampler for exploitation phase.
+
+    Natively discrete: tournament selection, uniform crossover, per-param mutation.
+    Maintains a population across batches with elitism. Near-zero suggestion overhead.
+    """
+
+    def __init__(
+        self,
+        spec: EncodingSpec,
+        population_size: int = 200,
+        mutation_rate: float = 0.08,
+        crossover_rate: float = 0.8,
+        elite_pct: float = 0.2,
+        tournament_size: int = 3,
+        seed: int | None = None,
+    ):
+        self._spec = spec
+        self._pop_size = population_size
+        self._mutation_rate = mutation_rate
+        self._crossover_rate = crossover_rate
+        self._elite_pct = elite_pct
+        self._tournament_size = tournament_size
+        self._rng = np.random.default_rng(seed)
+
+        # Population: (pop_size, P) int64 indices + (pop_size,) fitness
+        self._population: np.ndarray | None = None
+        self._fitness: np.ndarray | None = None
+        self._generation_count = 0
+
+    def _init_population(
+        self,
+        mask: np.ndarray | None,
+        locked: np.ndarray | None,
+        neighborhood: NeighborhoodSpec | None,
+    ) -> None:
+        """Initialize random population respecting constraints."""
+        p = self._spec.num_params
+        pop = np.zeros((self._pop_size, p), dtype=np.int64)
+
+        for col in self._spec.columns:
+            if locked is not None and locked[col.index] >= 0:
+                pop[:, col.index] = locked[col.index]
+                continue
+            n_vals = len(col.values)
+            if neighborhood is not None:
+                lo = int(neighborhood.min_bounds[col.index])
+                hi = int(neighborhood.max_bounds[col.index])
+            else:
+                lo, hi = 0, n_vals - 1
+            pop[:, col.index] = self._rng.integers(lo, hi + 1, size=self._pop_size)
+
+        self._population = pop
+        self._fitness = np.full(self._pop_size, -np.inf, dtype=np.float64)
+
+    def _tournament_select(self, n_parents: int) -> np.ndarray:
+        """Select parents via tournament selection. Returns indices into population."""
+        parents = np.zeros(n_parents, dtype=np.int64)
+        for i in range(n_parents):
+            competitors = self._rng.integers(0, self._pop_size, size=self._tournament_size)
+            best = competitors[np.argmax(self._fitness[competitors])]
+            parents[i] = best
+        return parents
+
+    def _crossover(
+        self,
+        parent1: np.ndarray,
+        parent2: np.ndarray,
+        mask: np.ndarray | None,
+        locked: np.ndarray | None,
+    ) -> np.ndarray:
+        """Uniform crossover: each param independently from parent1 or parent2."""
+        child = parent1.copy()
+        if self._rng.random() < self._crossover_rate:
+            swap = self._rng.random(len(child)) < 0.5
+            # Only swap active, unlocked params
+            for i in range(len(child)):
+                if locked is not None and locked[i] >= 0:
+                    continue
+                if mask is not None and not mask[i]:
+                    continue
+                if swap[i]:
+                    child[i] = parent2[i]
+        return child
+
+    def _mutate(
+        self,
+        individual: np.ndarray,
+        mask: np.ndarray | None,
+        locked: np.ndarray | None,
+        neighborhood: NeighborhoodSpec | None,
+    ) -> np.ndarray:
+        """Per-param mutation: ordinal ±1-2 steps, categorical uniform random."""
+        result = individual.copy()
+        for col in self._spec.columns:
+            if locked is not None and locked[col.index] >= 0:
+                continue
+            if mask is not None and not mask[col.index]:
+                continue
+            if self._rng.random() >= self._mutation_rate:
+                continue
+
+            n_vals = len(col.values)
+            if neighborhood is not None:
+                lo = int(neighborhood.min_bounds[col.index])
+                hi = int(neighborhood.max_bounds[col.index])
+            else:
+                lo, hi = 0, n_vals - 1
+
+            if col.is_categorical:
+                # Categorical: uniform random from valid range
+                result[col.index] = self._rng.integers(lo, hi + 1)
+            else:
+                # Ordinal: ±1 or ±2 steps
+                delta = self._rng.choice([-2, -1, 1, 2])
+                result[col.index] = np.clip(
+                    int(result[col.index]) + delta, lo, hi,
+                )
+        return result
+
+    def sample(
+        self,
+        n: int,
+        mask: np.ndarray | None = None,
+        locked: np.ndarray | None = None,
+        neighborhood: NeighborhoodSpec | None = None,
+    ) -> np.ndarray:
+        """Generate n parameter sets using genetic operators.
+
+        Returns (n, P) int64 index matrix.
+        """
+        p = self._spec.num_params
+
+        # Initialize population on first call
+        if self._population is None:
+            self._init_population(mask, locked, neighborhood)
+
+        out = np.zeros((n, p), dtype=np.int64)
+        filled = 0
+
+        while filled < n:
+            # Generate one generation of offspring
+            n_elite = max(1, int(self._pop_size * self._elite_pct))
+            n_children = self._pop_size - n_elite
+
+            # Elites survive unchanged
+            elite_order = np.argsort(-self._fitness)[:n_elite]
+            offspring = [self._population[i].copy() for i in elite_order]
+
+            # Generate children via crossover + mutation
+            if n_children > 0 and np.any(self._fitness > -np.inf):
+                parents = self._tournament_select(n_children * 2)
+                for c in range(n_children):
+                    p1 = self._population[parents[c * 2]]
+                    p2 = self._population[parents[c * 2 + 1]]
+                    child = self._crossover(p1, p2, mask, locked)
+                    child = self._mutate(child, mask, locked, neighborhood)
+                    offspring.append(child)
+            else:
+                # No fitness info yet — generate random individuals
+                for _ in range(n_children):
+                    ind = np.zeros(p, dtype=np.int64)
+                    for col in self._spec.columns:
+                        if locked is not None and locked[col.index] >= 0:
+                            ind[col.index] = locked[col.index]
+                            continue
+                        n_vals = len(col.values)
+                        if neighborhood is not None:
+                            lo = int(neighborhood.min_bounds[col.index])
+                            hi = int(neighborhood.max_bounds[col.index])
+                        else:
+                            lo, hi = 0, n_vals - 1
+                        ind[col.index] = self._rng.integers(lo, hi + 1)
+                    offspring.append(ind)
+
+            # Fill output from this generation
+            gen_array = np.array(offspring, dtype=np.int64)
+            use_count = min(len(gen_array), n - filled)
+            out[filled:filled + use_count] = gen_array[:use_count]
+
+            # Fill inactive params with uniform random (noise averaging)
+            for col in self._spec.columns:
+                if locked is not None and locked[col.index] >= 0:
+                    continue
+                if mask is not None and not mask[col.index]:
+                    n_vals = len(col.values)
+                    if neighborhood is not None:
+                        lo = int(neighborhood.min_bounds[col.index])
+                        hi = int(neighborhood.max_bounds[col.index])
+                    else:
+                        lo, hi = 0, n_vals - 1
+                    out[filled:filled + use_count, col.index] = self._rng.integers(
+                        lo, hi + 1, size=use_count,
+                    )
+
+            filled += use_count
+            self._generation_count += 1
+
+        return out
+
+    def update(
+        self,
+        index_batch: np.ndarray,
+        qualities: np.ndarray,
+        mask: np.ndarray | None = None,
+        original_indices: np.ndarray | None = None,
+    ) -> None:
+        """Update GA population with evaluation results.
+
+        Replaces population with the best individuals seen so far (steady-state).
+        """
+        if self._population is None or len(qualities) == 0:
+            return
+
+        # Merge current population + new evaluated individuals
+        # Keep the best pop_size individuals by fitness
+        new_pop = index_batch.copy()
+        new_fit = qualities.copy()
+
+        combined_pop = np.vstack([self._population, new_pop])
+        combined_fit = np.concatenate([self._fitness, new_fit])
+
+        # Select top pop_size by fitness
+        top_order = np.argsort(-combined_fit)[:self._pop_size]
+        self._population = combined_pop[top_order].copy()
+        self._fitness = combined_fit[top_order].copy()
+
+    def reset(self) -> None:
+        """Reset population for a new stage."""
+        self._population = None
+        self._fitness = None
+        self._generation_count = 0
+
+    def entropy(self, mask: np.ndarray | None = None) -> float:
+        """Population diversity: normalized Shannon entropy of allele frequencies."""
+        if self._population is None:
+            return 1.0
+
+        entropies = []
+        for col in self._spec.columns:
+            if mask is not None and not mask[col.index]:
+                continue
+            n_vals = len(col.values)
+            if n_vals <= 1:
+                entropies.append(0.0)
+                continue
+            # Count allele frequencies
+            values = self._population[:, col.index]
+            counts = np.bincount(values, minlength=n_vals).astype(np.float64)
+            freqs = counts / counts.sum()
+            nonzero = freqs[freqs > 0]
+            h = -np.sum(nonzero * np.log2(nonzero))
+            h_max = np.log2(n_vals)
+            entropies.append(h / h_max if h_max > 0 else 0.0)
+
+        return float(np.mean(entropies)) if entropies else 1.0
+
+    @property
+    def effective_lr(self) -> float:
+        """Compatibility property for dashboard — returns mutation rate."""
+        return self._mutation_rate
+
+    @property
+    def converged(self) -> bool:
+        """Check if population has lost diversity."""
+        return self.entropy() < 0.05

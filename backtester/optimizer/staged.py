@@ -457,6 +457,27 @@ class StagedOptimizer:
                 )
                 # Fall through to EDA
 
+        if self.config.exploitation_method == "ga":
+            from backtester.optimizer.sampler import GASampler
+            exploiter = GASampler(
+                self.spec,
+                population_size=self.config.ga_population_size,
+                mutation_rate=self.config.ga_mutation_rate,
+                crossover_rate=self.config.ga_crossover_rate,
+                elite_pct=self.config.ga_elite_pct,
+                seed=self.config.seed,
+            )
+            logger.info(
+                f"Using GA exploitation (pop={self.config.ga_population_size}, "
+                f"mutation={self.config.ga_mutation_rate})"
+            )
+            return exploiter, True  # True = needs full qualities for tournament selection
+
+        if self.config.exploitation_method == "sobol":
+            exploiter = SobolSampler(self.spec, seed=self.config.seed)
+            logger.info("Using Sobol-only exploitation (no learning)")
+            return exploiter, False
+
         exploiter = EDASampler(
             self.spec,
             learning_rate=self.config.eda_learning_rate,
@@ -586,6 +607,14 @@ class StagedOptimizer:
             valid_indices = np.where(valid_pre)[0]
             if len(valid_indices) == 0:
                 total_evaluated += n
+                # Bug fix: tell CMA-ES all samples were invalid (don't drop generations)
+                if use_cmaes and total_evaluated >= exploration_budget:
+                    exploiter.update(
+                        np.empty((0, self.spec.num_params), dtype=np.int64),
+                        np.empty(0, dtype=np.float64),
+                        mask=active_mask,
+                        original_indices=np.empty(0, dtype=np.int64),
+                    )
                 continue
 
             valid_batch = index_batch[valid_indices]
@@ -638,7 +667,8 @@ class StagedOptimizer:
                     quality_scores = np.zeros(len(valid_batch), dtype=np.float64)
                     if len(passing) > 0:
                         quality_scores[passing] = metrics[passing, M_QUALITY]
-                    exploiter.update(valid_batch, quality_scores, mask=active_mask)
+                    exploiter.update(valid_batch, quality_scores, mask=active_mask,
+                                     original_indices=valid_indices)
 
                     # Check convergence — if converged, do IPOP restart
                     if exploiter.converged:
