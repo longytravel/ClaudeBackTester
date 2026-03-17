@@ -399,8 +399,29 @@ def optimize(
     )
     logger.info(f"Generated {engine_back.n_signals} signals")
 
+    # Build CV objective if enabled
+    cv_objective = None
+    if config.use_cv_objective:
+        from backtester.optimizer.cv_objective import CVObjective, auto_configure_folds
+        n_years = len(high_back) / engine_back.bars_per_year
+        fold_config = auto_configure_folds(
+            n_bars=len(high_back),
+            bars_per_year=engine_back.bars_per_year,
+            timeframe=config.timeframe,
+            expected_trades_per_year=engine_back.n_signals / n_years if n_years > 0 else 0,
+            embargo_days=config.cv_embargo_days,
+            min_trades_per_fold=config.cv_min_trades_per_fold,
+            aggregation=config.cv_aggregation,
+            aggregation_lambda=config.cv_lambda,
+            early_stopping=config.cv_early_stopping,
+            n_folds_override=config.cv_n_folds,
+        )
+        cv_objective = CVObjective(engine_back, fold_config)
+        logger.info(f"CV objective enabled: {fold_config.n_folds} folds, {config.cv_aggregation}")
+
     logger.info("Running staged optimization...")
-    staged = StagedOptimizer(engine_back, config, on_batch=on_batch, on_stage=on_stage)
+    staged = StagedOptimizer(engine_back, config, on_batch=on_batch, on_stage=on_stage,
+                             cv_objective=cv_objective)
     staged_result = staged.optimize()
     logger.info(
         f"Staged optimization complete: {staged_result.total_trials} trials, "

@@ -64,6 +64,16 @@ class OptimizationConfig:
     ga_crossover_rate: float = 0.8        # Uniform crossover probability
     ga_elite_pct: float = 0.2            # Top 20% survive unchanged
 
+    # --- Cross-Validation Objective ---
+    use_cv_objective: bool = False          # Enable K-fold CV inside optimizer
+    cv_embargo_days: int = 5                # Gap between folds in calendar days
+    cv_min_trades_per_fold: int = 30        # Minimum trades for meaningful fold stats
+    cv_aggregation: str = "mean_std"        # "mean_std", "cvar", "geometric_mean"
+    cv_lambda: float = 1.0                  # Penalty weight for mean_std
+    cv_early_stopping: bool = True          # Progressive culling of bad trials
+    cv_n_folds: int | None = None           # Override auto K (None = auto)
+    timeframe: str = "H1"                   # For embargo/fold calculation
+
     # --- Execution ---
     # PnL buffer = batch_size × max_trades × 8 bytes. At batch_size=4096:
     #   50K → 1.6GB (segfaults on Windows), 25K → 781MB (safe).

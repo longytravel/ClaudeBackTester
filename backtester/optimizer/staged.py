@@ -174,12 +174,14 @@ class StagedOptimizer:
         config: OptimizationConfig | None = None,
         on_batch: Any = None,
         on_stage: Any = None,
+        cv_objective: Any = None,
     ):
         self.engine = engine
         self.config = config or OptimizationConfig()
         self.spec = engine.encoding
         self._on_batch = on_batch
         self._on_stage = on_stage
+        self._cv_objective = cv_objective  # CVObjective or None
 
     def optimize(self) -> StagedResult:
         """Run staged optimization.
@@ -621,7 +623,10 @@ class StagedOptimizer:
 
             # Convert to value space and evaluate
             value_matrix = indices_to_values(self.spec, valid_batch)
-            metrics = self.engine.evaluate_batch(value_matrix, exec_mode)
+            if self._cv_objective is not None:
+                metrics = self._cv_objective.evaluate_batch(value_matrix, exec_mode)
+            else:
+                metrics = self.engine.evaluate_batch(value_matrix, exec_mode)
 
             # Track ungated best (before post-filter) for fallback
             batch_qualities = metrics[:, M_QUALITY]

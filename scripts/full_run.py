@@ -62,6 +62,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exploiter", default=None,
                         choices=["cmaes", "eda", "ga", "sobol"],
                         help="Override exploitation method (default: use preset)")
+    parser.add_argument("--cv", action="store_true",
+                        help="Enable cross-validation objective (K-fold inside optimizer)")
+    parser.add_argument("--cv-folds", type=int, default=None,
+                        help="Override auto fold count (default: auto-calculated)")
+    parser.add_argument("--cv-aggregation", default="mean_std",
+                        choices=["mean_std", "cvar", "geometric_mean"],
+                        help="CV aggregation method (default: mean_std)")
     parser.add_argument("--dashboard", action="store_true", default=None,
                         help="Enable real-time dashboard (default: auto-detect TTY)")
     parser.add_argument("--no-dashboard", action="store_true",
@@ -236,13 +243,22 @@ def run_optimization_backonly(strategy, data_back, preset_name, pip_value):
 
 
 def run_optimization(strategy, data_back, data_fwd, preset_name, pip_value,
-                     on_batch=None, on_stage=None, exploiter_override=None):
+                     on_batch=None, on_stage=None, exploiter_override=None,
+                     cv_enabled=False, cv_folds=None, cv_aggregation="mean_std",
+                     timeframe="H1"):
     from backtester.optimizer.config import get_preset
     from backtester.optimizer.run import optimize
 
     opt_config = get_preset(preset_name)
     if exploiter_override:
         opt_config.exploitation_method = exploiter_override
+    if cv_enabled:
+        opt_config.use_cv_objective = True
+        opt_config.timeframe = timeframe
+        if cv_folds is not None:
+            opt_config.cv_n_folds = cv_folds
+        if cv_aggregation:
+            opt_config.cv_aggregation = cv_aggregation
 
     print_header("SECTION 2: OPTIMIZATION")
     print(f"  Strategy:       {strategy.name} v{strategy.version}")
@@ -996,10 +1012,15 @@ def main():
         })
 
     exploiter_override = getattr(args, 'exploiter', None)
+    cv_enabled = getattr(args, 'cv', False)
+    cv_folds = getattr(args, 'cv_folds', None)
+    cv_aggregation = getattr(args, 'cv_aggregation', 'mean_std')
     opt_result = run_optimization(
         strategy, data_back, data_fwd, preset, pip_value,
         on_batch=on_batch_cb, on_stage=on_stage_cb,
         exploiter_override=exploiter_override,
+        cv_enabled=cv_enabled, cv_folds=cv_folds,
+        cv_aggregation=cv_aggregation, timeframe=timeframe,
     )
 
     # ---- Sections 3-6: Validation Pipeline ----
