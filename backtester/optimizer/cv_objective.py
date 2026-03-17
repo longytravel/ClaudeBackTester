@@ -87,16 +87,20 @@ def auto_configure_folds(
 
     # Equal-width fold boundaries with embargo gaps
     usable_bars = n_bars - embargo_bars * (n_folds - 1)
+    if usable_bars <= 0:
+        # Fallback: reduce embargo to fit (Gemini review: boundary bug fix)
+        embargo_bars = max(1, (n_bars - n_folds) // (n_folds - 1)) if n_folds > 1 else 0
+        usable_bars = n_bars - embargo_bars * (n_folds - 1)
     fold_size = max(1, usable_bars // n_folds)
 
     boundaries: list[tuple[int, int]] = []
     offset = 0
     for i in range(n_folds):
-        start = offset
+        start = min(offset, n_bars)
         end = start + fold_size
         if i == n_folds - 1:
             end = n_bars  # last fold gets remainder
-        end = min(end, n_bars)
+        end = max(start, min(end, n_bars))
         boundaries.append((start, end))
         offset = end + embargo_bars
 
@@ -266,9 +270,9 @@ class CVObjective:
         output = last_metrics.copy()
         output[:, M_QUALITY] = aggregated
 
-        # Dead trials (killed by early stopping) get zero
-        dead = ~alive & (aggregated == 0)
-        output[dead] = 0.0
+        # Dead trials (killed by early stopping) get zero — even if partial
+        # fold scores aggregated positive (Gemini review: leak bug fix)
+        output[~alive] = 0.0
 
         return output
 
