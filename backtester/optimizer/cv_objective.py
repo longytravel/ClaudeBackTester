@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from backtester.core.dtypes import M_QUALITY, M_TRADES, NUM_METRICS
+from backtester.core.dtypes import M_QUALITY, M_SHARPE, M_TRADES, NUM_METRICS
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,9 @@ class CVFoldConfig:
     fold_boundaries: list[tuple[int, int]]  # (start_bar, end_bar) per fold
     embargo_bars: int
     min_trades_per_fold: int
-    aggregation: str = "mean_std"
+    aggregation: str = "cvar"
     aggregation_lambda: float = 1.0
+    fold_metric: str = "sharpe"  # "sharpe" or "quality" — sharpe avoids trade_ramp penalty
     early_stopping: bool = True
 
 
@@ -47,8 +48,9 @@ def auto_configure_folds(
     expected_trades_per_year: float,
     embargo_days: int = 5,
     min_trades_per_fold: int = 30,
-    aggregation: str = "mean_std",
+    aggregation: str = "cvar",
     aggregation_lambda: float = 1.0,
+    fold_metric: str = "sharpe",
     early_stopping: bool = True,
     n_folds_override: int | None = None,
 ) -> CVFoldConfig:
@@ -118,6 +120,7 @@ def auto_configure_folds(
         min_trades_per_fold=min_trades_per_fold,
         aggregation=aggregation,
         aggregation_lambda=aggregation_lambda,
+        fold_metric=fold_metric,
         early_stopping=early_stopping,
     )
 
@@ -157,9 +160,9 @@ def aggregate_fold_scores(
             mean = scores.mean()
             std = scores.std()
             val = mean - lam * std
-            # Floor: if any valid fold is <= 0, cap at 0
-            if scores.min() <= 0:
-                val = min(val, 0.0)
+            # No zero-fold cap — the variance penalty already handles bad folds.
+            # A single unprofitable period shouldn't disqualify an otherwise
+            # profitable strategy (Gemini review).
             result[i] = max(val, 0.0)
 
         elif method == "cvar":
@@ -234,7 +237,11 @@ class CVObjective:
             )
             self._fold_evals += len(alive_indices)
 
-            fold_qualities[alive_indices, fold_idx] = metrics_k[:, M_QUALITY]
+            # Use Sharpe per fold to avoid trade_ramp penalty crushing small-fold
+            # scores (Gemini review: quality has min(trades,300)/300 ramp that
+            # penalizes folds with ~100 trades by 66%)
+            fold_metric_col = M_SHARPE if self.config.fold_metric == "sharpe" else M_QUALITY
+            fold_qualities[alive_indices, fold_idx] = metrics_k[:, fold_metric_col]
             fold_trades[alive_indices, fold_idx] = metrics_k[:, M_TRADES]
 
             # Update representative metrics (last evaluated fold)

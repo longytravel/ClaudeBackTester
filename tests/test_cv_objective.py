@@ -118,12 +118,13 @@ class TestAggregateFoldScores:
         r_variable = aggregate_fold_scores(variable, trades, "mean_std", 1.0, 30)
         assert r_consistent[0] > r_variable[0]
 
-    def test_mean_std_zero_fold_caps(self):
-        """If any fold is zero, score is capped at 0."""
+    def test_mean_std_zero_fold_not_killed(self):
+        """A single zero fold should NOT kill the score (variance penalty handles it)."""
         qualities = np.array([[15.0, 0.0, 12.0]])
         trades = np.array([[50, 50, 50]])
         result = aggregate_fold_scores(qualities, trades, "mean_std", 1.0, 30)
-        assert result[0] == 0.0
+        # mean=9, std=8.19, score=9-8.19=0.81 — small but not zero
+        assert result[0] > 0
 
     def test_insufficient_trades_excluded(self):
         """Folds with < min_trades are excluded from aggregation."""
@@ -169,4 +170,4 @@ class TestAggregateFoldScores:
         result = aggregate_fold_scores(qualities, trades, "mean_std", 1.0, 30)
         assert len(result) == 3
         assert result[0] > result[1]  # higher consistent > lower consistent
-        assert result[2] == 0.0  # has zero fold
+        assert result[2] < result[0]  # has zero fold, penalized but not necessarily zero

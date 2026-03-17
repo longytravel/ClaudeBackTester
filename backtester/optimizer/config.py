@@ -68,7 +68,7 @@ class OptimizationConfig:
     use_cv_objective: bool = False          # Enable K-fold CV inside optimizer
     cv_embargo_days: int = 5                # Gap between folds in calendar days
     cv_min_trades_per_fold: int = 30        # Minimum trades for meaningful fold stats
-    cv_aggregation: str = "mean_std"        # "mean_std", "cvar", "geometric_mean"
+    cv_aggregation: str = "cvar"             # "mean_std", "cvar", "geometric_mean"
     cv_lambda: float = 1.0                  # Penalty weight for mean_std
     cv_early_stopping: bool = True          # Progressive culling of bad trials
     cv_n_folds: int | None = None           # Override auto K (None = auto)
