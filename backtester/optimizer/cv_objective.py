@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Bars per trading day by timeframe (for embargo conversion)
 BARS_PER_DAY: dict[str, float] = {
     "M1": 1440, "M5": 288, "M15": 96, "M30": 48,
-    "H1": 24, "H4": 6, "D1": 1, "W": 0.2,
+    "H1": 24, "H4": 6, "D1": 1, "D": 1, "W": 0.2,
 }
 
 
@@ -174,6 +174,9 @@ def aggregate_fold_scores(
             else:
                 result[i] = np.exp(np.mean(np.log(scores)))
 
+        else:
+            raise ValueError(f"Unknown CV aggregation method: {method}")
+
     return result
 
 
@@ -267,8 +270,11 @@ class CVObjective:
         )
 
         # Replace quality in output metrics with aggregated CV score
+        # Use total trades across all folds (not just last fold) so postfilter
+        # min_total_trades gate sees the real count (Codex review fix)
         output = last_metrics.copy()
         output[:, M_QUALITY] = aggregated
+        output[:, M_TRADES] = fold_trades.sum(axis=1)
 
         # Dead trials (killed by early stopping) get zero — even if partial
         # fold scores aggregated positive (Gemini review: leak bug fix)
